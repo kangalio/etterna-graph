@@ -9,10 +9,42 @@ import os
 import glob
 from enum import Enum
 
-from mappers import *
+#from mappers import *
 #from etterna_helpers import parse_sm
 
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+
+def map_wifescore(score):
+	try:
+		overall = float(next(score.iter("Overall")).text)
+		percentage = float(next(score.iter("WifeScore")).text)
+		score = overall * percentage / 0.93
+		return score
+	except: return None
+
+def map_manip(score):
+	replaydir = f"ReplaysV2"
+	try: replayfile = open(replaydir+"/"+score.attrib['Key'])
+	except: return None
+
+	times = []
+	for line in replayfile.readlines():
+		time_str = line.split(" ")[0]
+		try: times.append(float(time_str))
+		except ValueError: pass
+
+	manipulations = 0
+	i = 1
+	for t in times[1:]:
+		if times[i] < times[i-1]:
+			manipulations += 1
+		i += 1
+
+	percent_manipulated = manipulations/len(times)*100
+	return percent_manipulated
+
+def map_accuracy(score):
+	return float(score.find("WifeScore").text)*100
 
 def analyze_session(scores):
 	session_end_threshold = timedelta(minutes=20)
@@ -69,7 +101,7 @@ categories = [
 	Category("Accuracy (%)", map_accuracy),
 	Category("Session length (min)", analyze_session, mapper_input="raw")
 ]
-xml = etree.parse("/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml").getroot()
+xml = etree.parse("Etterna.xml").getroot()
 
 matplotlib.style.use("seaborn")
 
