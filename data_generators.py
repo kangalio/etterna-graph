@@ -12,53 +12,6 @@ generator functions here, one for each scatter plot
 # Utility function
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
-# Implements a scatter chart with datetime over x-axis. Y values are
-# different per instance via the given chart_mapper function.
-class ScoreScatterChart:
-	def __init__(self, xml, name, score_mapper):
-		self.name = name
-		self.xml = xml
-		self.score_mapper = score_mapper
-	
-	def calculate(self, **kwargs):
-		self.data = {}
-		for score in self.xml.iter("Score"):
-			datetime = parsedate(score.find("DateTime").text)
-			value = (self.score_mapper)(score, **kwargs)
-			self.data[datetime] = value
-	
-	def draw(self, ax, index):
-		color = plt.get_cmap("Dark2")(index)
-		x, y = self.data.keys(), self.data.values()
-		ax.scatter(x, y, color=color, alpha=0.4)
-		ax.set_title(self.name)
-
-class XMLScatterChart(ScoreScatterChart):
-	def calculate(self, **kwargs):
-		self.data = (self.score_mapper)(self.xml)
-
-class XMLBarChart(XMLScatterChart):
-	def draw(self, ax, index):
-		color = plt.get_cmap("Dark2")(index)
-		x, y = self.data.keys(), self.data.values()
-		ax.bar(x, y, color=color)
-		ax.set_title(self.name)
-
-class XMLStackedBarChart(XMLScatterChart):
-	def draw(self, ax, index):
-		ax.set_title(self.name)
-		
-		self.data = self.data[-30:]
-		num_sessions = len(self.data)
-		bottom = [0] * num_sessions
-		for j in range(7):
-			color = plt.get_cmap("Dark2_r")(j) # TODO use official color palette
-			amounts = [self.data[i][j] for i in range(num_sessions)]
-			x = np.arange(num_sessions)
-			ax.bar(x, amounts, width=0.9, bottom=bottom, color=color)
-			for i in range(num_sessions): bottom[i] += amounts[i]
-
-
 # This method does not model the actual game mechanics 100% accurately
 def map_wifescore(score):
 	try:

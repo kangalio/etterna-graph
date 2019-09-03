@@ -1,17 +1,20 @@
 from PyQt5.QtWidgets import QApplication, QFileDialog, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QScrollArea, QFrame, QMainWindow, QMessageBox, QSizePolicy
 from PyQt5.QtCore import Qt
-from matplotlib.backends.qt_compat import QtCore, QtWidgets
+"""from matplotlib.backends.qt_compat import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+"""
+import numpy as np
 
 import graphing
+from plot_frame import PlotFrame
 
 """
 This file mainly handles the UI and overall program state
 """
 
 infobox_text = """
-This was coded using PyQT and matplotlib in Python, by kangalioo.
+This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
 
 The manipulation percentage is calculated by counting the number of
 notes that were hit out of order. This is not optimal, but I think it
@@ -22,13 +25,17 @@ is more than 20 minutes apart from the next play. Therefore a 15min
 pause between playing would still count as one session, a 25 min pause
 however would not.
 
-Also, if you have any more plot ideas, I would be thrilled if you sent
-them to me, over Discord/Reddit. It can be anything - scatter plot, bar
-chart, a single value.
+Also, if you have any more plot ideas - scatter plot, bar chart,
+whatever - I would be thrilled if you sent them to me, over
+Discord/Reddit
 """.strip() # strip() to remove leading and trailing newlines
 
 # Fields: etterna_xml, canvas, button_load_xml, button_load_replays, window
 class Application():
+	#etterna_xml = None
+	etterna_xml = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
+	replays_dir = None
+	
 	def __init__(self):
 		# Construct app, root widget and layout 
 		app = QApplication(["Kangalioo's Etterna stats analyzer"])
@@ -43,8 +50,6 @@ class Application():
 		scroll.setWidgetResizable(True)
 		window.setCentralWidget(scroll)
 		
-		# Setup everything else
-		self.setup_graphing()
 		self.setup_ui(layout)
 		
 		# Start
@@ -52,10 +57,6 @@ class Application():
 		window.resize(root.sizeHint())
 		window.show()
 		app.exec_()
-	
-	def setup_graphing(self):
-		self.etterna_xml = None
-		self.replays_dir = None
 	
 	def setup_ui(self, layout):
 		button_row_widget = QWidget()
@@ -77,20 +78,22 @@ class Application():
 		button_row.addWidget(button)
 		button.clicked.connect(self.display_info_box)
 		
-		self.canvas = FigureCanvas(Figure(figsize=(12, 16)))
+		self.plot_frame = PlotFrame(self.etterna_xml)
+		layout.addWidget(self.plot_frame)
+		
+		"""self.canvas = FigureCanvas(Figure(figsize=(12, 16)))
 		layout.addWidget(self.canvas)
 		
 		navigation_toolbar = NavigationToolbar(self.canvas, self.window)
 		navigation_toolbar.setMaximumWidth(600)
-		button_row.addWidget(navigation_toolbar)
+		button_row.addWidget(navigation_toolbar)"""
 		
 		# REMEMBER
 		#self.try_load_etterna_xml()
-		self.etterna_xml = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
-		self.mark_currently_loaded(self.button_load_xml)
-		#self.replays_dir = "/home/kangalioo/.etterna/Save/ReplaysV2"
-		#self.mark_currently_loaded(self.button_load_replays)
 		self.refresh_graphs()
+	
+	def refresh_graphs(self):
+		self.plot_frame.draw()
 	
 	def display_info_box(self):
 		msgbox = QMessageBox()
@@ -124,10 +127,5 @@ class Application():
 		self.replays_dir = path
 		
 		self.refresh_graphs()
-	
-	def refresh_graphs(self):
-		self.canvas.figure.clear()
-		graphing.draw_plots(self.canvas.figure, self.etterna_xml, replays_dir=self.replays_dir)
-		self.canvas.draw()
 
 application = Application()
