@@ -3,14 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import Counter
 
+from util import parsedate
+
 """
 This file holds all the so-called data generators. Those take save data
 and generate scatter points out of them. There are multiple data
 generator functions here, one for each scatter plot
 """
-
-# Utility function
-def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
 # This method does not model the actual game mechanics 100% accurately
 def map_wifescore(score):
@@ -41,7 +40,10 @@ def map_manip(score, replays_dir):
 	percent_manipulated = manipulations/len(times)*100
 	return percent_manipulated
 
-def map_accuracy(score): return float(score.find("WifeScore").text)*100
+def map_accuracy(score):
+	percent = float(score.find("WifeScore").text)*100
+	if percent <= -400: return None # Those are weird
+	return 100 - percent
 
 sessions_division_cache = {}
 def divide_into_sessions(xml, minplays=1):

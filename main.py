@@ -30,6 +30,13 @@ whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit
 """.strip() # strip() to remove leading and trailing newlines
 
+# Like QScrollArea, but without scroll wheel scrolling :p
+# I did this to prevent simultaneous scrolling and panning when hovering
+# a plot while scrolling, which was annoying af.
+class ScrollArea(QScrollArea):
+	def wheelEvent(self, event):
+		pass
+
 # Fields: etterna_xml, canvas, button_load_xml, button_load_replays, window
 class Application():
 	#etterna_xml = None
@@ -46,7 +53,7 @@ class Application():
 		self.window = window
 		root = QWidget()
 		layout = QVBoxLayout(root)
-		scroll = QScrollArea(window)
+		scroll = ScrollArea(window)
 		scroll.setWidget(root)
 		scroll.setWidgetResizable(True)
 		window.setCentralWidget(scroll)
@@ -54,8 +61,9 @@ class Application():
 		self.setup_ui(layout)
 		
 		# Start
-		root.setMinimumSize(root.sizeHint())
-		window.resize(root.sizeHint())
+		w, h = 1600, 2500
+		root.setMinimumSize(1000, h)
+		window.resize(w, h)
 		window.show()
 		app.exec_()
 	
@@ -81,13 +89,6 @@ class Application():
 		
 		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir)
 		layout.addWidget(self.plot_frame)
-		
-		"""self.canvas = FigureCanvas(Figure(figsize=(12, 16)))
-		layout.addWidget(self.canvas)
-		
-		navigation_toolbar = NavigationToolbar(self.canvas, self.window)
-		navigation_toolbar.setMaximumWidth(600)
-		button_row.addWidget(navigation_toolbar)"""
 		
 		# REMEMBER
 		#self.try_load_etterna_xml()
