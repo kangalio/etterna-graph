@@ -43,10 +43,11 @@ def map_manip(score, replays_dir):
 
 def map_accuracy(score): return float(score.find("WifeScore").text)*100
 
-sessions_division_cache = None
-def divide_into_sessions(xml):
+sessions_division_cache = {}
+def divide_into_sessions(xml, minplays=1):
 	global sessions_division_cache
-	if sessions_division_cache != None: return sessions_division_cache
+	if minplays in sessions_division_cache:
+		return sessions_division_cache[minplays]
 	
 	session_end_threshold = timedelta(minutes=20)
 	
@@ -61,21 +62,22 @@ def divide_into_sessions(xml):
 	for i in range(1, len(zipped)):
 		datetime = zipped[i][1]
 		if zipped[i][1] - zipped[i-1][1] > session_end_threshold:
-			sessions.append(current_session)
+			if len(current_session) >= minplays:
+				sessions.append(current_session)
 			current_session = []
 			s_start = zipped[i][1]
 		current_session.append(zipped[i])
 	
-	sessions_division_cache = sessions
+	sessions_division_cache[minplays] = sessions
 	return sessions
 
 def gen_session_length(xml):
 	sessions = divide_into_sessions(xml)
 	return {s[0][1]: (s[-1][1]-s[0][1]).total_seconds()/60 for s in sessions}
 
-# Return format: [[a,b,c,d,e,f,g][a,b,c,d,e,f,g][a,b,c,d,e,f,g]...]
+# Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_session_skillsets(xml):
-	sessions = divide_into_sessions(xml)
+	sessions = divide_into_sessions(xml, minplays=5)
 	diffsets = []
 	for session in sessions:
 		diffset = [0,0,0,0,0,0,0]
@@ -89,7 +91,7 @@ def gen_session_skillsets(xml):
 		if total == 0: continue
 		diffset = [diff/total*100 for diff in diffset]
 		diffsets.append(diffset)
-	return diffsets
+	return list(zip(*diffsets)) # Transpose
 
 def gen_plays_by_hour(xml):
 	from datetime import time

@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 """
 import numpy as np
 
-import graphing
+#import graphing
 from plot_frame import PlotFrame
 
 """
@@ -34,6 +34,7 @@ Discord/Reddit
 class Application():
 	#etterna_xml = None
 	etterna_xml = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
+	#replays_dir = "/home/kangalioo/.etterna/Save/ReplaysV2"
 	replays_dir = None
 	
 	def __init__(self):
@@ -78,7 +79,7 @@ class Application():
 		button_row.addWidget(button)
 		button.clicked.connect(self.display_info_box)
 		
-		self.plot_frame = PlotFrame(self.etterna_xml)
+		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir)
 		layout.addWidget(self.plot_frame)
 		
 		"""self.canvas = FigureCanvas(Figure(figsize=(12, 16)))
