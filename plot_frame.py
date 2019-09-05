@@ -75,7 +75,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 		color = pg.mkColor(color)
 		color.setAlphaF(alpha)
 		if type_ == "scatter":
-			item = pg.ScatterPlotItem(x, y, pen=None, brush=color, data=ids)
+			item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
 			if click_callback != None:
 				item.sigClicked.connect(click_callback)
 		elif type_ == "bar":
@@ -130,27 +130,29 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
+		cmap = get_matplotlib_colormap("tab10")
+		
 		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
 		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
 		
-		plot(self, self.xml, g.map_wifescore, "r", "Wife score over time",
+		plot(self, self.xml, g.map_wifescore, cmap[0], "Wife score over time",
 			time_xaxis=True, mappertype="score", click_callback=score_callback)
-		plot(self, self.xml, g.map_accuracy, "c", "Accuracy over time",
+		plot(self, self.xml, g.map_accuracy, cmap[1], "Accuracy over time",
 			#log=True, # log doesn't work on scatter charts
 			time_xaxis=True, accuracy_yaxis=True, mappertype="score",
 			click_callback=score_callback)
 		self.nextRow()
 		
-		plot(self, self.xml, g.gen_session_length, "m", "Session length over time (min)",
+		plot(self, self.xml, g.gen_session_length, cmap[2], "Session length over time (min)",
 			time_xaxis=True, click_callback=session_callback)
-		plot(self, self.xml, g.map_manip, "m", "Manipulation over time",
+		plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time",
 			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
 			click_callback=score_callback)
 		self.nextRow()
 		
-		plot(self, self.xml, g.gen_plays_by_hour, "m", "Number of plays per hour of day",
+		plot(self, self.xml, g.gen_plays_by_hour, cmap[4], "Number of plays per hour of day",
 			type_="bar")
-		plot(self, self.xml, g.gen_session_plays, "m", "Number of sessions with x plays",
+		plot(self, self.xml, g.gen_session_plays, cmap[5], "Number of sessions with x plays",
 			type_="bar")
 		self.nextRow()
 		
@@ -158,6 +160,17 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 			legend=diffset_names, type_="stacked bar", colspan=2)
 		self.nextRow()
 		
-		plot(self, self.xml, g.gen_chart_play_distr, "m", "Number of charts with x plays",
+		plot(self, self.xml, g.gen_chart_play_distr, cmap[6], "Number of charts with x plays",
 			type_="bar")
 	
+def get_matplotlib_colormap(name):
+	import matplotlib
+	import matplotlib.pyplot
+	
+	cmap = matplotlib.pyplot.cm.get_cmap(name)
+	colors = []
+	for i in range(cmap.N):
+		rgb = cmap(i)[:3] # will return rgba, we take only first 3 so we get rgb
+		colors.append(matplotlib.colors.rgb2hex(rgb))
+	
+	return colors
