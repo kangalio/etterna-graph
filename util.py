@@ -8,7 +8,7 @@ def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 class TimeAxisItem(pg.AxisItem):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.setLabel(text='Time', units=None)
+		self.setLabel(units=None)
 		self.enableAutoSIPrefix(False)
 
 	def tickStrings(self, values, scale, spacing):
@@ -17,7 +17,7 @@ class TimeAxisItem(pg.AxisItem):
 class AccuracyAxisItem(pg.AxisItem):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.setLabel(text='Accuracy', units=None)
+		self.setLabel(units=None)
 		self.enableAutoSIPrefix(False)
 
 	def tickStrings(self, values, scale, spacing):

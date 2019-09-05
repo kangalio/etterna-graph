@@ -1,5 +1,6 @@
-from PyQt5.QtWidgets import QApplication, QFileDialog, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QScrollArea, QFrame, QMainWindow, QMessageBox, QSizePolicy
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 import numpy as np
 
 from plot_frame import PlotFrame
@@ -56,13 +57,23 @@ class Application():
 		self.setup_ui(layout)
 		
 		# Start
-		w, h = 1600, 2500
+		#w, h = 1600, 2500
+		w, h = 1280, 720
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		window.show()
 		app.exec_()
 	
 	def setup_ui(self, layout):
+		# Add infobox
+		toolbar = QToolBar()
+		infobar = QLabel("This is the infobox. Press on a scatter point to see information about the score")
+		infobar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+		infobar.setAlignment(Qt.AlignCenter)
+		toolbar.addWidget(infobar)
+		self.window.addToolBar(Qt.BottomToolBarArea, toolbar)
+		
+		# Button row. Next three sections are the three buttons
 		button_row_widget = QWidget()
 		button_row = QHBoxLayout(button_row_widget)
 		layout.addWidget(button_row_widget)
@@ -82,7 +93,8 @@ class Application():
 		button_row.addWidget(button)
 		button.clicked.connect(self.display_info_box)
 		
-		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir)
+		# Add plot frame
+		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, infobar)
 		layout.addWidget(self.plot_frame)
 		
 		# REMEMBER

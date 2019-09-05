@@ -22,12 +22,17 @@ import data_generators as g
 # time_xaxis: whether the x axis is a datetime axis
 # accuracy_yacis: whether the yaxis is an accuracy axis
 # legend: color names
+# ids_included: whether mapper returns list of identifiers for the scatter points
 # type_: chart type: "scatter", "bar", or "stacked bar"
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
-def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, legend=None, type_="scatter", colspan=1, rowspan=1):
+# ids_included
+def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1):
+	ids_included = click_callback != None
+	ids = None
 	if mappertype == "xml":
 		data = (mapper)(xml)
+		if ids_included: (data, ids) = data
 		if isinstance(data, dict): # If dict map key-value pairs to x-y
 			x, y = list(data.keys()), list(data.values())
 		else: # If list, map list to y and generate consecutive x values
@@ -36,6 +41,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 		if time_xaxis: x = [value.timestamp() for value in x]
 	elif mappertype == "score":
 		x, y = [], []
+		if ids_included: ids = []
 		for score in xml.iter("Score"):
 			result = (mapper)(score, *mapper_args)
 			if result == None: continue
@@ -43,6 +49,8 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 			
 			timestamp = parsedate(score.findtext("DateTime")).timestamp()
 			x.append(timestamp)
+			
+			if ids_included: ids.append(score)
 	
 	axisItems = {}
 	if time_xaxis:
@@ -67,21 +75,40 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 		color = pg.mkColor(color)
 		color.setAlphaF(alpha)
 		if type_ == "scatter":
-			item = pg.ScatterPlotItem(x, y, pen=None, brush=color)
+			item = pg.ScatterPlotItem(x, y, pen=None, brush=color, data=ids)
+			if click_callback != None:
+				item.sigClicked.connect(click_callback)
 		elif type_ == "bar":
 			item = pg.BarGraphItem(x=x, height=y, width=0.8, pen="w", brush=color)
 		plot.addItem(item)
-	
-	#if log: plot.setLogMode(True, False)
 
 class PlotFrame(pg.GraphicsLayoutWidget):
-	def __init__(self, xml_path, replays_path):
+	def __init__(self, xml_path, replays_path, infobar):
 		super().__init__(border=(100,100,100))
 		
 		if xml_path == None: return
 		self.xml = etree.parse(xml_path).getroot()
 		self.replays_path = replays_path
+		self.infobar = infobar
 	
+	def find_parent_chart(self, score):
+		score_key = score.get("Key")
+		return self.xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
+	
+	def update_infobox(self, points):
+		if len(points) > 1:
+			text = f"{len(points)} points selected at once!"
+		else:
+			score = points[0].data()
+			datetime = score.findtext("DateTime")
+			chart = self.find_parent_chart(score)
+			pack, song = chart.get("Pack"), chart.get("Song")
+			percent = float(score.findtext("WifeScore"))*100
+			percent = round(percent * 100) / 100 # Round to 2 places
+			
+			text = f'{datetime}    {percent}%    "{pack}" -> "{song}"'
+		self.infobar.setText(text)
+
 	def draw(self):
 		diffsets = [
 			("333399", "Stream"),
@@ -94,17 +121,21 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
+		scatter_callback = lambda _, points: self.update_infobox(points)
+		
 		plot(self, self.xml, g.map_wifescore, "r", "Wife score over time",
-			time_xaxis=True, mappertype="score")
+			time_xaxis=True, mappertype="score", click_callback=scatter_callback)
 		plot(self, self.xml, g.map_accuracy, "c", "Accuracy over time",
 			#log=True, # log doesn't work on scatter charts
-			time_xaxis=True, accuracy_yaxis=True, mappertype="score")
+			time_xaxis=True, accuracy_yaxis=True, mappertype="score",
+			click_callback=scatter_callback)
 		self.nextRow()
 		
-		plot(self, self.xml, g.gen_session_length, "m", "Session length over time",
+		plot(self, self.xml, g.gen_session_length, "m", "Session length over time (min)",
 			time_xaxis=True)
 		plot(self, self.xml, g.map_manip, "m", "Manipulation over time",
-			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path])
+			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
+			click_callback=scatter_callback)
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_plays_by_hour, "m", "Number of plays per hour of day",
