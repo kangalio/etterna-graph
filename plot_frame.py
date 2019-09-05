@@ -27,7 +27,7 @@ import data_generators as g
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
 # ids_included
-def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1):
+def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, manip_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1):
 	ids_included = click_callback != None
 	ids = None
 	if mappertype == "xml":
@@ -56,7 +56,9 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 	if time_xaxis:
 		axisItems["bottom"] = util.TimeAxisItem(orientation="bottom")
 	if accuracy_yaxis:
-		axisItems["left"] = util.AccuracyAxisItem(orientation="left")
+		axisItems["left"] = util.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
+	if manip_yaxis:
+		axisItems["left"] = util.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 	
 	plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
 	plot.setTitle(title)
@@ -82,6 +84,9 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 			item = pg.BarGraphItem(x=x, height=y, width=0.8, pen="w", brush=color)
 		plot.addItem(item)
 
+def text_box(frame, text):
+	plot = frame.addLabel(text)
+
 class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, xml_path, replays_path, infobar):
 		super().__init__(border=(100,100,100))
@@ -90,17 +95,13 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		self.replays_path = replays_path
 		self.infobar = infobar
 	
-	def find_parent_chart(self, score):
-		score_key = score.get("Key")
-		return self.xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
-	
 	def scatter_info(self, points):
 		if len(points) > 1:
 			return f"{len(points)} points selected at once!"
 		
 		score = points[0].data()
 		datetime = score.findtext("DateTime")
-		chart = self.find_parent_chart(score)
+		chart = util.find_parent_chart(self.xml, score)
 		pack, song = chart.get("Pack"), chart.get("Song")
 		percent = float(score.findtext("WifeScore"))*100
 		percent = round(percent * 100) / 100 # Round to 2 places
@@ -136,30 +137,57 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
 		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
 		
+		text_box(self, gen_textbox_text(self.xml))
+		text_box(self, gen_textbox_text_2(self.xml))
+		self.nextRow()
+		
 		plot(self, self.xml, g.map_wifescore, cmap[0], "Wife score over time",
 			time_xaxis=True, mappertype="score", click_callback=score_callback)
-		plot(self, self.xml, g.map_accuracy, cmap[1], "Accuracy over time",
+		plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time (log scale)",
+			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
+			manip_yaxis=True, click_callback=score_callback)
+		self.nextRow()
+		
+		plot(self, self.xml, g.map_accuracy, cmap[1], "Accuracy over time (log scale)",
 			#log=True, # log doesn't work on scatter charts
 			time_xaxis=True, accuracy_yaxis=True, mappertype="score",
 			click_callback=score_callback)
-		self.nextRow()
-		
 		plot(self, self.xml, g.gen_session_length, cmap[2], "Session length over time (min)",
 			time_xaxis=True, click_callback=session_callback)
-		plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time",
-			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
-			click_callback=score_callback)
+		
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_plays_by_hour, cmap[4], "Number of plays per hour of day",
-			type_="bar")
-		plot(self, self.xml, g.gen_session_plays, cmap[5], "Number of sessions with x plays",
 			type_="bar")
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained during sessions (only those with >5 scores)",
 			legend=diffset_names, type_="stacked bar", colspan=2)
 		self.nextRow()
-		
-		plot(self, self.xml, g.gen_chart_play_distr, cmap[6], "Number of charts with x plays",
-			type_="bar")
+
+def gen_textbox_text(xml):
+	text = ["Most played charts:"]
+	charts = g.gen_most_played_charts(xml, num_charts=5)
+	i = 1
+	for (chart, num_plays) in charts:
+		pack, song = chart.get("Pack"), chart.get("Song")
+		text.append(f"{i}) \"{pack}\" -> \"{song}\" with {num_plays} scores")
+		i += 1
+	
+	return "<br>".join(text)
+
+def gen_textbox_text_2(xml):
+	sessions = g.divide_into_sessions(xml)
+	sessions = [(s, (s[-1][1]-s[0][1]).total_seconds()/60) for s in sessions]
+	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
+	sessions = sessions[:5]
+	
+	text = ["Longest sessions:"]
+	i = 1
+	for (session, length) in sessions:
+		num_plays = len(session)
+		datetime = session[0][1]
+		text.append(f"{i}) {datetime}, {round(length)} minutes long with {num_plays} scores")
+		i += 1
+	
+	return "<br>".join(text)

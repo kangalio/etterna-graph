@@ -38,7 +38,8 @@ def map_manip(score, replays_dir):
 		i += 1
 
 	percent_manipulated = manipulations/len(times)*100
-	return percent_manipulated
+	percent_manipulated = max(percent_manipulated, 0.01) # Clamp
+	return math.log(percent_manipulated) / math.log(10)
 
 def map_accuracy(score):
 	percent = float(score.find("WifeScore").text)*100
@@ -74,6 +75,7 @@ def divide_into_sessions(xml, minplays=1):
 	sessions_division_cache[minplays] = sessions
 	return sessions
 
+# Returns ({datetime: session length}, [session])
 def gen_session_length(xml):
 	sessions = divide_into_sessions(xml)
 	result = {s[0][1]: (s[-1][1]-s[0][1]).total_seconds()/60 for s in sessions}
@@ -116,11 +118,12 @@ def gen_session_plays(xml):
 	nums_sessions_with_x_plays = Counter(nums_plays)
 	return nums_sessions_with_x_plays
 
-def gen_chart_play_distr(xml):
-	charts_nums_plays = []
+def gen_most_played_charts(xml, num_charts):
+	charts_num_plays = []
 	for chart in xml.iter("Chart"):
 		score_filter = lambda s: float(s.findtext("WifeScore")) > 0.5
 		num_plays = len([s for s in chart.iter("Score") if score_filter(s)])
-		if num_plays > 0: charts_nums_plays.append(num_plays)
+		if num_plays > 0: charts_num_plays.append((chart, num_plays))
 	
-	return Counter(charts_nums_plays)
+	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
+	return charts_num_plays[:num_charts]

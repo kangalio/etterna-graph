@@ -15,16 +15,26 @@ class TimeAxisItem(pg.AxisItem):
 	def tickStrings(self, values, scale, spacing):
 		return [datetime.fromtimestamp(value).strftime("%Y-%m-%d") for value in values]
 
-class AccuracyAxisItem(pg.AxisItem):
-	def __init__(self, *args, **kwargs):
+class DIYLogAxisItem(pg.AxisItem):
+	def __init__(self, accuracy, decimal_places, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.setLabel(units=None)
 		self.enableAutoSIPrefix(False)
+		
+		self.accuracy = accuracy
+		self.decimal_places = decimal_places
 
 	def tickStrings(self, values, scale, spacing):
 		result = []
 		for value in values:
-			value = 100-math.pow(10, -value)
-			value = round(value * 1000) / 1000
+			if self.accuracy:
+				value = 100-math.pow(10, -value)
+			else:
+				value = math.pow(10, value)
+			value = round(value, self.decimal_places)
 			result.append(str(value) + "%")
 		return result
+
+def find_parent_chart(xml, score):
+	score_key = score.get("Key")
+	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
