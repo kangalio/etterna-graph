@@ -130,7 +130,8 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
-		cmap = get_matplotlib_colormap("tab10")
+		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
+				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
 		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
 		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
@@ -162,15 +163,3 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		
 		plot(self, self.xml, g.gen_chart_play_distr, cmap[6], "Number of charts with x plays",
 			type_="bar")
-	
-def get_matplotlib_colormap(name):
-	import matplotlib
-	import matplotlib.pyplot
-	
-	cmap = matplotlib.pyplot.cm.get_cmap(name)
-	colors = []
-	for i in range(cmap.N):
-		rgb = cmap(i)[:3] # will return rgba, we take only first 3 so we get rgb
-		colors.append(matplotlib.colors.rgb2hex(rgb))
-	
-	return colors
