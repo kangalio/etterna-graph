@@ -86,7 +86,6 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, xml_path, replays_path, infobar):
 		super().__init__(border=(100,100,100))
 		
-		if xml_path == None: return
 		self.xml = etree.parse(xml_path).getroot()
 		self.replays_path = replays_path
 		self.infobar = infobar

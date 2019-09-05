@@ -2,6 +2,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import numpy as np
+import os
 
 from plot_frame import PlotFrame
 
@@ -35,9 +36,7 @@ class ScrollArea(QScrollArea):
 
 # Fields: etterna_xml, canvas, button_load_xml, button_load_replays, window
 class Application():
-	#etterna_xml = None
-	etterna_xml = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
-	#replays_dir = "/home/kangalioo/.etterna/Save/ReplaysV2"
+	etterna_xml = None
 	replays_dir = None
 	
 	def __init__(self):
@@ -57,8 +56,8 @@ class Application():
 		self.setup_ui(layout)
 		
 		# Start
-		#w, h = 1600, 2500
-		w, h = 1280, 720
+		w, h = 1600, 2500
+		#w, h = 1280, 720
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		window.show()
@@ -81,24 +80,27 @@ class Application():
 		button = QPushButton("Reload Etterna.xml")
 		self.button_load_xml = button
 		button_row.addWidget(button)
-		button.clicked.connect(self.try_load_etterna_xml)
+		button.clicked.connect(self.try_choose_etterna_xml)
 		
 		button = QPushButton("Load Replays")
 		button.setToolTip("Replay data is required for the manipulation chart")
 		self.button_load_replays = button
 		button_row.addWidget(button)
-		button.clicked.connect(self.try_load_replays)
+		button.clicked.connect(self.try_choose_replays)
 		
 		button = QPushButton("About this program")
 		button_row.addWidget(button)
 		button.clicked.connect(self.display_info_box)
 		
+		# REMEMBER
+		self.try_find_etterna_xml()
+		#self.try_find_replays()
+		if self.etterna_xml == None: self.try_choose_etterna_xml()
+		
 		# Add plot frame
 		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, infobar)
 		layout.addWidget(self.plot_frame)
 		
-		# REMEMBER
-		#self.try_load_etterna_xml()
 		self.refresh_graphs()
 	
 	def refresh_graphs(self):
@@ -114,11 +116,19 @@ class Application():
 		if not current_text.endswith(" [currently loaded]"):
 			button.setText(current_text + " [currently loaded]")
 	
-	def try_load_etterna_xml(self):
+	def try_find_etterna_xml(self):
+		path_maybe = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
+		if os.path.exists(path_maybe): self.etterna_xml = path_maybe
+	
+	def try_find_replays(self):
+		path_maybe = "/home/kangalioo/.etterna/Save/ReplaysV2"
+		if os.path.exists(path_maybe): self.replays_dir = path_maybe
+	
+	def try_choose_etterna_xml(self):
 		result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
 		path = result[0] # getOpenFileName returns tuple of path and filetype
 		
-		if path == "": return # User had cancelled the file chooser
+		if path == "": return # User cancelled the file chooser
 		
 		print(f"[UI] User selected Etterna.xml: {path}")
 		self.mark_currently_loaded(self.button_load_xml)
@@ -126,10 +136,10 @@ class Application():
 		
 		self.refresh_graphs()
 	
-	def try_load_replays(self):
+	def try_choose_replays(self):
 		path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
 		
-		if path == "": return # User had cancelled the chooser
+		if path == "": return # User cancelled the chooser
 		
 		print(f"[UI] User selected ReplaysV2: {path}")
 		self.mark_currently_loaded(self.button_load_replays)
