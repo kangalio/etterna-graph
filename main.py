@@ -1,12 +1,7 @@
 from PyQt5.QtWidgets import QApplication, QFileDialog, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QScrollArea, QFrame, QMainWindow, QMessageBox, QSizePolicy
 from PyQt5.QtCore import Qt
-"""from matplotlib.backends.qt_compat import QtCore, QtWidgets
-from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
-"""
 import numpy as np
 
-#import graphing
 from plot_frame import PlotFrame
 
 """

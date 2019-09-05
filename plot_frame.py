@@ -7,15 +7,21 @@ import util
 from util import parsedate
 import data_generators as g
 
-def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
-
+# This is a big function thata handles almost all graphics library
+# interaction. Parameters:
+# 
 # frame: GraphicsLayoutWidget to insert the plot into
 # xml: Etterna.xml root node
 # mapper: function to generate data
 # color, alpha: color/alpha of the points
 # mappertype: "xml" if mapper is called with `xml` as parameter, "score"
-#  if mapper is called with a single score object
+#   if mapper is called with a single score object
+# mapper_args: additional call parameters for the mapper
+# log: whether to use log scale for x axis. Because of pyqtgraph
+#   restrictions it only works for PlotDataItems (line charts)
 # time_xaxis: whether the x axis is a datetime axis
+# accuracy_yacis: whether the yaxis is an accuracy axis
+# legend: color names
 # type_: chart type: "scatter", "bar", or "stacked bar"
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
@@ -48,6 +54,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 	plot.setTitle(title)
 	if log: plot.setLogMode(x=False, y=True)
 	if legend != None: plot.addLegend()
+	
 	if type_ == "stacked bar":
 		num_cols = len(y[0])
 		bottom = [0] * num_cols
@@ -87,16 +94,29 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
-		plot(self, self.xml, g.map_wifescore, "r", "Wife score over time", time_xaxis=True, mappertype="score")
-		plot(self, self.xml, g.map_accuracy, "c", "Accuracy over time (0 = 100%, 500 = -400%)", time_xaxis=True, accuracy_yaxis=False, log=True, mappertype="score")
+		plot(self, self.xml, g.map_wifescore, "r", "Wife score over time",
+			time_xaxis=True, mappertype="score")
+		plot(self, self.xml, g.map_accuracy, "c", "Accuracy over time",
+			#log=True, # log doesn't work on scatter charts
+			time_xaxis=True, accuracy_yaxis=True, mappertype="score")
 		self.nextRow()
-		plot(self, self.xml, g.gen_session_length, "m", "Session length (min) over time", time_xaxis=True)
-		plot(self, self.xml, g.map_manip, "m", "Manipulation over time", time_xaxis=True, mappertype="score", mapper_args=[self.replays_path])
+		
+		plot(self, self.xml, g.gen_session_length, "m", "Session length over time",
+			time_xaxis=True)
+		plot(self, self.xml, g.map_manip, "m", "Manipulation over time",
+			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path])
 		self.nextRow()
-		plot(self, self.xml, g.gen_plays_by_hour, "m", "Number of plays per hour of day", type_="bar")
-		plot(self, self.xml, g.gen_session_plays, "m", "Number of sessions with x plays", type_="bar")
+		
+		plot(self, self.xml, g.gen_plays_by_hour, "m", "Number of plays per hour of day",
+			type_="bar")
+		plot(self, self.xml, g.gen_session_plays, "m", "Number of sessions with x plays",
+			type_="bar")
 		self.nextRow()
-		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained during sessions (only those with >5 scores)", legend=diffset_names, type_="stacked bar", colspan=2)
+		
+		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained during sessions (only those with >5 scores)",
+			legend=diffset_names, type_="stacked bar", colspan=2)
 		self.nextRow()
-		plot(self, self.xml, g.gen_chart_play_distr, "m", "Number of charts with x plays", type_="bar")
+		
+		plot(self, self.xml, g.gen_chart_play_distr, "m", "Number of charts with x plays",
+			type_="bar")
 	

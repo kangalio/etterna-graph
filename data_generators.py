@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 import numpy as np
 from collections import Counter
 
