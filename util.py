@@ -1,6 +1,7 @@
 import pyqtgraph as pg
 from datetime import datetime
 import time
+import math
 
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
@@ -21,4 +22,9 @@ class AccuracyAxisItem(pg.AxisItem):
 		self.enableAutoSIPrefix(False)
 
 	def tickStrings(self, values, scale, spacing):
-		return [str(100-value)+"%" for value in values]
+		result = []
+		for value in values:
+			value = 100-math.pow(10, -value)
+			value = round(value * 1000) / 1000
+			result.append(str(value) + "%")
+		return result

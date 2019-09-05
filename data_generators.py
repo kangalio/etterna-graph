@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
 from collections import Counter
+import math
 
 from util import parsedate
 
@@ -42,7 +43,8 @@ def map_manip(score, replays_dir):
 def map_accuracy(score):
 	percent = float(score.find("WifeScore").text)*100
 	if percent <= -400: return None # Those are weird
-	return 100 - percent
+	if percent > 100: return None
+	return -(math.log(100 - percent) / math.log(10))
 
 sessions_division_cache = {}
 def divide_into_sessions(xml, minplays=1):
