@@ -95,19 +95,29 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		score_key = score.get("Key")
 		return self.xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
 	
-	def update_infobox(self, points):
+	def scatter_info(self, points):
 		if len(points) > 1:
-			text = f"{len(points)} points selected at once!"
-		else:
-			score = points[0].data()
-			datetime = score.findtext("DateTime")
-			chart = self.find_parent_chart(score)
-			pack, song = chart.get("Pack"), chart.get("Song")
-			percent = float(score.findtext("WifeScore"))*100
-			percent = round(percent * 100) / 100 # Round to 2 places
-			
-			text = f'{datetime}    {percent}%    "{pack}" -> "{song}"'
-		self.infobar.setText(text)
+			return f"{len(points)} points selected at once!"
+		
+		score = points[0].data()
+		datetime = score.findtext("DateTime")
+		chart = self.find_parent_chart(score)
+		pack, song = chart.get("Pack"), chart.get("Song")
+		percent = float(score.findtext("WifeScore"))*100
+		percent = round(percent * 100) / 100 # Round to 2 places
+		
+		return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
+	
+	def session_info(self, points):
+		if len(points) > 1:
+			return f"{len(points)} points selected at once!"
+		
+		session = points[0].data()
+		start = session[0][1]
+		num_scores = len(session)
+		
+		
+		return f'{start}    {num_scores} scores'
 
 	def draw(self):
 		diffsets = [
@@ -121,21 +131,22 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
-		scatter_callback = lambda _, points: self.update_infobox(points)
+		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
+		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
 		
 		plot(self, self.xml, g.map_wifescore, "r", "Wife score over time",
-			time_xaxis=True, mappertype="score", click_callback=scatter_callback)
+			time_xaxis=True, mappertype="score", click_callback=score_callback)
 		plot(self, self.xml, g.map_accuracy, "c", "Accuracy over time",
 			#log=True, # log doesn't work on scatter charts
 			time_xaxis=True, accuracy_yaxis=True, mappertype="score",
-			click_callback=scatter_callback)
+			click_callback=score_callback)
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_session_length, "m", "Session length over time (min)",
-			time_xaxis=True)
+			time_xaxis=True, click_callback=session_callback)
 		plot(self, self.xml, g.map_manip, "m", "Manipulation over time",
 			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
-			click_callback=scatter_callback)
+			click_callback=score_callback)
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_plays_by_hour, "m", "Number of plays per hour of day",

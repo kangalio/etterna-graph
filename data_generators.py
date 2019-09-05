@@ -75,7 +75,7 @@ def divide_into_sessions(xml, minplays=1):
 def gen_session_length(xml):
 	sessions = divide_into_sessions(xml)
 	result = {s[0][1]: (s[-1][1]-s[0][1]).total_seconds()/60 for s in sessions}
-	return result
+	return (result, sessions)
 
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_session_skillsets(xml):
