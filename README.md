@@ -6,10 +6,10 @@ This is a Python program that visualizes various Etterna playing statistics. Wri
 2. Install the latest version of Python 3 ([download](https://www.python.org/downloads/release/python-373/)) as well as Python libraries lxml and pyqtgraph.
 3. Now execute the main.py file and the statistics _should_ pop up
 
-**Important: currently some file paths are hard-coded for my system, for easier testing. That means this program _won't work_ on your system without modifications.** You can change the hardcoded file paths in main.py:38 to match your system or wait until I've though of a solution that enables fast testing _without_ hard-coded paths, if you want to test this program yourself.
+Note: Currently the Replays load functionality is broken (not implemented yet). Therefore you'll need to hardcode your ReplaysV2 directory in the code (main.py) to see the manipulation chart (which depends on replay data).
 
 # Screenshots
-Those colors are ugly, I know. Those are completely arbitrary currently, because I haven't decided on a nice color palette yet.
+The screenshots are outdated at the moment. Current versions have different chart colors and a text box with top 5 most played charts and top 5 longest sessions.
 
 ![First four charts](https://imgur.com/lyivvxU.jpg)
 
