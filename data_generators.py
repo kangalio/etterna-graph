@@ -83,9 +83,29 @@ def gen_session_length(xml):
 
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_session_skillsets(xml):
-	sessions = divide_into_sessions(xml, minplays=5)
-	diffsets = []
+	# Divide scores into 'sessions' which are actually whole weeks
+	sessions = []
+	current_session = []
+	previous_week = -1
+	for score in sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime")):
+		datetime = parsedate(score.findtext("DateTime"))
+		week = datetime.isocalendar()[1]
+		if previous_week != week:
+			sessions.append(current_session)
+			current_session = []
+			previous_week = week
+		current_session.append((score, datetime))
+	sessions = sessions[1:]
+	
+	diffsets = {}
+	i = 0
+	previous_week = -1
 	for session in sessions:
+		week = session[0][1].isocalendar()[1]
+		if week != previous_week:
+			#i += 1
+			previous_week = week
+		
 		diffset = [0,0,0,0,0,0,0]
 		for score in session:
 			skillset_ssrs = score[0].find("SkillsetSSRs")
@@ -96,8 +116,10 @@ def gen_session_skillsets(xml):
 		total = sum(diffset)
 		if total == 0: continue
 		diffset = [diff/total*100 for diff in diffset]
-		diffsets.append(diffset)
-	return list(zip(*diffsets)) # Transpose
+		diffsets[i] = diffset
+		i += 1
+	
+	return diffsets
 
 def gen_plays_by_hour(xml):
 	from datetime import time
@@ -127,3 +149,28 @@ def gen_most_played_charts(xml, num_charts):
 	
 	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
 	return charts_num_plays[:num_charts]
+
+def gen_cb_probability(xml, replays_dir):
+	# {combo length: (base number, cb number)
+	base = [0] * 10000
+	cbs = [0] * 10000
+	for score in xml.iter("Score"):
+		try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
+		except: continue
+
+		great_window = 0.09 # 'Great' time window, seconds, Wife J4
+		combo = 0
+		base[combo] += 1
+		for line in replayfile.readlines():
+			deviation = float(line.split(" ")[1])
+			if deviation <= great_window:
+				combo += 1
+			else:
+				cbs[combo] += 1
+				combo = 0
+			base[combo] += 1
+	
+	# Find first combo that was never reached (0), starting with combo 1
+	max_combo = base.index(0, 1)
+	result = {i: (cbs[i]/base[i]) for i in range(max_combo) if base[i] >= 0}
+	return result

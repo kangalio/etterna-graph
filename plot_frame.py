@@ -31,7 +31,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 	ids_included = click_callback != None
 	ids = None
 	if mappertype == "xml":
-		data = (mapper)(xml)
+		data = (mapper)(xml, *mapper_args)
 		if ids_included: (data, ids) = data
 		if isinstance(data, dict): # If dict map key-value pairs to x-y
 			x, y = list(data.keys()), list(data.values())
@@ -66,10 +66,12 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 	if legend != None: plot.addLegend()
 	
 	if type_ == "stacked bar":
+		y = list(zip(*y))
 		num_cols = len(y[0])
 		bottom = [0] * num_cols
 		for (row_i, row) in enumerate(y):
-			item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=color[row_i], brush=color[row_i])
+			#item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=(0,0,0,255), brush=color[row_i])
+			item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=0.82, pen=color[row_i], brush=color[row_i])
 			bottom = [a+b for (a,b) in zip(bottom, row)] # We need out-of-place here
 			if legend != None: plot.legend.addItem(item, legend[row_i])
 			plot.addItem(item)
@@ -120,16 +122,22 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		return f'{start}    {num_scores} scores'
 
 	def draw(self):
+		
+		
 		diffsets = [
+			#("000000", "(Week separator)"),
 			("333399", "Stream"),
 			("6666ff", "Jumpstream"),
 			("cc33ff", "Handstream"),
 			("ff99cc", "Stamina"),
-			("009933", "Jackspeed"),
-			("66ff66", "Chordjack"),
+			("009933", "Jacks"),
+			("66ff66", "Chordjacks"),
 			("808080", "Technical")
 		]
 		diffset_colors, diffset_names = zip(*diffsets) # Unzip
+		
+		# These are the official (unsaturated) EO colors
+		#diffset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
 		
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
@@ -143,9 +151,15 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		
 		plot(self, self.xml, g.map_wifescore, cmap[0], "Wife score over time",
 			time_xaxis=True, mappertype="score", click_callback=score_callback)
-		plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time (log scale)",
-			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
-			manip_yaxis=True, click_callback=score_callback)
+		
+		#plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time (log scale)",
+		#	time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
+		#	manip_yaxis=True, click_callback=score_callback)
+		
+		#plot(self, self.xml, g.gen_cb_probability, cmap[3], "",
+		#	mapper_args=[self.replays_path], type_="bar")
+		
+		#g.gen_cb_probability(self.xml, self.replays_path)
 		self.nextRow()
 		
 		plot(self, self.xml, g.map_accuracy, cmap[1], "Accuracy over time (log scale)",
@@ -161,7 +175,7 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 			type_="bar")
 		self.nextRow()
 		
-		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained during sessions (only those with >5 scores)",
+		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained per week",
 			legend=diffset_names, type_="stacked bar", colspan=2)
 		self.nextRow()
 
