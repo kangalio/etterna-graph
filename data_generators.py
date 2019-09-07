@@ -158,6 +158,7 @@ def gen_cb_probability(xml, replays_dir):
 		try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
 		except: continue
 
+		# TODO choose J4/J5/... time window depending on play data
 		great_window = 0.09 # 'Great' time window, seconds, Wife J4
 		combo = 0
 		base[combo] += 1
@@ -169,7 +170,7 @@ def gen_cb_probability(xml, replays_dir):
 				cbs[combo] += 1
 				combo = 0
 			base[combo] += 1
-	
+		
 	# Find first combo that was never reached (0), starting with combo 1
 	max_combo = base.index(0, 1)
 	result = {i: (cbs[i]/base[i]) for i in range(max_combo) if base[i] >= 0}
@@ -188,3 +189,24 @@ def gen_hours_per_skillset(xml):
 		hours[main_diff] += length_hours
 	
 	return hours
+
+def gen_plays_per_week(xml):
+	datetimes = [parsedate(s.findtext("DateTime")) for s in xml.iter("Score")]
+	datetimes.sort()
+	
+	weeks = {}
+	week_end = datetimes[0]
+	week_start = week_end - timedelta(weeks=1)
+	i = 0
+	while i < len(datetimes):
+		if datetimes[i] < week_end:
+			weeks[week_start] += 1
+			i += 1
+		else:
+			week_start += timedelta(weeks=1)
+			week_end += timedelta(weeks=1)
+			weeks[week_start] = 0
+	
+	return weeks
+	#return {datetimes[0]: 10, datetimes[1]: 8}
+	

@@ -27,7 +27,7 @@ import data_generators as g
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
 # ids_included
-def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, manip_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1):
+def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, manip_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1, width=0.8):
 	ids_included = click_callback != None
 	ids = None
 	if mappertype == "xml":
@@ -83,7 +83,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 			if click_callback != None:
 				item.sigClicked.connect(click_callback)
 		elif type_ == "bar":
-			item = pg.BarGraphItem(x=x, height=y, width=0.8, pen="w", brush=color)
+			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(50,50,50), brush=color)
 		plot.addItem(item)
 
 def text_box(frame, text):
@@ -167,6 +167,8 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		
 		plot(self, self.xml, g.gen_plays_by_hour, cmap[4], "Number of plays per hour of day",
 			type_="bar")
+		plot(self, self.xml, g.gen_plays_per_week, cmap[5], "Number of plays each week",
+			type_="bar", time_xaxis=True, width=604800*0.8)
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained per week",
@@ -227,8 +229,8 @@ def gen_textbox_text_4(xml):
 	duration = relativedelta(datetime.now(), first_play_date)
 	
 	return "<br>".join([
+		f"You started playing {duration.years} years {duration.months} months ago"
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
-		f"You started playing {duration.years} years {duration.months} months ago"
 	])
 	
