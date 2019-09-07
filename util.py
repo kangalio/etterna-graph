@@ -38,3 +38,6 @@ class DIYLogAxisItem(pg.AxisItem):
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
+
+skillsets = ["Stream", "Jumpstream", "Handstream",
+		"Stamina", "Jacks", "Chordjacks", "Technical"]

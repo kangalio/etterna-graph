@@ -174,3 +174,17 @@ def gen_cb_probability(xml, replays_dir):
 	max_combo = base.index(0, 1)
 	result = {i: (cbs[i]/base[i]) for i in range(max_combo) if base[i] >= 0}
 	return result
+
+def gen_hours_per_skillset(xml):
+	hours = [0, 0, 0, 0, 0, 0, 0]
+	
+	for score in xml.iter("Score"):
+		skillset_ssrs = score.find("SkillsetSSRs")
+		if skillset_ssrs == None: continue
+		diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
+		main_diff = diffs.index(max(diffs))
+		
+		length_hours = float(score.findtext("SurviveSeconds")) / 3600
+		hours[main_diff] += length_hours
+	
+	return hours

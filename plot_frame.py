@@ -87,7 +87,7 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 		plot.addItem(item)
 
 def text_box(frame, text):
-	plot = frame.addLabel(text)
+	plot = frame.addLabel(text, justify="left")
 
 class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, xml_path, replays_path, infobar):
@@ -122,19 +122,10 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		return f'{start}    {num_scores} scores'
 
 	def draw(self):
-		
-		
-		diffsets = [
-			#("000000", "(Week separator)"),
-			("333399", "Stream"),
-			("6666ff", "Jumpstream"),
-			("cc33ff", "Handstream"),
-			("ff99cc", "Stamina"),
-			("009933", "Jacks"),
-			("66ff66", "Chordjacks"),
-			("808080", "Technical")
+		diffset_colors = [
+			"333399", "6666ff", "cc33ff", "ff99cc",
+			"009933", "66ff66", "808080"
 		]
-		diffset_colors, diffset_names = zip(*diffsets) # Unzip
 		
 		# These are the official (unsaturated) EO colors
 		#diffset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
@@ -148,13 +139,16 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		text_box(self, gen_textbox_text(self.xml))
 		text_box(self, gen_textbox_text_2(self.xml))
 		self.nextRow()
+		text_box(self, gen_textbox_text_3(self.xml))
+		text_box(self, gen_textbox_text_4(self.xml))
+		self.nextRow()
 		
 		plot(self, self.xml, g.map_wifescore, cmap[0], "Wife score over time",
 			time_xaxis=True, mappertype="score", click_callback=score_callback)
 		
-		#plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time (log scale)",
-		#	time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
-		#	manip_yaxis=True, click_callback=score_callback)
+		plot(self, self.xml, g.map_manip, cmap[3], "Manipulation over time (log scale)",
+			time_xaxis=True, mappertype="score", mapper_args=[self.replays_path],
+			manip_yaxis=True, click_callback=score_callback)
 		
 		#plot(self, self.xml, g.gen_cb_probability, cmap[3], "",
 		#	mapper_args=[self.replays_path], type_="bar")
@@ -176,7 +170,7 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained per week",
-			legend=diffset_names, type_="stacked bar", colspan=2)
+			legend=util.skillsets, type_="stacked bar", colspan=2)
 		self.nextRow()
 
 def gen_textbox_text(xml):
@@ -205,3 +199,36 @@ def gen_textbox_text_2(xml):
 		i += 1
 	
 	return "<br>".join(text)
+
+def gen_textbox_text_3(xml):
+	hours = g.gen_hours_per_skillset(xml)
+	
+	text = ["Hours spent training each skillset"]
+	for i in range(7):
+		skillset = util.skillsets[i]
+		m_total = int(hours[i] * 60)
+		h = int(m_total / 60)
+		m = m_total - 60 * h
+		text.append(f"- {skillset}: {h}h {m}min")
+	
+	return "<br>".join(text)
+
+"""
+You've been playing: {}
+Number of scores: {}
+You started playing {} ago
+"""
+def gen_textbox_text_4(xml):
+	from dateutil.relativedelta import relativedelta
+	
+	scores = list(xml.iter("Score"))
+	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
+	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
+	duration = relativedelta(datetime.now(), first_play_date)
+	
+	return "<br>".join([
+		f"Total hours spent playing: {round(hours)} hours",
+		f"Number of scores: {len(scores)}",
+		f"You started playing {duration.years} years {duration.months} months ago"
+	])
+	
