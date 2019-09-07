@@ -48,6 +48,7 @@ class Application():
 		self.window = window
 		root = QWidget()
 		layout = QVBoxLayout(root)
+		self.layout = layout
 		scroll = ScrollArea(window)
 		scroll.setWidget(root)
 		scroll.setWidgetResizable(True)
@@ -69,6 +70,7 @@ class Application():
 		infobar = QLabel("This is the infobox. Press on a scatter point to see information about the score")
 		infobar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 		infobar.setAlignment(Qt.AlignCenter)
+		self.infobar = infobar
 		toolbar.addWidget(infobar)
 		self.window.addToolBar(Qt.BottomToolBarArea, toolbar)
 		
@@ -100,10 +102,14 @@ class Application():
 		# Add plot frame
 		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, infobar)
 		layout.addWidget(self.plot_frame)
+		self.plot_frame.draw()
 		
-		self.refresh_graphs()
+		#self.refresh_graphs()
 	
 	def refresh_graphs(self):
+		old_frame = self.plot_frame
+		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, self.infobar)
+		self.layout.replaceWidget(old_frame, self.plot_frame)
 		self.plot_frame.draw()
 	
 	def display_info_box(self):
