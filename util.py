@@ -41,3 +41,57 @@ def find_parent_chart(xml, score):
 
 skillsets = ["Stream", "Jumpstream", "Handstream",
 		"Stamina", "Jacks", "Chordjacks", "Technical"]
+
+# Given a skillset level and the potential rating, this calculates the
+# 'power value' as I call it.
+def map_skill_to_power(skill, rating):
+	return max(0, 2 / math.erfc(0.1 * (skill - rating)) - 2)
+
+# Takes a potential rating, and a list of skillset ratings (one for each
+# score). Returns a boolean, whether the given potential rating is
+# 'okay', as I call it.
+def is_rating_okay(rating, values):
+	max_power_sum = 2 ** (0.1 * rating)
+	powers = [map_skill_to_power(value, rating) for value in values]
+	return sum(powers) < max_power_sum
+
+"""
+The idea is the following: we try out potential skillset rating values
+until we've found the lowest rating that still fits (I've called that
+property 'okay'-ness in the code).
+How do we know whether a potential skillset rating fits? We give each
+score a "power level", which is larger when the skillset rating of the
+specific score is high. Therefore, the user's best scores get the 
+highest power levels.
+Now, we sum the power levels of each score and check whether that sum
+is below a certain limit. If it is still under the limit, the rating
+fits (is 'okay'), and we can try a higher rating. If the sum is above
+the limit, the rating doesn't fit, and we need to try out a lower
+rating.
+"""
+def find_skillset_rating(values):
+	rating = 0
+	resolution = 10.24
+	
+	# Repeatedly approximate the final rating, with better resolution
+	# each time
+	while resolution > 0.01:
+		# Find lowest 'okay' rating with certain resolution
+		while not is_rating_okay(rating + resolution, values):
+			rating += resolution
+		
+		# Now, repeat with smaller resolution for better approximation
+		resolution /= 2
+	
+	# Round to accommodate floating point errors
+	return round(rating * 1.04, 2)
+
+# `skillsets_values` should be a list with 7 sublists, one for each
+# skillset containing all values from that skillset.
+# Returns list with 8 elements: first is the Overall rating, following
+# are the skillset ratings.
+def find_ratings(skillsets_values):
+	ratings = [find_skillset_rating(values) for values in skillsets_values]
+	overall = (sum(ratings) - min(ratings)) / 6
+	ratings.insert(0, overall)
+	return ratings

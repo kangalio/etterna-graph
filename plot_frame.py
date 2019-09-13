@@ -22,8 +22,8 @@ import data_generators as g
 # time_xaxis: whether the x axis is a datetime axis
 # accuracy_yacis: whether the yaxis is an accuracy axis
 # legend: color names
-# ids_included: whether mapper returns list of identifiers for the scatter points
-# type_: chart type: "scatter", "bar", or "stacked bar"
+# click_callback: callback to call on scatter point click
+# type_: chart type: "scatter", "bar", "bubble" or "stacked bar"
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
 # ids_included
@@ -33,11 +33,14 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 	if mappertype == "xml":
 		data = (mapper)(xml, *mapper_args)
 		if ids_included: (data, ids) = data
-		if isinstance(data, dict): # If dict map key-value pairs to x-y
-			x, y = list(data.keys()), list(data.values())
-		else: # If list, map list to y and generate consecutive x values
-			length = len(data[0]) if type_=="stacked bar" else len(data)
-			x, y = range(length), data
+		if type_ == "bubble":
+			(x, y, sizes) = data
+		else:
+			if isinstance(data, dict): # If dict map key-value pairs to x-y
+				x, y = list(data.keys()), list(data.values())
+			else: # If list, map list to y and generate consecutive x values
+				length = len(data[0]) if type_=="stacked bar" else len(data)
+				x, y = range(length), data
 		if time_xaxis: x = [value.timestamp() for value in x]
 	elif mappertype == "score":
 		x, y = [], []
@@ -83,7 +86,11 @@ def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_a
 			if click_callback != None:
 				item.sigClicked.connect(click_callback)
 		elif type_ == "bar":
-			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(50,50,50), brush=color)
+			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200,200,200), brush=color)
+		elif type_ == "bubble":
+			item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
+			if click_callback != None:
+				item.sigClicked.connect(click_callback)
 		plot.addItem(item)
 
 def text_box(frame, text):
@@ -120,6 +127,17 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		
 		
 		return f'{start}    {num_scores} scores'
+	
+	def session_info2(self, points):
+		if len(points) > 1:
+			return f"{len(points)} points selected at once!"
+		
+		(prev_rating, then_rating, num_scores, length) = points[0].data()
+		prev_rating = round(prev_rating, 2)
+		then_rating = round(then_rating, 2)
+		length = round(length)
+		
+		return f'From {prev_rating} to {then_rating}    Total {length} minutes ({num_scores} scores)'
 
 	def draw(self):
 		diffset_colors = [
@@ -135,12 +153,18 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		
 		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
 		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
+		sess_improvement_callback = lambda _, points: self.infobar.setText(self.session_info2(points))
 		
 		text_box(self, gen_textbox_text(self.xml))
 		text_box(self, gen_textbox_text_2(self.xml))
 		self.nextRow()
 		text_box(self, gen_textbox_text_3(self.xml))
 		text_box(self, gen_textbox_text_4(self.xml))
+		self.nextRow()
+		
+		plot(self, self.xml, g.gen_session_rating_improvement, cmap[6],
+			"Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
+			type_="bubble", time_xaxis=True, click_callback=sess_improvement_callback)
 		self.nextRow()
 		
 		plot(self, self.xml, g.map_wifescore, cmap[0], "Wife score over time",
@@ -229,7 +253,7 @@ def gen_textbox_text_4(xml):
 	duration = relativedelta(datetime.now(), first_play_date)
 	
 	return "<br>".join([
-		f"You started playing {duration.years} years {duration.months} months ago"
+		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
 	])

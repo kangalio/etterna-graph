@@ -3,6 +3,7 @@ import numpy as np
 from collections import Counter
 import math
 
+import util
 from util import parsedate
 
 """
@@ -47,6 +48,7 @@ def map_accuracy(score):
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
 
+# Returns list of sessions where a session is [(Score, datetime)]
 sessions_division_cache = {}
 def divide_into_sessions(xml, minplays=1):
 	global sessions_division_cache
@@ -210,3 +212,44 @@ def gen_plays_per_week(xml):
 	return weeks
 	#return {datetimes[0]: 10, datetimes[1]: 8}
 	
+def gen_session_rating_improvement(xml):
+	datetimes = []
+	lengths = []
+	sizes = []
+	ids = []
+	
+	sessions = divide_into_sessions(xml)[-100:] # REMEMBER
+	print("Total sessions:", len(sessions))
+	skillsets_values = [[], [], [], [], [], [], []]
+	previous_overall = 0
+	# For each session
+	for (session_i, session) in enumerate(sessions):
+		print(f"{session_i}..")
+		# For each score in the session
+		for (score, datetime) in session:
+			# For every skillset trained with the score
+			for i in range(7):
+				# Append it to the list of skillset training values
+				player_skillsets = score.find("SkillsetSSRs")
+				if player_skillsets == None: continue
+				value = float(player_skillsets[i+1].text)
+				skillsets_values[i].append(value)
+		
+		# Overall-rating delta
+		ratings = util.find_ratings(skillsets_values)
+		overall_delta = ratings[0] - previous_overall
+		
+		# Add bubble size, clamping to [4;100] pixels
+		size = math.sqrt(max(0, overall_delta)) * 40
+		sizes.append(min(150, max(4, size)))
+		
+		# Append session datetime and length
+		datetimes.append(session[0][1])
+		length = (session[-1][1] - session[0][1]).total_seconds() / 60
+		lengths.append(length)
+		
+		ids.append((previous_overall, ratings[0], len(session), length))
+		
+		previous_overall = ratings[0]
+	
+	return ((datetimes, lengths, sizes), ids)
