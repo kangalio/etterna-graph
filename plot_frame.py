@@ -163,7 +163,7 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		self.nextRow()
 		
 		plot(self, self.xml, g.gen_session_rating_improvement, cmap[6],
-			"Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
+			"Rating improvement per session (x=date, y=rating improvement, bubble size=session length)",
 			type_="bubble", time_xaxis=True, click_callback=sess_improvement_callback)
 		self.nextRow()
 		
