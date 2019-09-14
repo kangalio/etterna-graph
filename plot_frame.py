@@ -95,11 +95,10 @@ class TextBox:
 	def draw(self, text): self.label.setText(text)
 
 class PlotFrame(pg.GraphicsLayoutWidget):
-	def __init__(self, xml_path, replays_path, infobar):
+	def __init__(self, xml_path, infobar):
 		super().__init__(border=(100,100,100))
 		
 		self.xml = etree.parse(xml_path).getroot()
-		self.replays_path = replays_path
 		self.infobar = infobar
 		self.column_counter = 0
 		
@@ -150,7 +149,7 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 			text = (callback)(points[0].data())
 		self.infobar.setText(text)
 			
-	def draw(self):
+	def draw(self, replays_path):
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
@@ -158,17 +157,26 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		session_callback = lambda *args: self.click_handler(self.session_info, *args)
 		sess_improvement_callback = lambda *args: self.click_handler(self.session_info2, *args)
 		
+		print("Generating textboxes..")
 		self.plots[0].draw(gen_textbox_text(self.xml))
 		self.plots[1].draw(gen_textbox_text_2(self.xml))
 		self.plots[2].draw(gen_textbox_text_3(self.xml))
 		self.plots[3].draw(gen_textbox_text_4(self.xml))
+		print("Generating wifescore plot..")
 		self.plots[4].draw(self.xml, g.gen_wifescore, cmap[0], click_callback=score_callback)
-		self.plots[5].draw(self.xml, g.gen_manip, cmap[3], mapper_args=[self.replays_path], click_callback=score_callback)
+		print("Generating manip plot..")
+		self.plots[5].draw(self.xml, g.gen_manip, cmap[3], mapper_args=[replays_path], click_callback=score_callback)
+		print("Generating accuracy plot..")
 		self.plots[6].draw(self.xml, g.gen_accuracy, cmap[1], click_callback=score_callback)
+		print("Generating session bubble plot..")
 		self.plots[7].draw(self.xml, g.gen_session_rating_improvement, cmap[2], type_="bubble", click_callback=sess_improvement_callback)
+		print("Generating plays per hour of day..")
 		self.plots[8].draw(self.xml, g.gen_plays_by_hour, cmap[4], type_="bar")
+		print("Generating plays for each week..")
 		self.plots[9].draw(self.xml, g.gen_plays_per_week, cmap[5], type_="bar", width=604800*0.8)
+		print("Generating session skillsets..")
 		self.plots[10].draw(self.xml, g.gen_session_skillsets, util.skillset_colors, legend=util.skillsets, type_="stacked bar")
+		print("Done")
 
 def gen_textbox_text(xml):
 	text = ["Most played charts:"]

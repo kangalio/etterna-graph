@@ -42,6 +42,7 @@ class Application():
 	def __init__(self):
 		# Construct app, root widget and layout 
 		app = QApplication(["Kangalioo's Etterna stats analyzer"])
+		self.app = app
 		app.setStyle("Fusion")
 		
 		window = QMainWindow()
@@ -100,17 +101,13 @@ class Application():
 		if self.etterna_xml == None: self.try_choose_etterna_xml()
 		
 		# Add plot frame
-		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, infobar)
+		self.plot_frame = PlotFrame(self.etterna_xml, infobar)
 		layout.addWidget(self.plot_frame)
-		self.plot_frame.draw()
 		
-		#self.refresh_graphs()
+		self.refresh_graphs()
 	
 	def refresh_graphs(self):
-		old_frame = self.plot_frame
-		self.plot_frame = PlotFrame(self.etterna_xml, self.replays_dir, self.infobar)
-		self.layout.replaceWidget(old_frame, self.plot_frame)
-		self.plot_frame.draw()
+		self.plot_frame.draw(self.replays_dir)
 	
 	def display_info_box(self):
 		msgbox = QMessageBox()
