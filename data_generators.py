@@ -14,15 +14,12 @@ generator functions here, one for each scatter plot
 
 # This method does not model the actual game mechanics 100% accurately
 def map_wifescore(score):
-	try:
-		overall = float(score.findtext(".//Overall"))
-		percentage = float(score.findtext("WifeScore"))
-		return overall * percentage / 0.93
-	except: return None
+	overall = float(score.findtext(".//Overall"))
+	percentage = float(score.findtext("WifeScore"))
+	return overall * percentage / 0.93
 
 def map_manip(score, replays_dir):
-	try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
-	except: return None
+	replayfile = open(replays_dir+"/"+score.attrib['Key'])
 
 	times = []
 	for line in replayfile.readlines():
