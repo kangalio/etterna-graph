@@ -15,10 +15,9 @@ generator functions here, one for each scatter plot
 # This method does not model the actual game mechanics 100% accurately
 def map_wifescore(score):
 	try:
-		overall = float(next(score.iter("Overall")).text)
-		percentage = float(next(score.iter("WifeScore")).text)
-		score = overall * percentage / 0.93
-		return score
+		overall = float(score.findtext(".//Overall"))
+		percentage = float(score.findtext("WifeScore"))
+		return overall * percentage / 0.93
 	except: return None
 
 def map_manip(score, replays_dir):
@@ -47,6 +46,24 @@ def map_accuracy(score):
 	if percent <= -400: return None # Those are weird
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
+
+def map_scores(xml, mapper, *mapper_args):
+	x, y = [], []
+	ids = []
+	for score in xml.iter("Score"):
+		try: value = (mapper)(score, *mapper_args)
+		except: continue
+		if value is None: continue
+		
+		x.append(parsedate(score.findtext("DateTime")))
+		y.append(value)
+		ids.append(score)
+	
+	return ((x, y), ids)
+
+def gen_wifescore(xml): return map_scores(xml, map_wifescore)
+def gen_manip(xml, replays): return map_scores(xml, map_manip, replays)
+def gen_accuracy(xml): return map_scores(xml, map_accuracy)
 
 # Returns list of sessions where a session is [(Score, datetime)]
 sessions_division_cache = {}
@@ -80,8 +97,12 @@ def divide_into_sessions(xml, minplays=1):
 # Returns ({datetime: session length}, [session])
 def gen_session_length(xml):
 	sessions = divide_into_sessions(xml)
-	result = {s[0][1]: (s[-1][1]-s[0][1]).total_seconds()/60 for s in sessions}
-	return (result, sessions)
+	x, y = [], []
+	for s in sessions:
+		x.append(s[0][1]) # Datetime [1] of first play [0] in session
+		y.append((s[-1][1]-s[0][1]).total_seconds() / 60) # Length in minutes
+	
+	return ((x, y), sessions)
 
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_session_skillsets(xml):
@@ -99,8 +120,7 @@ def gen_session_skillsets(xml):
 		current_session.append((score, datetime))
 	sessions = sessions[1:]
 	
-	diffsets = {}
-	i = 0
+	diffsets = []
 	previous_week = -1
 	for session in sessions:
 		week = session[0][1].isocalendar()[1]
@@ -118,10 +138,9 @@ def gen_session_skillsets(xml):
 		total = sum(diffset)
 		if total == 0: continue
 		diffset = [diff/total*100 for diff in diffset]
-		diffsets[i] = diffset
-		i += 1
+		diffsets.append(diffset)
 	
-	return diffsets
+	return (range(len(diffsets)), diffsets)
 
 def gen_plays_by_hour(xml):
 	from datetime import time
@@ -134,7 +153,7 @@ def gen_plays_by_hour(xml):
 	# it doesn't play nicely with matplotlib, so we need to use an
 	# integer to represent the hour of the day.
 	#return {time(hour=i): num_plays[i] for i in range(24)}
-	return {i: num_plays[i] for i in range(24)}
+	return zip(*[(i, num_plays[i]) for i in range(24)])
 
 def gen_session_plays(xml):
 	sessions = divide_into_sessions(xml)
@@ -209,8 +228,7 @@ def gen_plays_per_week(xml):
 			week_end += timedelta(weeks=1)
 			weeks[week_start] = 0
 	
-	return weeks
-	#return {datetimes[0]: 10, datetimes[1]: 8}
+	return (list(weeks.keys()), list(weeks.values()))
 	
 def gen_session_rating_improvement(xml):
 	datetimes = []

@@ -27,74 +27,70 @@ import data_generators as g
 # colspan: how many columns the plot spans
 # rowspan: how many rows the plot spans
 # ids_included
-def plot(frame, xml, mapper, color, title, alpha=0.4, mappertype="xml", mapper_args=[], log=False, time_xaxis=False, accuracy_yaxis=False, manip_yaxis=False, legend=None, click_callback=None, type_="scatter", colspan=1, rowspan=1, width=0.8):
-	ids_included = click_callback != None
-	ids = None
-	if mappertype == "xml":
+
+class Tile:
+	def __init__(self, frame, rowspan=1, colspan=1, flags="", title=None):
+		self.flags = flags
+		
+		axisItems = {}
+		if "time_xaxis" in flags:
+			axisItems["bottom"] = util.TimeAxisItem(orientation="bottom")
+		if "accuracy_yaxis" in flags:
+			axisItems["left"] = util.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
+		elif "manip_yaxis" in flags:
+			axisItems["left"] = util.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
+		
+		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
+		self.plot = plot
+		plot.setTitle(title)
+		if "log" in flags: plot.setLogMode(x=False, y=True)
+		#if legend != None: plot.addLegend()
+	
+	def draw(self, xml, mapper, color, alpha=0.4, mappertype="xml", mapper_args=[], legend=None, click_callback=None, type_="scatter", width=0.8):
+		plot = self.plot
+		plot.clear()
+		
+		ids_included = click_callback != None
+		ids = None
+		
 		data = (mapper)(xml, *mapper_args)
 		if ids_included: (data, ids) = data
-		if type_ == "bubble":
-			(x, y, sizes) = data
+		if type_ == "bubble": (x, y, sizes) = data
+		else: (x, y) = data
+		
+		if "time_xaxis" in self.flags:
+			x = [value.timestamp() for value in x]
+		
+		if legend != None: plot.addLegend()
+		
+		if type_ == "stacked bar":
+			y = list(zip(*y))
+			num_cols = len(y[0])
+			bottom = [0] * num_cols
+			for (row_i, row) in enumerate(y):
+				#item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=(0,0,0,255), brush=color[row_i])
+				item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=0.82, pen=color[row_i], brush=color[row_i])
+				bottom = [a+b for (a,b) in zip(bottom, row)] # We need out-of-place here
+				if legend != None: plot.legend.addItem(item, legend[row_i])
+				plot.addItem(item)
 		else:
-			if isinstance(data, dict): # If dict map key-value pairs to x-y
-				x, y = list(data.keys()), list(data.values())
-			else: # If list, map list to y and generate consecutive x values
-				length = len(data[0]) if type_=="stacked bar" else len(data)
-				x, y = range(length), data
-		if time_xaxis: x = [value.timestamp() for value in x]
-	elif mappertype == "score":
-		x, y = [], []
-		if ids_included: ids = []
-		for score in xml.iter("Score"):
-			result = (mapper)(score, *mapper_args)
-			if result == None: continue
-			y.append(result)
-			
-			timestamp = parsedate(score.findtext("DateTime")).timestamp()
-			x.append(timestamp)
-			
-			if ids_included: ids.append(score)
-	
-	axisItems = {}
-	if time_xaxis:
-		axisItems["bottom"] = util.TimeAxisItem(orientation="bottom")
-	if accuracy_yaxis:
-		axisItems["left"] = util.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
-	if manip_yaxis:
-		axisItems["left"] = util.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
-	
-	plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
-	plot.setTitle(title)
-	if log: plot.setLogMode(x=False, y=True)
-	if legend != None: plot.addLegend()
-	
-	if type_ == "stacked bar":
-		y = list(zip(*y))
-		num_cols = len(y[0])
-		bottom = [0] * num_cols
-		for (row_i, row) in enumerate(y):
-			#item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=(0,0,0,255), brush=color[row_i])
-			item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=0.82, pen=color[row_i], brush=color[row_i])
-			bottom = [a+b for (a,b) in zip(bottom, row)] # We need out-of-place here
-			if legend != None: plot.legend.addItem(item, legend[row_i])
+			color = pg.mkColor(color)
+			color.setAlphaF(alpha)
+			if type_ == "scatter":
+				item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
+				if click_callback != None:
+					item.sigClicked.connect(click_callback)
+			elif type_ == "bar":
+				item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200,200,200), brush=color)
+			elif type_ == "bubble":
+				item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
+				if click_callback != None:
+					item.sigClicked.connect(click_callback)
 			plot.addItem(item)
-	else:
-		color = pg.mkColor(color)
-		color.setAlphaF(alpha)
-		if type_ == "scatter":
-			item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
-			if click_callback != None:
-				item.sigClicked.connect(click_callback)
-		elif type_ == "bar":
-			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200,200,200), brush=color)
-		elif type_ == "bubble":
-			item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
-			if click_callback != None:
-				item.sigClicked.connect(click_callback)
-		plot.addItem(item)
 
-def text_box(frame, text):
-	plot = frame.addLabel(text, justify="left")
+class TextBox:
+	def __init__(self, frame): self.frame = frame
+	def draw(self, text): self.frame.addLabel(text, justify="left")
 
 class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, xml_path, replays_path, infobar):
@@ -151,16 +147,48 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
+		TextBox(self).draw(gen_textbox_text(self.xml))
+		TextBox(self).draw(gen_textbox_text_2(self.xml))
+		self.nextRow()
+		TextBox(self).draw(gen_textbox_text_3(self.xml))
+		TextBox(self).draw(gen_textbox_text_4(self.xml))
+		self.nextRow()
+		
 		score_callback = lambda _, points: self.infobar.setText(self.scatter_info(points))
 		session_callback = lambda _, points: self.infobar.setText(self.session_info(points))
 		sess_improvement_callback = lambda _, points: self.infobar.setText(self.session_info2(points))
 		
-		text_box(self, gen_textbox_text(self.xml))
-		text_box(self, gen_textbox_text_2(self.xml))
+		tile = Tile(self, flags="time_xaxis", title="Wife score over time")
+		tile.draw(self.xml, g.gen_wifescore, cmap[0], click_callback=score_callback)
+		
+		tile = Tile(self, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
+		tile.draw(self.xml, g.gen_manip, cmap[3], mapper_args=[self.replays_path], click_callback=score_callback)
+		
 		self.nextRow()
-		text_box(self, gen_textbox_text_3(self.xml))
-		text_box(self, gen_textbox_text_4(self.xml))
+		
+		tile = Tile(self, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
+		tile.draw(self.xml, g.gen_accuracy, cmap[1], click_callback=score_callback)
+		
+		tile = Tile(self, flags="time_xaxis", title="Session length over time (min)")
+		tile.draw(self.xml, g.gen_session_length, cmap[2], click_callback=session_callback)
+		
 		self.nextRow()
+		
+		tile = Tile(self, title="Number of plays per hour of day")
+		tile.draw(self.xml, g.gen_plays_by_hour, cmap[4], type_="bar")
+		
+		tile = Tile(self, flags="time_xaxis", title="Number of plays each week")
+		tile.draw(self.xml, g.gen_plays_per_week, cmap[5], type_="bar", width=604800*0.8)
+		
+		self.nextRow()
+		
+		tile = Tile(self, colspan=2, title="Skillsets trained per week")
+		tile.draw(self.xml, g.gen_session_skillsets, diffset_colors, legend=util.skillsets, type_="stacked bar")
+		
+		self.nextRow()
+		
+		"""
+		
 		
 		plot(self, self.xml, g.gen_session_rating_improvement, cmap[6],
 			"Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
@@ -183,21 +211,7 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		plot(self, self.xml, g.map_accuracy, cmap[1], "Accuracy over time (log scale)",
 			#log=True, # log doesn't work on scatter charts
 			time_xaxis=True, accuracy_yaxis=True, mappertype="score",
-			click_callback=score_callback)
-		plot(self, self.xml, g.gen_session_length, cmap[2], "Session length over time (min)",
-			time_xaxis=True, click_callback=session_callback)
-		
-		self.nextRow()
-		
-		plot(self, self.xml, g.gen_plays_by_hour, cmap[4], "Number of plays per hour of day",
-			type_="bar")
-		plot(self, self.xml, g.gen_plays_per_week, cmap[5], "Number of plays each week",
-			type_="bar", time_xaxis=True, width=604800*0.8)
-		self.nextRow()
-		
-		plot(self, self.xml, g.gen_session_skillsets, diffset_colors, "Skillsets trained per week",
-			legend=util.skillsets, type_="stacked bar", colspan=2)
-		self.nextRow()
+			click_callback=score_callback)"""
 
 def gen_textbox_text(xml):
 	text = ["Most played charts:"]
