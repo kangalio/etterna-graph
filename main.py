@@ -128,25 +128,29 @@ class Application():
 		if os.path.exists(path_maybe): self.replays_dir = path_maybe
 	
 	def try_choose_etterna_xml(self):
-		result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
-		path = result[0] # getOpenFileName returns tuple of path and filetype
-		
-		if path == "": return # User cancelled the file chooser
-		
-		print(f"[UI] User selected Etterna.xml: {path}")
-		self.mark_currently_loaded(self.button_load_xml)
-		self.etterna_xml = path
+		self.try_find_etterna_xml()
+		if self.etterna_xml is None:
+			result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
+			path = result[0] # getOpenFileName returns tuple of path and filetype
+			
+			if path == "": return # User cancelled the file chooser
+			
+			print(f"[UI] User selected Etterna.xml: {path}")
+			self.mark_currently_loaded(self.button_load_xml)
+			self.etterna_xml = path
 		
 		self.refresh_graphs()
 	
 	def try_choose_replays(self):
-		path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
-		
-		if path == "": return # User cancelled the chooser
-		
-		print(f"[UI] User selected ReplaysV2: {path}")
-		self.mark_currently_loaded(self.button_load_replays)
-		self.replays_dir = path
+		self.try_find_replays()
+		if self.replays_dir is None:
+			path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
+			
+			if path == "": return # User cancelled the chooser
+			
+			print(f"[UI] User selected ReplaysV2: {path}")
+			self.mark_currently_loaded(self.button_load_replays)
+			self.replays_dir = path
 		
 		self.refresh_graphs()
 
