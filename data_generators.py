@@ -218,13 +218,11 @@ def gen_session_rating_improvement(xml):
 	sizes = []
 	ids = []
 	
-	sessions = divide_into_sessions(xml)[-100:] # REMEMBER
-	print("Total sessions:", len(sessions))
+	sessions = divide_into_sessions(xml)
 	skillsets_values = [[], [], [], [], [], [], []]
 	previous_overall = 0
 	# For each session
 	for (session_i, session) in enumerate(sessions):
-		print(f"{session_i}..")
 		# For each score in the session
 		for (score, datetime) in session:
 			# For every skillset trained with the score
