@@ -30,6 +30,8 @@ import data_generators as g
 
 class Tile:
 	def __init__(self, frame, rowspan=1, colspan=1, flags="", title=None):
+		global column
+		
 		self.flags = flags
 		
 		axisItems = {}
@@ -41,6 +43,7 @@ class Tile:
 			axisItems["left"] = util.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 		
 		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
+		frame.maybe_advance_row()
 		self.plot = plot
 		plot.setTitle(title)
 		if "log" in flags: plot.setLogMode(x=False, y=True)
@@ -86,8 +89,10 @@ class Tile:
 			self.plot.addItem(item)
 
 class TextBox:
-	def __init__(self, frame): self.frame = frame
-	def draw(self, text): self.frame.addLabel(text, justify="left")
+	def __init__(self, frame):
+		self.label = frame.addLabel(justify="left")
+		frame.maybe_advance_row()
+	def draw(self, text): self.label.setText(text)
 
 class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, xml_path, replays_path, infobar):
@@ -96,6 +101,24 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		self.xml = etree.parse(xml_path).getroot()
 		self.replays_path = replays_path
 		self.infobar = infobar
+		self.column_counter = 0
+		
+		self.plots = [
+			TextBox(self), TextBox(self), TextBox(self), TextBox(self),
+			Tile(self, flags="time_xaxis", title="Wife score over time"),
+			Tile(self, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)"),
+			Tile(self, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)"),
+			Tile(self, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)"),
+			Tile(self, title="Number of plays per hour of day"),
+			Tile(self, flags="time_xaxis", title="Number of plays each week"),
+			Tile(self, colspan=2, title="Skillsets trained per week"),
+		]
+	
+	def maybe_advance_row(self):
+		self.column_counter += 1
+		if self.column_counter == 2:
+			self.column_counter = 0
+			self.nextRow()
 	
 	def scatter_info(self, score):
 		datetime = score.findtext("DateTime")
@@ -128,58 +151,24 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		self.infobar.setText(text)
 			
 	def draw(self):
-		diffset_colors = [
-			"333399", "6666ff", "cc33ff", "ff99cc",
-			"009933", "66ff66", "808080"
-		]
-		
-		# These are the official (unsaturated) EO colors
-		#diffset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
-		
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-		
-		TextBox(self).draw(gen_textbox_text(self.xml))
-		TextBox(self).draw(gen_textbox_text_2(self.xml))
-		self.nextRow()
-		TextBox(self).draw(gen_textbox_text_3(self.xml))
-		TextBox(self).draw(gen_textbox_text_4(self.xml))
-		self.nextRow()
 		
 		score_callback = lambda *args: self.click_handler(self.score_info, *args)
 		session_callback = lambda *args: self.click_handler(self.session_info, *args)
 		sess_improvement_callback = lambda *args: self.click_handler(self.session_info2, *args)
 		
-		tile = Tile(self, flags="time_xaxis", title="Wife score over time")
-		tile.draw(self.xml, g.gen_wifescore, cmap[0], click_callback=score_callback)
-		
-		tile = Tile(self, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
-		tile.draw(self.xml, g.gen_manip, cmap[3], mapper_args=[self.replays_path], click_callback=score_callback)
-		
-		self.nextRow()
-		
-		tile = Tile(self, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
-		tile.draw(self.xml, g.gen_accuracy, cmap[1], click_callback=score_callback)
-		
-		#tile = Tile(self, flags="time_xaxis", title="Session length over time (min)")
-		#tile.draw(self.xml, g.gen_session_length, cmap[2], click_callback=session_callback)
-		tile = Tile(self, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
-		tile.draw(self.xml, g.gen_session_rating_improvement, cmap[6], type_="bubble", click_callback=sess_improvement_callback)
-		
-		self.nextRow()
-		
-		tile = Tile(self, title="Number of plays per hour of day")
-		tile.draw(self.xml, g.gen_plays_by_hour, cmap[4], type_="bar")
-		
-		tile = Tile(self, flags="time_xaxis", title="Number of plays each week")
-		tile.draw(self.xml, g.gen_plays_per_week, cmap[5], type_="bar", width=604800*0.8)
-		
-		self.nextRow()
-		
-		tile = Tile(self, colspan=2, title="Skillsets trained per week")
-		tile.draw(self.xml, g.gen_session_skillsets, diffset_colors, legend=util.skillsets, type_="stacked bar")
-		
-		self.nextRow()
+		self.plots[0].draw(gen_textbox_text(self.xml))
+		self.plots[1].draw(gen_textbox_text_2(self.xml))
+		self.plots[2].draw(gen_textbox_text_3(self.xml))
+		self.plots[3].draw(gen_textbox_text_4(self.xml))
+		self.plots[4].draw(self.xml, g.gen_wifescore, cmap[0], click_callback=score_callback)
+		self.plots[5].draw(self.xml, g.gen_manip, cmap[3], mapper_args=[self.replays_path], click_callback=score_callback)
+		self.plots[6].draw(self.xml, g.gen_accuracy, cmap[1], click_callback=score_callback)
+		self.plots[7].draw(self.xml, g.gen_session_rating_improvement, cmap[2], type_="bubble", click_callback=sess_improvement_callback)
+		self.plots[8].draw(self.xml, g.gen_plays_by_hour, cmap[4], type_="bar")
+		self.plots[9].draw(self.xml, g.gen_plays_per_week, cmap[5], type_="bar", width=604800*0.8)
+		self.plots[10].draw(self.xml, g.gen_session_skillsets, util.skillset_colors, legend=util.skillsets, type_="stacked bar")
 
 def gen_textbox_text(xml):
 	text = ["Most played charts:"]
@@ -221,11 +210,6 @@ def gen_textbox_text_3(xml):
 	
 	return "<br>".join(text)
 
-"""
-You've been playing: {}
-Number of scores: {}
-You started playing {} ago
-"""
 def gen_textbox_text_4(xml):
 	from dateutil.relativedelta import relativedelta
 	

@@ -5,6 +5,14 @@ import math
 from numba import jit
 import numpy as np
 
+skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
+		"Jacks", "Chordjacks", "Technical"]
+
+# Official EO colors
+#skillset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
+# Modified (saturated) EO colors
+skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "808080"]
+
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
@@ -40,9 +48,6 @@ class DIYLogAxisItem(pg.AxisItem):
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
-
-skillsets = ["Stream", "Jumpstream", "Handstream",
-		"Stamina", "Jacks", "Chordjacks", "Technical"]
 
 # Takes a potential rating, and a list of skillset ratings (one for each
 # score). Returns a boolean, whether the given potential rating is
