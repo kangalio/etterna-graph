@@ -2,6 +2,8 @@ import pyqtgraph as pg
 from datetime import datetime
 import time
 import math
+from numba import jit
+import numpy as np
 
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
@@ -42,18 +44,17 @@ def find_parent_chart(xml, score):
 skillsets = ["Stream", "Jumpstream", "Handstream",
 		"Stamina", "Jacks", "Chordjacks", "Technical"]
 
-# Given a skillset level and the potential rating, this calculates the
-# 'power value' as I call it.
-def map_skill_to_power(skill, rating):
-	return max(0, 2 / math.erfc(0.1 * (skill - rating)) - 2)
-
 # Takes a potential rating, and a list of skillset ratings (one for each
 # score). Returns a boolean, whether the given potential rating is
 # 'okay', as I call it.
+# 'values' must be given as numpy array (for numba compatibility)
+@jit(nopython=True)
 def is_rating_okay(rating, values):
 	max_power_sum = 2 ** (0.1 * rating)
-	powers = [map_skill_to_power(value, rating) for value in values]
-	return sum(powers) < max_power_sum
+	power_sum = 0
+	for value in values:
+		power_sum += max(0, 2 / math.erfc(0.1 * (value - rating)) - 2)
+	return power_sum < max_power_sum
 
 """
 The idea is the following: we try out potential skillset rating values
@@ -91,7 +92,7 @@ def find_skillset_rating(values):
 # Returns list with 8 elements: first is the Overall rating, following
 # are the skillset ratings.
 def find_ratings(skillsets_values):
-	ratings = [find_skillset_rating(values) for values in skillsets_values]
+	ratings = [find_skillset_rating(np.array(values)) for values in skillsets_values]
 	overall = (sum(ratings) - min(ratings)) / 6
 	ratings.insert(0, overall)
 	return ratings
