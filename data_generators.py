@@ -17,12 +17,14 @@ scores = None
 datetimes = None
 manipulations = None
 cbs_per_column = None
+offset_means = None
 def analyze_replays(xml, replays):
-	global scores, datetimes, manipulations, cbs_per_column
+	global scores, datetimes, manipulations, cbs_per_column, offset_means
 	
 	scores = []
 	datetimes = []
 	manipulations = []
+	offset_means = []
 	cbs_per_column = [0, 0, 0, 0]
 	for score in xml.iter("Score"):
 		replay = replays.get(score.get("Key"))
@@ -31,6 +33,7 @@ def analyze_replays(xml, replays):
 		previous_time = 0
 		num_total = 0
 		num_manipulated = 0
+		offsets = []
 		for line in replay:
 			try:
 				tokens = line.split(" ")
@@ -45,9 +48,13 @@ def analyze_replays(xml, replays):
 			if column < 4: # Ignore 6-and-up-key scores
 				cbs_per_column[column] += 1
 			
+			offsets.append(offset)
+			
 			num_total += 1
 		
 		manipulations.append(num_manipulated / num_total)
+		
+		offset_means.append(sum(offsets) / len(offsets))
 		
 		scores.append(score)
 		datetimes.append(parsedate(score.findtext("DateTime")))
@@ -366,8 +373,11 @@ def gen_textbox_text_4(xml, replays):
 	if replays:
 		if cbs_per_column is None: analyze_replays(xml, replays)
 		cbs_string = ', '.join(map(util.abbreviate, cbs_per_column))
+		offset_mean = sum(offset_means) / len(offset_means)
+		mean_string = f"{round(offset_mean * 1000, 1)}ms"
 	else:
 		cbs_string = "[please load replay data]"
+		mean_string = "[please load replay data]"
 	
 	scores = list(xml.iter("Score"))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
@@ -381,6 +391,7 @@ def gen_textbox_text_4(xml, replays):
 		f"Number of scores: {len(scores)}",
 		f"Total CBs per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
+		f"Mean hit offset: {mean_string}",
 	])
 
 # Calculate the median score increase, when playing a chart twice
