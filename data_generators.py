@@ -266,3 +266,57 @@ def gen_session_rating_improvement(xml):
 		previous_overall = ratings[0]
 	
 	return ((datetimes, lengths, sizes), ids)
+
+def gen_textbox_text(xml):
+	text = ["Most played charts:"]
+	charts = gen_most_played_charts(xml, num_charts=5)
+	i = 1
+	for (chart, num_plays) in charts:
+		pack, song = chart.get("Pack"), chart.get("Song")
+		text.append(f"{i}) \"{pack}\" -> \"{song}\" with {num_plays} scores")
+		i += 1
+	
+	return "<br>".join(text)
+
+def gen_textbox_text_2(xml):
+	sessions = divide_into_sessions(xml)
+	sessions = [(s, (s[-1][1]-s[0][1]).total_seconds()/60) for s in sessions]
+	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
+	sessions = sessions[:5]
+	
+	text = ["Longest sessions:"]
+	i = 1
+	for (session, length) in sessions:
+		num_plays = len(session)
+		datetime = session[0][1]
+		text.append(f"{i}) {datetime}, {round(length)} minutes long with {num_plays} scores")
+		i += 1
+	
+	return "<br>".join(text)
+
+def gen_textbox_text_3(xml):
+	hours = gen_hours_per_skillset(xml)
+	
+	text = ["Hours spent training each skillset"]
+	for i in range(7):
+		skillset = util.skillsets[i]
+		m_total = int(hours[i] * 60)
+		h = int(m_total / 60)
+		m = m_total - 60 * h
+		text.append(f"- {skillset}: {h}h {m}min")
+	
+	return "<br>".join(text)
+
+def gen_textbox_text_4(xml):
+	from dateutil.relativedelta import relativedelta
+	
+	scores = list(xml.iter("Score"))
+	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
+	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
+	duration = relativedelta(datetime.now(), first_play_date)
+	
+	return "<br>".join([
+		f"You started playing {duration.years} years {duration.months} months ago",
+		f"Total hours spent playing: {round(hours)} hours",
+		f"Number of scores: {len(scores)}",
+	])

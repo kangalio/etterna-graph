@@ -4,7 +4,7 @@ from PyQt5.QtCore import *
 import numpy as np
 import os
 
-from plot_frame import PlotFrame
+from plotter import Plotter
 
 """
 This file mainly handles the UI and overall program state
@@ -101,13 +101,13 @@ class Application():
 		if self.etterna_xml == None: self.try_choose_etterna_xml()
 		
 		# Add plot frame
-		self.plot_frame = PlotFrame(self.etterna_xml, infobar)
-		layout.addWidget(self.plot_frame)
+		self.plotter = Plotter(infobar)
+		layout.addWidget(self.plotter.frame)
 		
 		self.refresh_graphs()
 	
 	def refresh_graphs(self):
-		self.plot_frame.draw(self.replays_dir)
+		self.plotter.draw(self.etterna_xml, self.replays_dir)
 	
 	def display_info_box(self):
 		msgbox = QMessageBox()
