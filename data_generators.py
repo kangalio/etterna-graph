@@ -284,6 +284,13 @@ def gen_session_rating_improvement(xml):
 	
 	return ((datetimes, lengths, sizes), ids)
 
+def gen_skillset_development(xml):
+	datetimes, all_ratings = [], []
+	for (session, ratings) in calc_ratings_for_sessions(xml):
+		datetimes.append(session[0][1])
+		all_ratings.append(ratings)
+	return (datetimes, all_ratings)
+
 def gen_textbox_text(xml):
 	text = ["Most played charts:"]
 	charts = gen_most_played_charts(xml, num_charts=5)
