@@ -55,7 +55,6 @@ class Plot:
 			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 		
 		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
-		for _ in range(colspan): frame.maybe_advance_row()
 		self.plot = plot
 		plot.setTitle(title)
 		if "log" in flags: plot.setLogMode(x=False, y=True)
@@ -126,9 +125,7 @@ class Plot:
 			self.plot.addItem(item)
 
 class TextBox:
-	def __init__(self, frame):
-		self.label = frame.addLabel(justify="left")
-		frame.maybe_advance_row()
+	def __init__(self, frame): self.label = frame.addLabel(justify="left")
 	def draw(self, text): self.label.setText(text)
 
 class PlotFrame(pg.GraphicsLayoutWidget):
@@ -136,10 +133,6 @@ class PlotFrame(pg.GraphicsLayoutWidget):
 		super().__init__(border=(100,100,100))
 		
 		self.infobar = infobar
-		self.column_counter = 0
 	
-	def maybe_advance_row(self):
-		self.column_counter += 1
-		if self.column_counter == 2:
-			self.column_counter = 0
-			self.nextRow()
+	def next_row(self):
+		self.nextRow()
