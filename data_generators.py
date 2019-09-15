@@ -19,16 +19,21 @@ def map_wifescore(score):
 	return overall * percentage / 0.93
 
 def map_manip(score, replays):
-	replay = replays.get(score.get("Key"))
-	if replay is None: return None
+	replayfile = replays.get(score.attrib.get("Key"))
+	if replayfile is None: return None
 	
-	print(" build np array")
-	times = np.array(list((row[0] for row in replay)))
-	print(" calculate")
-	manipulations = sum(times[1:] < times[:-1])
-
-	print(" finish up")
-	percent_manipulated = manipulations/len(times)*100
+	num_manipulations, num_total = 0, 0
+	previous_time = 0
+	for line in replayfile:
+		try: time = float(line.split(" ")[0])
+		except ValueError: continue
+		
+		if time < previous_time: num_manipulations += 1
+		num_total += 1
+		
+		previous_time = time
+	
+	percent_manipulated = num_manipulations / num_total * 100
 	percent_manipulated = max(percent_manipulated, 0.01) # Clamp
 	return math.log(percent_manipulated) / math.log(10)
 
