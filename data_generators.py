@@ -18,22 +18,16 @@ def map_wifescore(score):
 	percentage = float(score.findtext("WifeScore"))
 	return overall * percentage / 0.93
 
-def map_manip(score, replays_dir):
-	replayfile = open(replays_dir+"/"+score.attrib['Key'])
+def map_manip(score, replays):
+	replay = replays.get(score.get("Key"))
+	if replay is None: return None
+	
+	print(" build np array")
+	times = np.array(list((row[0] for row in replay)))
+	print(" calculate")
+	manipulations = sum(times[1:] < times[:-1])
 
-	times = []
-	for line in replayfile.readlines():
-		time_str = line.split(" ")[0]
-		try: times.append(float(time_str))
-		except ValueError: pass
-
-	manipulations = 0
-	i = 1
-	for t in times[1:]:
-		if times[i] < times[i-1]:
-			manipulations += 1
-		i += 1
-
+	print(" finish up")
 	percent_manipulated = manipulations/len(times)*100
 	percent_manipulated = max(percent_manipulated, 0.01) # Clamp
 	return math.log(percent_manipulated) / math.log(10)
@@ -44,12 +38,15 @@ def map_accuracy(score):
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
 
-def map_scores(xml, mapper, *mapper_args):
+def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 	x, y = [], []
 	ids = []
 	for score in xml.iter("Score"):
-		try: value = (mapper)(score, *mapper_args)
-		except: continue
+		if discard_errors:
+			try: value = (mapper)(score, *mapper_args)
+			except: continue
+		else:
+			value = (mapper)(score, *mapper_args)
 		if value is None: continue
 		
 		x.append(parsedate(score.findtext("DateTime")))
@@ -59,7 +56,7 @@ def map_scores(xml, mapper, *mapper_args):
 	return ((x, y), ids)
 
 def gen_wifescore(xml): return map_scores(xml, map_wifescore)
-def gen_manip(xml, replays): return map_scores(xml, map_manip, replays)
+def gen_manip(xml, replays): return map_scores(xml, map_manip, replays, discard_errors=False)
 def gen_accuracy(xml): return map_scores(xml, map_accuracy)
 
 # Returns list of sessions where a session is [(Score, datetime)]

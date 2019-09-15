@@ -3,6 +3,7 @@ from lxml import etree
 from plot_frame import PlotFrame, Tile, TextBox
 import data_generators as g
 import util
+import structures
 
 def score_info(self, score):
 	datetime = score.findtext("DateTime")
@@ -44,7 +45,10 @@ class Plotter:
 		]
 	
 	def draw(self, xml_path, replays_path):
+		print("Opening xml..")
 		xml = etree.parse(xml_path).getroot()
+		print("Parsing replays (parallel)..")
+		replays = structures.Replays(xml, replays_path)
 		
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
@@ -57,7 +61,7 @@ class Plotter:
 		print("Generating wifescore plot..")
 		self.plots[4].draw(xml, g.gen_wifescore, cmap[0], click_callback=score_info)
 		print("Generating manip plot..")
-		self.plots[5].draw(xml, g.gen_manip, cmap[3], mapper_args=[replays_path], click_callback=score_info)
+		self.plots[5].draw(xml, g.gen_manip, cmap[3], mapper_args=[replays], click_callback=score_info)
 		print("Generating accuracy plot..")
 		self.plots[6].draw(xml, g.gen_accuracy, cmap[1], click_callback=score_info)
 		print("Generating session bubble plot..")
