@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import numpy as np
-from collections import Counter
 import math
 
 import util
@@ -94,6 +93,7 @@ def divide_into_sessions(xml, minplays=1):
 	return sessions
 
 # Returns ({datetime: session length}, [session])
+"""
 def gen_session_length(xml):
 	sessions = divide_into_sessions(xml)
 	x, y = [], []
@@ -102,6 +102,7 @@ def gen_session_length(xml):
 		y.append((s[-1][1]-s[0][1]).total_seconds() / 60) # Length in minutes
 	
 	return ((x, y), sessions)
+"""
 
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_session_skillsets(xml):
@@ -154,11 +155,13 @@ def gen_plays_by_hour(xml):
 	#return {time(hour=i): num_plays[i] for i in range(24)}
 	return zip(*[(i, num_plays[i]) for i in range(24)])
 
+"""
 def gen_session_plays(xml):
 	sessions = divide_into_sessions(xml)
 	nums_plays = [len(session) for session in sessions]
 	nums_sessions_with_x_plays = Counter(nums_plays)
 	return nums_sessions_with_x_plays
+"""
 
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
@@ -170,6 +173,7 @@ def gen_most_played_charts(xml, num_charts):
 	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
 	return charts_num_plays[:num_charts]
 
+"""
 def gen_cb_probability(xml, replays_dir):
 	# {combo length: (base number, cb number)
 	base = [0] * 10000
@@ -195,6 +199,7 @@ def gen_cb_probability(xml, replays_dir):
 	max_combo = base.index(0, 1)
 	result = {i: (cbs[i]/base[i]) for i in range(max_combo) if base[i] >= 0}
 	return result
+"""
 
 def gen_hours_per_skillset(xml):
 	hours = [0, 0, 0, 0, 0, 0, 0]

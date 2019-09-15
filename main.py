@@ -1,7 +1,7 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import numpy as np
+#import numpy as np
 import os
 
 from plotter import Plotter
@@ -97,7 +97,7 @@ class Application():
 		
 		# REMEMBER
 		self.try_find_etterna_xml()
-		self.try_find_replays()
+		#self.try_find_replays()
 		if self.etterna_xml == None: self.try_choose_etterna_xml()
 		
 		# Add plot frame

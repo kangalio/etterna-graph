@@ -1,33 +1,45 @@
 import pyqtgraph as pg
 from datetime import datetime
-import numpy as np
 
 import util
-from util import parsedate
 import data_generators as g
 
-# This is a big function thata handles almost all graphics library
-# interaction. Parameters:
-# 
-# frame: GraphicsLayoutWidget to insert the plot into
-# xml: Etterna.xml root node
-# mapper: function to generate data
-# color, alpha: color/alpha of the points
-# mappertype: "xml" if mapper is called with `xml` as parameter, "score"
-#   if mapper is called with a single score object
-# mapper_args: additional call parameters for the mapper
-# log: whether to use log scale for x axis. Because of pyqtgraph
-#   restrictions it only works for PlotDataItems (line charts)
-# time_xaxis: whether the x axis is a datetime axis
-# accuracy_yacis: whether the yaxis is an accuracy axis
-# legend: color names
-# click_callback: callback to call on scatter point click
-# type_: chart type: "scatter", "bar", "bubble" or "stacked bar"
-# colspan: how many columns the plot spans
-# rowspan: how many rows the plot spans
-# ids_included
+"""
+This file handles all graphics library interaction through the classes
+PlotFrame, Plot and TextBox (and the internal utility classes
+TimeAxisItem and DIYLogAxisItem)
+"""
 
-class Tile:
+class Plot:
+	class TimeAxisItem(pg.AxisItem):
+		def __init__(self, *args, **kwargs):
+			super().__init__(*args, **kwargs)
+			self.setLabel(units=None)
+			self.enableAutoSIPrefix(False)
+
+		def tickStrings(self, values, scale, spacing):
+			return [datetime.fromtimestamp(value).strftime("%Y-%m-%d") for value in values]
+
+	class DIYLogAxisItem(pg.AxisItem):
+		def __init__(self, accuracy, decimal_places, *args, **kwargs):
+			super().__init__(*args, **kwargs)
+			self.setLabel(units=None)
+			self.enableAutoSIPrefix(False)
+			
+			self.accuracy = accuracy
+			self.decimal_places = decimal_places
+
+		def tickStrings(self, values, scale, spacing):
+			result = []
+			for value in values:
+				if self.accuracy:
+					value = 100 - 10 ** -value
+				else:
+					value = 10 ** value
+				value = round(value, self.decimal_places)
+				result.append(str(value) + "%")
+			return result
+	
 	def __init__(self, frame, rowspan=1, colspan=1, flags="", title=None):
 		global column
 		
@@ -35,11 +47,11 @@ class Tile:
 		
 		axisItems = {}
 		if "time_xaxis" in flags:
-			axisItems["bottom"] = util.TimeAxisItem(orientation="bottom")
+			axisItems["bottom"] = self.TimeAxisItem(orientation="bottom")
 		if "accuracy_yaxis" in flags:
-			axisItems["left"] = util.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
+			axisItems["left"] = self.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
 		elif "manip_yaxis" in flags:
-			axisItems["left"] = util.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
+			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 		
 		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
 		frame.maybe_advance_row()
@@ -47,7 +59,16 @@ class Tile:
 		plot.setTitle(title)
 		if "log" in flags: plot.setLogMode(x=False, y=True)
 	
-	def draw(self, xml, mapper, color, alpha=0.4, mappertype="xml", mapper_args=[], legend=None, click_callback=None, type_="scatter", width=0.8):
+	# mapper: function that turns xml into data points
+	# color: chart color (duh)
+	# alpha: transparency of scatter points
+	# mapper_args: extra parameters passed to `mapper`
+	# legend: list of strings as the legend, for the stacked bar chart.
+	# click_callback: callback for when a scatter point is clicked. The
+	#  callback is called with the point data as parameter
+	# type_: either "scatter", "bubble", "bar" or "stacked bar"
+	# width: (only for bar charts) width of the bars
+	def draw(self, xml, mapper, color, alpha=0.4, mapper_args=[], legend=None, click_callback=None, type_="scatter", width=0.8):
 		def click_handler(self, callback, _, points):
 			if len(points) > 1:
 				text = f"{len(points)} points selected at once!"
