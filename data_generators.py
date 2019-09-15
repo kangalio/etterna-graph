@@ -233,16 +233,15 @@ def gen_plays_per_week(xml):
 			weeks[week_start] = 0
 	
 	return (list(weeks.keys()), list(weeks.values()))
-	
-def gen_session_rating_improvement(xml):
-	datetimes = []
-	lengths = []
-	sizes = []
-	ids = []
+
+calc_ratings_for_sessions_cache = None
+def calc_ratings_for_sessions(xml):
+	global calc_ratings_for_sessions_cache
+	if calc_ratings_for_sessions_cache: return calc_ratings_for_sessions_cache
 	
 	sessions = divide_into_sessions(xml)
 	skillsets_values = [[], [], [], [], [], [], []]
-	previous_overall = 0
+	session_rating_pairs = []
 	# For each session
 	for (session_i, session) in enumerate(sessions):
 		# For each score in the session
@@ -257,6 +256,17 @@ def gen_session_rating_improvement(xml):
 		
 		# Overall-rating delta
 		ratings = util.find_ratings(skillsets_values)
+		session_rating_pairs.append((session, ratings))
+	
+	calc_ratings_for_sessions_cache = session_rating_pairs
+	return session_rating_pairs
+
+def gen_session_rating_improvement(xml):
+	datetimes, lengths, sizes, ids = [], [], [], []
+	
+	previous_overall = 0
+	for (session, ratings) in calc_ratings_for_sessions(xml):
+		# Overall-rating delta
 		overall_delta = ratings[0] - previous_overall
 		
 		# Add bubble size, clamping to [4;100] pixels
