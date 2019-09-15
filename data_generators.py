@@ -363,17 +363,49 @@ def gen_textbox_text_3(xml):
 def gen_textbox_text_4(xml, replays):
 	from dateutil.relativedelta import relativedelta
 	
-	if cbs_per_column is None: analyze_replays(xml, replays)
+	if replays:
+		if cbs_per_column is None: analyze_replays(xml, replays)
+		cbs_string = ', '.join(map(util.abbreviate, cbs_per_column))
+	else:
+		cbs_string = "[please load replay data]"
 	
 	scores = list(xml.iter("Score"))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
-	cbs_string = ', '.join(map(util.abbreviate, cbs_per_column))
+	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
-		f"Total CBs per column (left to right): {cbs_string}"
+		f"Total CBs per column (left to right): {cbs_string}",
+		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 	])
+
+# Calculate the median score increase, when playing a chart twice
+# successively
+def calc_median_score_increase(xml):
+	from statistics import median
+	
+	score_increases = []
+	
+	for chart in xml.iter("ScoresAt"):
+		# Chronologically sorted scores
+		scores = sorted(chart.iter("Score"), key=lambda s: s.findtext("DateTime"))
+		
+		for i in range(0, len(scores) - 1):
+			datetime_1 = parsedate(scores[i].findtext("DateTime"))
+			datetime_2 = parsedate(scores[i+1].findtext("DateTime"))
+			time_delta =  datetime_2 - datetime_1
+			play_time = float(scores[i].findtext("SurviveSeconds"))
+			idle_time = time_delta.total_seconds() - play_time
+			
+			# If the same chart is played twice within 60 seconds
+			if idle_time < 60:
+				score_1 = float(scores[i].findtext("WifeScore"))
+				score_2 = float(scores[i+1].findtext("WifeScore"))
+				score_increase = 100 * (score_2 - score_1)
+				score_increases.append(score_increase)
+	
+	return median(score_increases)

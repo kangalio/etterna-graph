@@ -28,7 +28,7 @@ def find_parent_chart(xml, score):
 #  47289361 -> 47M
 # The min_precision parameter controls how many digits must be visible
 def abbreviate(n, min_precision=2):
-	num_digits = 1 + math.log(n) / math.log(10)
+	num_digits = len(str(n))
 	postfix_index = int((num_digits - min_precision) / 3)
 	postfix = ["", "k", "M", "B"][postfix_index]
 	return str(round(n / 1000**postfix_index)) + postfix
