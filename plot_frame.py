@@ -107,8 +107,6 @@ class Plot:
 			num_cols = len(y)
 			y = list(zip(*y))
 			for (row_i, row) in enumerate(y):
-				print(row_i)
-				print(color)
 				item = pg.PlotCurveItem(x=x, y=list(row), pen=color[row_i], brush=color[row_i])
 				if legend != None: self.plot.legend.addItem(item, legend[row_i])
 				self.plot.addItem(item)

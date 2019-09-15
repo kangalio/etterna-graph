@@ -96,7 +96,7 @@ class Application():
 		
 		# REMEMBER
 		self.try_find_etterna_xml()
-		#self.try_find_replays()
+		self.try_find_replays()
 		if self.etterna_xml == None: self.try_choose_etterna_xml()
 		
 		# Add plot frame

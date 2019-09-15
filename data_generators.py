@@ -7,36 +7,66 @@ from util import parsedate
 
 """
 This file holds all the so-called data generators. Those take save data
-and generate scatter points out of them. There are multiple data
-generator functions here, one for each scatter plot
+and generate data points out of them. There are multiple data generator
+functions here, one for each plot
 """
 
+# This function is responsible for replay analysis. Every chart that 
+# uses replay data uses the data generated from this function.
+scores = None
+datetimes = None
+manipulations = None
+cbs_per_column = None
+def analyze_replays(xml, replays):
+	global scores, datetimes, manipulations, cbs_per_column
+	
+	scores = []
+	datetimes = []
+	manipulations = []
+	cbs_per_column = [0, 0, 0, 0]
+	for score in xml.iter("Score"):
+		replay = replays.get(score.get("Key"))
+		if replay is None: continue
+		
+		previous_time = 0
+		num_total = 0
+		num_manipulated = 0
+		for line in replay:
+			try:
+				tokens = line.split(" ")
+				time, column = int(tokens[0]), int(tokens[2])
+				offset = float(tokens[1])
+			except ValueError:
+				continue
+			
+			if time < previous_time: num_manipulated += 1
+			previous_time = time
+			
+			if column < 4: # Ignore 6-and-up-key scores
+				cbs_per_column[column] += 1
+			
+			num_total += 1
+		
+		manipulations.append(num_manipulated / num_total)
+		
+		scores.append(score)
+		datetimes.append(parsedate(score.findtext("DateTime")))
+
+def gen_manip(xml, replays):
+	if manipulations is None: analyze_replays(xml, replays)
+	
+	x = datetimes
+	y = [math.log(max(m*100, 0.01)) / math.log(10) for m in manipulations]
+	ids = scores
+	return ((x, y), ids)
+
 # This method does not model the actual game mechanics 100% accurately
-def map_wifescore(score):
+def score_to_wifescore(score):
 	overall = float(score.findtext(".//Overall"))
 	percentage = float(score.findtext("WifeScore"))
 	return overall * percentage / 0.93
 
-def map_manip(score, replays):
-	replayfile = replays.get(score.attrib.get("Key"))
-	if replayfile is None: return None
-	
-	num_manipulations, num_total = 0, 0
-	previous_time = 0
-	for line in replayfile:
-		try: time = float(line.split(" ")[0])
-		except ValueError: continue
-		
-		if time < previous_time: num_manipulations += 1
-		num_total += 1
-		
-		previous_time = time
-	
-	percent_manipulated = num_manipulations / num_total * 100
-	percent_manipulated = max(percent_manipulated, 0.01) # Clamp
-	return math.log(percent_manipulated) / math.log(10)
-
-def map_accuracy(score):
+def score_to_accuracy(score):
 	percent = float(score.find("WifeScore").text)*100
 	if percent <= -400: return None # Those are weird
 	if percent > 100: return None
@@ -59,9 +89,8 @@ def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 	
 	return ((x, y), ids)
 
-def gen_wifescore(xml): return map_scores(xml, map_wifescore)
-def gen_manip(xml, replays): return map_scores(xml, map_manip, replays, discard_errors=False)
-def gen_accuracy(xml): return map_scores(xml, map_accuracy)
+def gen_wifescore(xml): return map_scores(xml, score_to_wifescore)
+def gen_accuracy(xml): return map_scores(xml, score_to_accuracy)
 
 # Returns list of sessions where a session is [(Score, datetime)]
 sessions_division_cache = {}
@@ -331,16 +360,20 @@ def gen_textbox_text_3(xml):
 	
 	return "<br>".join(text)
 
-def gen_textbox_text_4(xml):
+def gen_textbox_text_4(xml, replays):
 	from dateutil.relativedelta import relativedelta
+	
+	if cbs_per_column is None: analyze_replays(xml, replays)
 	
 	scores = list(xml.iter("Score"))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
+	cbs_string = ', '.join(map(util.abbreviate, cbs_per_column))
 	
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
+		f"Total CBs per column (left to right): {cbs_string}"
 	])

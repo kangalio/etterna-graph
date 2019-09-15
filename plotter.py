@@ -54,7 +54,7 @@ class Plotter:
 		next(p).draw(g.gen_textbox_text(xml))
 		next(p).draw(g.gen_textbox_text_2(xml))
 		next(p).draw(g.gen_textbox_text_3(xml))
-		next(p).draw(g.gen_textbox_text_4(xml))
+		next(p).draw(g.gen_textbox_text_4(xml, replays))
 		print("Generating wifescore plot..")
 		next(p).draw(xml, g.gen_wifescore, cmap[0], click_callback=score_info)
 		print("Generating manip plot..")

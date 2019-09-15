@@ -7,17 +7,31 @@ import numpy as np
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
 
+
 # Official EO colors
 #skillset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
 # Modified (saturated) EO colors
 skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "808080"]
 
+
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+
 
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
+
+
+# Abbreviates a number, e.g. (with default `min_precision`):
+#  1367897 -> 1367k
+#  47289361 -> 47M
+# The min_precision parameter controls how many digits must be visible
+def abbreviate(n, min_precision=2):
+	num_digits = 1 + math.log(n) / math.log(10)
+	postfix_index = int((num_digits - min_precision) / 3)
+	postfix = ["", "k", "M", "B"][postfix_index]
+	return str(round(n / 1000**postfix_index)) + postfix
 
 # Takes a potential rating, and a list of skillset ratings (one for each
 # score). Returns a boolean, whether the given potential rating is
@@ -30,6 +44,7 @@ def is_rating_okay(rating, values):
 	for value in values:
 		power_sum += max(0, 2 / math.erfc(0.1 * (value - rating)) - 2)
 	return power_sum < max_power_sum
+
 
 """
 The idea is the following: we try out potential skillset rating values
@@ -61,6 +76,7 @@ def find_skillset_rating(values):
 	
 	# Round to accommodate floating point errors
 	return round(rating * 1.04, 2)
+
 
 # `skillsets_values` should be a list with 7 sublists, one for each
 # skillset containing all values from that skillset.
