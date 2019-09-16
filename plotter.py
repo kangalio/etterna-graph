@@ -5,16 +5,16 @@ import data_generators as g
 import util
 import structures
 
-def score_info(self, score):
+def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
-	chart = util.find_parent_chart(self.xml, score)
+	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	percent = float(score.findtext("WifeScore"))*100
 	percent = round(percent * 100) / 100 # Round to 2 places
 	
 	return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
 
-def session_info(self, data):
+def session_info(plotter, data):
 	(prev_rating, then_rating, num_scores, length) = data
 	prev_rating = round(prev_rating, 2)
 	then_rating = round(then_rating, 2)
@@ -30,35 +30,36 @@ class Plotter:
 		self.plots = []
 		p = self.plots
 		
-		p+=[TextBox(frame),
-			TextBox(frame)]
+		p+=[TextBox(self, frame, 3),
+			TextBox(self, frame, 4),
+			TextBox(self, frame, 5),]
 		self.frame.next_row()
 		
-		p+=[TextBox(frame),
-			TextBox(frame)]
+		p+=[TextBox(self, frame, 12),]
 		self.frame.next_row()
 		
-		p+=[Plot(frame, flags="time_xaxis", title="Wife score over time"),
-			Plot(frame, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")]
+		p+=[Plot(self, frame, 6, flags="time_xaxis", title="Wife score over time"),
+			Plot(self, frame, 6, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")]
 		self.frame.next_row()
 		
-		p+=[Plot(frame, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)"),
-			Plot(frame, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")]
+		p+=[Plot(self, frame, 6, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)"),
+			Plot(self, frame, 6, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")]
 		self.frame.next_row()
 		
-		p+=[Plot(frame, title="Number of plays per hour of day"),
-			Plot(frame, flags="time_xaxis", title="Number of plays each week")]
+		p+=[Plot(self, frame, 6, title="Number of plays per hour of day"),
+			Plot(self, frame, 6, flags="time_xaxis", title="Number of plays each week")]
 		self.frame.next_row()
 		
-		p+=[Plot(frame, colspan=2, title="Skillsets trained per week")]
+		p+=[Plot(self, frame, 12, title="Skillsets trained per week")]
 		self.frame.next_row()
 		
-		p+=[Plot(frame, flags="time_xaxis", title="Skillsets over time")]
+		p+=[Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")]
 		self.frame.next_row()
 	
 	def draw(self, xml_path, replays_path):
 		print("Opening xml..")
 		xml = etree.parse(xml_path).getroot()
+		self.xml = xml
 		print("Parsing replays..")
 		if replays_path: replays = structures.Replays(xml, replays_path)
 		else: replays = None
@@ -69,10 +70,10 @@ class Plotter:
 		print("Generating textboxes..")
 		p = iter(self.plots)
 		
-		next(p).draw(g.gen_textbox_text(xml))
 		next(p).draw(g.gen_textbox_text_2(xml))
-		
 		next(p).draw(g.gen_textbox_text_3(xml))
+		next(p).draw(g.gen_textbox_text(xml))
+		
 		next(p).draw(g.gen_textbox_text_4(xml, replays))
 		
 		print("Generating wifescore plot..")

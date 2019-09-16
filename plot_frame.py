@@ -40,11 +40,12 @@ class Plot:
 				result.append(str(value) + "%")
 			return result
 	
-	def __init__(self, frame, rowspan=1, colspan=1, flags="", title=None):
+	def __init__(self, plotter, frame, colspan=1, rowspan=1, flags="", title=None):
 		global column
 		
 		self.flags = flags
 		self.title = title
+		self.plotter = plotter
 		
 		axisItems = {}
 		if "time_xaxis" in flags:
@@ -70,12 +71,12 @@ class Plot:
 	#  "stacked line"
 	# width: (only for bar charts) width of the bars
 	def draw(self, xml, mapper, color, alpha=0.4, mapper_args=[], legend=None, click_callback=None, type_="scatter", width=0.8):
-		def click_handler(self, callback, _, points):
+		def click_handler(plotter, callback, _, points):
 			if len(points) > 1:
 				text = f"{len(points)} points selected at once!"
 			else:
-				text = (callback)(points[0].data())
-			self.frame.infobar.setText(text)
+				text = (callback)(plotter, points[0].data())
+			plotter.frame.infobar.setText(text)
 		
 		self.plot.clear()
 		
@@ -120,12 +121,14 @@ class Plot:
 				item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
 			
 			if click_callback != None:
-				lowlevel_callback = lambda *args: click_handler(click_callback, *args)
+				lowlevel_callback = lambda *args: click_handler(self.plotter, click_callback, *args)
 				item.sigClicked.connect(lowlevel_callback)
 			self.plot.addItem(item)
 
 class TextBox:
-	def __init__(self, frame): self.label = frame.addLabel(justify="left")
+	def __init__(self, plotter, frame, colspan=1):
+		self.plotter = plotter
+		self.label = frame.addLabel(justify="left", colspan=colspan)
 	def draw(self, text): self.label.setText(text)
 
 class PlotFrame(pg.GraphicsLayoutWidget):
