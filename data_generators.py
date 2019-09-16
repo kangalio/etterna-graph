@@ -17,15 +17,21 @@ scores = None
 datetimes = None
 manipulations = None
 cbs_per_column = None
+notes_per_column = None
 offset_means = None
+# This could also be implemented by counting the various note scores in 
+# the Etterna.xml, but it's easier to count in the replays.
+total_notes = None
 def analyze_replays(xml, replays):
-	global scores, datetimes, manipulations, cbs_per_column, offset_means
+	global scores, datetimes, manipulations, cbs_per_column, offset_means, total_notes, notes_per_column
 	
 	scores = []
 	datetimes = []
 	manipulations = []
 	offset_means = []
+	notes_per_column = [0, 0, 0, 0]
 	cbs_per_column = [0, 0, 0, 0]
+	total_notes = 0
 	for score in xml.iter("Score"):
 		replay = replays.get(score.get("Key"))
 		if replay is None: continue
@@ -46,7 +52,8 @@ def analyze_replays(xml, replays):
 			previous_time = time
 			
 			if column < 4: # Ignore 6-and-up-key scores
-				cbs_per_column[column] += 1
+				if abs(offset) > 0.09: cbs_per_column[column] += 1
+				notes_per_column[column] += 1
 			
 			offsets.append(offset)
 			
@@ -58,6 +65,8 @@ def analyze_replays(xml, replays):
 		
 		scores.append(score)
 		datetimes.append(parsedate(score.findtext("DateTime")))
+		
+		total_notes += num_total
 
 def gen_manip(xml, replays):
 	if manipulations is None: analyze_replays(xml, replays)
@@ -371,25 +380,43 @@ def gen_textbox_text_4(xml, replays):
 	from dateutil.relativedelta import relativedelta
 	
 	if replays:
+		if total_notes is None: analyse_replays(xml, replays)
+		total_notes_string = util.abbreviate(total_notes, min_precision=3)
+	else:
+		total_notes_string = "[please load replay data]"
+	
+	scores = list(xml.iter("Score"))
+	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
+	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
+	duration = relativedelta(datetime.now(), first_play_date)
+	
+	return "<br>".join([
+		f"You started playing {duration.years} years {duration.months} months ago",
+		f"Total hours spent playing: {round(hours)} hours",
+		f"Number of scores: {len(scores)}",
+		f"Total arrows hit: {total_notes_string}",
+	])
+
+def gen_textbox_text_5(xml, replays):
+	global notes_per_column, cbs_per_column
+	
+	if replays:
 		if cbs_per_column is None: analyze_replays(xml, replays)
-		cbs_string = ', '.join(map(util.abbreviate, cbs_per_column))
+		
+		cb_ratio_per_column = [cbs/total for (cbs, total)
+				in zip(cbs_per_column, notes_per_column)]
+		cbs_string = ', '.join([f"{round(100*r, 2)}%" for r in cb_ratio_per_column])
+		
 		offset_mean = sum(offset_means) / len(offset_means)
 		mean_string = f"{round(offset_mean * 1000, 1)}ms"
 	else:
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
 	
-	scores = list(xml.iter("Score"))
-	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
-	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
-	duration = relativedelta(datetime.now(), first_play_date)
 	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
 	return "<br>".join([
-		f"You started playing {duration.years} years {duration.months} months ago",
-		f"Total hours spent playing: {round(hours)} hours",
-		f"Number of scores: {len(scores)}",
-		f"Total CBs per column (left to right): {cbs_string}",
+		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
 	])

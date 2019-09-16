@@ -31,11 +31,12 @@ class Plotter:
 		p = self.plots
 		
 		p+=[TextBox(self, frame, 3),
-			TextBox(self, frame, 4),
-			TextBox(self, frame, 5),]
+			TextBox(self, frame, 3),
+			TextBox(self, frame, 6),]
 		self.frame.next_row()
 		
-		p+=[TextBox(self, frame, 12),]
+		p+=[TextBox(self, frame, 6),
+			TextBox(self, frame, 6),]
 		self.frame.next_row()
 		
 		p+=[Plot(self, frame, 6, flags="time_xaxis", title="Wife score over time"),
@@ -74,6 +75,7 @@ class Plotter:
 		next(p).draw(g.gen_textbox_text_3(xml))
 		next(p).draw(g.gen_textbox_text(xml))
 		
+		next(p).draw(g.gen_textbox_text_5(xml, replays))
 		next(p).draw(g.gen_textbox_text_4(xml, replays))
 		
 		print("Generating wifescore plot..")
