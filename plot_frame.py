@@ -60,6 +60,14 @@ class Plot:
 		plot.setTitle(title)
 		if "log" in flags: plot.setLogMode(x=False, y=True)
 	
+	def set_args(self, *args, **kw_args):
+		self.args = args
+		self.kw_args = kw_args
+	
+	# Wrapper function to supply the predefined args from set_args()
+	def draw_with_given_args(self, data):
+		self.draw(data, *self.args, **self.kw_args)
+	
 	# mapper: function that turns xml into data points
 	# color: chart color (duh)
 	# alpha: transparency of scatter points
@@ -70,7 +78,7 @@ class Plot:
 	# type_: either "scatter", "bubble", "bar", "stacked bar" or
 	#  "stacked line"
 	# width: (only for bar charts) width of the bars
-	def draw(self, xml, mapper, color, alpha=0.4, mapper_args=[], legend=None, click_callback=None, type_="scatter", width=0.8):
+	def draw(self, data, color, alpha=0.4, legend=None, click_callback=None, type_="scatter", width=0.8):
 		def click_handler(plotter, callback, _, points):
 			if len(points) > 1:
 				text = f"{len(points)} points selected at once!"
@@ -82,7 +90,6 @@ class Plot:
 		
 		ids = None
 		
-		data = (mapper)(xml, *mapper_args)
 		# We may have ids given which we need to separate
 		if click_callback != None: (data, ids) = data
 		if type_ == "bubble": (x, y, sizes) = data
@@ -129,6 +136,7 @@ class TextBox:
 	def __init__(self, plotter, frame, colspan=1):
 		self.plotter = plotter
 		self.label = frame.addLabel(justify="left", colspan=colspan)
+	
 	def draw(self, text): self.label.setText(text)
 
 class PlotFrame(pg.GraphicsLayoutWidget):

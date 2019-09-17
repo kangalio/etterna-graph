@@ -27,35 +27,50 @@ class Plotter:
 		frame = PlotFrame(infobar)
 		self.frame = frame
 		
-		self.plots = []
-		p = self.plots
+		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
+				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
-		p+=[TextBox(self, frame, 3),
-			TextBox(self, frame, 3),
-			TextBox(self, frame, 6),]
+		a = TextBox(self, frame, 3)
+		b = TextBox(self, frame, 3)
+		c = TextBox(self, frame, 6)
 		self.frame.next_row()
 		
-		p+=[TextBox(self, frame, 6),
-			TextBox(self, frame, 6),]
+		d = TextBox(self, frame, 6)
+		e = TextBox(self, frame, 6)
 		self.frame.next_row()
 		
-		p+=[Plot(self, frame, 6, flags="time_xaxis", title="Wife score over time"),
-			Plot(self, frame, 6, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")]
+		f = Plot(self, frame, 6, flags="time_xaxis", title="Wife score over time")
+		f.set_args(cmap[0], click_callback=score_info)
+		
+		g_ = Plot(self, frame, 6, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
+		g_.set_args(cmap[3], click_callback=score_info)
 		self.frame.next_row()
 		
-		p+=[Plot(self, frame, 6, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)"),
-			Plot(self, frame, 6, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")]
+		h = Plot(self, frame, 6, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
+		h.set_args(cmap[1], click_callback=score_info)
+		
+		i = Plot(self, frame, 6, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
+		i.set_args(cmap[2], type_="bubble", click_callback=session_info)
 		self.frame.next_row()
 		
-		p+=[Plot(self, frame, 6, title="Number of plays per hour of day"),
-			Plot(self, frame, 6, flags="time_xaxis", title="Number of plays each week")]
+		j = Plot(self, frame, 6, title="Number of plays per hour of day")
+		j.set_args(cmap[4], type_="bar")
+		
+		k = Plot(self, frame, 6, flags="time_xaxis", title="Number of plays each week")
+		k.set_args(cmap[5], type_="bar", width=604800*0.8)
 		self.frame.next_row()
 		
-		p+=[Plot(self, frame, 12, title="Skillsets trained per week")]
+		l = Plot(self, frame, 12, title="Skillsets trained per week")
+		l.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
 		self.frame.next_row()
 		
-		p+=[Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")]
+		m = Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")
+		colors = ["ffffff", *util.skillset_colors] # Include overall
+		legend = ["Overall", *util.skillsets] # Include overall
+		m.set_args(colors, legend=legend, type_="stacked line")
 		self.frame.next_row()
+		
+		self.plots = [a,b,c,d,e,f,g_,h,i,j,k,l,m]
 	
 	def draw(self, xml_path, replays_path):
 		print("Opening xml..")
@@ -64,9 +79,6 @@ class Plotter:
 		print("Parsing replays..")
 		if replays_path: replays = structures.Replays(xml, replays_path)
 		else: replays = None
-		
-		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
-				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
 		print("Generating textboxes..")
 		p = iter(self.plots)
@@ -79,28 +91,29 @@ class Plotter:
 		next(p).draw(g.gen_textbox_text_4(xml, replays))
 		
 		print("Generating wifescore plot..")
-		next(p).draw(xml, g.gen_wifescore, cmap[0], click_callback=score_info)
+		next(p).draw_with_given_args(g.gen_wifescore(xml))
+		
 		print("Generating manip plot..")
 		plot = next(p)
 		if replays:
-			plot.draw(xml, g.gen_manip, cmap[3], mapper_args=[replays], click_callback=score_info)
+			plot.draw_with_given_args(g.gen_manip(xml, replays))
 		
 		print("Generating accuracy plot..")
-		next(p).draw(xml, g.gen_accuracy, cmap[1], click_callback=score_info)
+		next(p).draw_with_given_args(g.gen_accuracy(xml))
+		
 		print("Generating session bubble plot..")
-		next(p).draw(xml, g.gen_session_rating_improvement, cmap[2], type_="bubble", click_callback=session_info)
+		next(p).draw_with_given_args(g.gen_session_rating_improvement(xml))
 		
 		print("Generating plays per hour of day..")
-		next(p).draw(xml, g.gen_plays_by_hour, cmap[4], type_="bar")
+		next(p).draw_with_given_args(g.gen_plays_by_hour(xml))
+		
 		print("Generating plays for each week..")
-		next(p).draw(xml, g.gen_plays_per_week, cmap[5], type_="bar", width=604800*0.8)
+		next(p).draw_with_given_args(g.gen_plays_per_week(xml))
 		
 		print("Generating session skillsets..")
-		next(p).draw(xml, g.gen_session_skillsets, util.skillset_colors, legend=util.skillsets, type_="stacked bar")
+		next(p).draw_with_given_args(g.gen_session_skillsets(xml))
 		
 		print("Generating skillset development..")
-		colors = ["ffffff", *util.skillset_colors] # Include overall
-		legend = ["Overall", *util.skillsets] # Include overall
-		next(p).draw(xml, g.gen_skillset_development, colors, legend=legend, type_="stacked line")
+		next(p).draw_with_given_args(g.gen_skillset_development(xml))
 		
 		print("Done")
