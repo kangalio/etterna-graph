@@ -11,6 +11,31 @@ and generate data points out of them. There are multiple data generator
 functions here, one for each plot
 """
 
+"""def extract_replay_data(xml, replays):
+	all_times, all_offsets, all_columns = [], [], []
+	for score in xml.iter("Score"):
+		replay = replays.get(score.get("Key"))
+		if replay is None: continue
+		
+		length = len(replay)
+		times = np.empty(length)
+		offsets = np.empty(length)
+		columns = np.empty(length)
+		for (i, line) in enumerate(replay):
+			try:
+				tokens = line.split(" ")
+				times[i] = int(tokens[0])
+				offsets[i] = float(tokens[1])
+				columns[i] = int(tokens[2])
+			except ValueError:
+				continue
+		
+		all_times.append(times)
+		all_offsets.append(offsets)
+		all_columns.append(columns)
+	
+	return (times, offsets, columns)"""
+
 # This function is responsible for replay analysis. Every chart that 
 # uses replay data uses the data generated from this function.
 scores = None
@@ -23,6 +48,8 @@ offset_means = None
 # the Etterna.xml, but it's easier to count in the replays.
 total_notes = None
 def analyze_replays(xml, replays):
+	#extract_replay_data(xml, replays)
+	
 	global scores, datetimes, manipulations, cbs_per_column, offset_means, total_notes, notes_per_column
 	
 	scores = []
