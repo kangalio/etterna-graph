@@ -440,9 +440,14 @@ def gen_textbox_text_5(xml, replays):
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
 	
+	session_secs = xml.find("GeneralData").findtext("TotalSessionSeconds")
+	play_secs = xml.find("GeneralData").findtext("TotalGameplaySeconds")
+	play_percentage = round(100 * int(play_secs) / int(session_secs))
+	
 	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
 	return "<br>".join([
+		f"You spend {play_percentage}% of your sessions actually playing (also counting Etterna idling in background)",
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
@@ -473,4 +478,7 @@ def calc_median_score_increase(xml):
 				score_increase = 100 * (score_2 - score_1)
 				score_increases.append(score_increase)
 	
-	return median(score_increases)
+	if len(score_increases) == 0:
+		return 0
+	else:
+		return median(score_increases)
