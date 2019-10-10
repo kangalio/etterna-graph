@@ -106,7 +106,7 @@ class Application():
 		self.refresh_graphs()
 	
 	def refresh_graphs(self):
-		if not plotter is None:
+		if not self.plotter is None:
 			self.plotter.draw(self.etterna_xml, self.replays_dir)
 	
 	def display_info_box(self):
