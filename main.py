@@ -33,10 +33,10 @@ class ScrollArea(QScrollArea):
 	def wheelEvent(self, event):
 		pass
 
-# Fields: etterna_xml, canvas, button_load_xml, button_load_replays, window
 class Application():
 	etterna_xml = None
 	replays_dir = None
+	plotter = None
 	
 	def __init__(self):
 		# Construct app, root widget and layout 
@@ -120,11 +120,11 @@ class Application():
 			button.setText(current_text + " [currently loaded]")
 	
 	def try_find_etterna_xml(self):
-		path_maybe = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xml"
+		path_maybe = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xmlfgf"
 		if os.path.exists(path_maybe): self.etterna_xml = path_maybe
 	
 	def try_find_replays(self):
-		path_maybe = "/home/kangalioo/.etterna/Save/ReplaysV2"
+		path_maybe = "/home/kangalioo/.etterna/Save/ReplaysV2dfg"
 		if os.path.exists(path_maybe): self.replays_dir = path_maybe
 	
 	def try_choose_etterna_xml(self):
