@@ -106,7 +106,8 @@ class Application():
 		self.refresh_graphs()
 	
 	def refresh_graphs(self):
-		self.plotter.draw(self.etterna_xml, self.replays_dir)
+		if not plotter is None:
+			self.plotter.draw(self.etterna_xml, self.replays_dir)
 	
 	def display_info_box(self):
 		msgbox = QMessageBox()
