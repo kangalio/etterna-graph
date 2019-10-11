@@ -1,13 +1,15 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import os
+import os, json
 
 from plotter import Plotter
 
 """
 This file mainly handles the UI and overall program state
 """
+
+SETTINGS_PATH = "etterna-graph-settings.json"
 
 infobox_text = """
 This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
@@ -63,6 +65,8 @@ class Application():
 		window.resize(w, h)
 		window.show()
 		app.exec_()
+		
+		self.update_settings()
 	
 	def setup_ui(self, layout):
 		# Add infobox
@@ -94,16 +98,36 @@ class Application():
 		button_row.addWidget(button)
 		button.clicked.connect(self.display_info_box)
 		
-		# REMEMBER
-		self.try_find_etterna_xml()
-		self.try_find_replays()
-		if self.etterna_xml == None: self.try_choose_etterna_xml()
+		self.try_load_settings()
+		
+		self.try_choose_etterna_xml()
 		
 		# Add plot frame
 		self.plotter = Plotter(infobar)
 		layout.addWidget(self.plotter.frame)
 		
 		self.refresh_graphs()
+		
+		self.update_settings()
+	
+	def try_load_settings(self):
+		try:
+			if os.path.exists(SETTINGS_PATH):
+				settings = json.load(open(SETTINGS_PATH))
+				self.etterna_xml = settings["etterna-xml"]
+				self.replays_dir = settings["replays-dir"]
+		except Exception as e:
+			msgbox = QMessageBox()
+			msgbox.setText("Could not load settings")
+			msgbox.exec_()
+			self.update_settings()
+	
+	def update_settings(self):
+		settings = {
+			"etterna-xml": self.etterna_xml,
+			"replays-dir": self.replays_dir
+		}
+		json.dump(settings, open(SETTINGS_PATH, "w"))
 	
 	def refresh_graphs(self):
 		if not self.plotter is None:
@@ -119,16 +143,7 @@ class Application():
 		if not current_text.endswith(" [currently loaded]"):
 			button.setText(current_text + " [currently loaded]")
 	
-	def try_find_etterna_xml(self):
-		path_maybe = "/home/kangalioo/.etterna/Save/LocalProfiles/00000000/Etterna.xmlfgf"
-		if os.path.exists(path_maybe): self.etterna_xml = path_maybe
-	
-	def try_find_replays(self):
-		path_maybe = "/home/kangalioo/.etterna/Save/ReplaysV2dfg"
-		if os.path.exists(path_maybe): self.replays_dir = path_maybe
-	
 	def try_choose_etterna_xml(self):
-		self.try_find_etterna_xml()
 		if self.etterna_xml is None:
 			result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
 			path = result[0] # getOpenFileName returns tuple of path and filetype
@@ -139,10 +154,10 @@ class Application():
 			self.mark_currently_loaded(self.button_load_xml)
 			self.etterna_xml = path
 		
+		self.update_settings()
 		self.refresh_graphs()
 	
 	def try_choose_replays(self):
-		self.try_find_replays()
 		if self.replays_dir is None:
 			path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
 			

@@ -69,7 +69,6 @@ def analyze_replays(xml, replays):
 		if combo > longest_combo:
 			longest_combo = combo
 			longest_combo_chart = util.find_parent_chart(xml, score)
-			if longest_combo > 3000: print(longest_combo, longest_combo_chart)
 	
 	for score in xml.iter("Score"):
 		replay = replays.get(score.get("Key"))
@@ -113,36 +112,6 @@ def analyze_replays(xml, replays):
 		datetimes.append(parsedate(score.findtext("DateTime")))
 		
 		total_notes += num_total
-
-def aaaaaaaaaaaaaaa(xml, replays):
-	longest_combo = 0
-	longest_combo_chart = None
-	
-	for score in xml.iter("Score"):
-		try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
-		except: continue
-		print("opened")
-		
-		def do_combo_end(combo):
-			print("Combo ended", combo)
-			
-			if combo > longest_combo:
-				longest_combo = combo
-				longest_combo_chart = util.find_parent_chart(xml, score)
-		
-		# TODO choose J4/J5/... time window depending on play data
-		great_window = 0.09 # 'Great' time window, seconds, Wife J4
-		combo = 0
-		for line in replayfile.readlines():
-			deviation = float(line.split(" ")[1])
-			if deviation <= great_window:
-				combo += 1
-			else:
-				do_combo_end(combo)
-				combo = 0
-		do_combo_end(combo)
-		
-	return (longest_combo, longest_combo_chart)
 
 def gen_manip(xml, replays):
 	if manipulations is None: analyze_replays(xml, replays)

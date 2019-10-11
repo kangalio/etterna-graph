@@ -10,9 +10,11 @@ def score_info(plotter, score):
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	percent = float(score.findtext("WifeScore"))*100
+	msd = float(score.findtext(".//Overall"))
+	score_value = round(g.score_to_wifescore(score), 2)
 	percent = round(percent * 100) / 100 # Round to 2 places
 	
-	return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
+	return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
 
 def session_info(plotter, data):
 	(prev_rating, then_rating, num_scores, length) = data

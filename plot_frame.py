@@ -1,4 +1,4 @@
-import pyqtgraph as pg
+import my_pyqtgraph as pg
 from datetime import datetime
 
 import util
