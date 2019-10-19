@@ -7,17 +7,17 @@ import structures
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
+	percent = float(score.findtext("WifeScore"))*100
+	percent = round(percent * 100) / 100 # Round to 2 places
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
-	percent = float(score.findtext("WifeScore"))*100
 	
-	msd_str = score.findtext(".//Overall")
-	msd = float(msd_str) if msd_str else 0
-	
-	score_value = round(g.score_to_wifescore(score), 2)
-	percent = round(percent * 100) / 100 # Round to 2 places
-	
-	return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
+	if score.find("SkillsetSSRs"):
+		msd = float(score.findtext(".//Overall"))
+		score_value = round(g.score_to_wifescore(score), 2)
+		return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
+	else:
+		return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
 
 def session_info(plotter, data):
 	(prev_rating, then_rating, num_scores, length) = data

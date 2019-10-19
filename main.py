@@ -11,6 +11,7 @@ This file mainly handles the UI and overall program state
 """
 
 SETTINGS_PATH = "etterna-graph-settings.json"
+INCLUDE_REPLAYS = True # For debug purposes
 
 infobox_text = """
 This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
@@ -131,7 +132,8 @@ class Application():
 	
 	def refresh_graphs(self):
 		if not self.plotter is None:
-			self.plotter.draw(self.etterna_xml, self.replays_dir)
+			replays_dir = self.replays_dir if INCLUDE_REPLAYS else None
+			self.plotter.draw(self.etterna_xml, replays_dir)
 	
 	def display_info_box(self):
 		msgbox = QMessageBox()

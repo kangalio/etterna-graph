@@ -3,6 +3,7 @@ from datetime import datetime
 import math
 from numba import jit
 import numpy as np
+import traceback
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
@@ -35,6 +36,8 @@ def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
 
+def print_traceback(exception):
+	traceback.print_tb(exception.__traceback__)
 
 # Abbreviates a number, e.g. (with default `min_precision`):
 #  1367897 -> 1367k
