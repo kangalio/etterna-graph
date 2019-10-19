@@ -92,7 +92,10 @@ class Plot:
 			if len(points) > 1:
 				text = f"{len(points)} points selected at once!"
 			else:
-				text = (callback)(plotter, points[0].data())
+				try:
+					text = (callback)(plotter, points[0].data())
+				except:
+					text = "[Error while generating info text]"
 			plotter.frame.infobar.setText(text)
 		
 		self.plot.clear()
