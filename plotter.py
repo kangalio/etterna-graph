@@ -66,7 +66,7 @@ class Plotter:
 		l.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
 		self.frame.next_row()
 		
-		m = Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")
+		m = Plot(self, frame, 12, flags="time_xaxis", title="Skillsets over time")
 		colors = ["ffffff", *util.skillset_colors] # Include overall
 		legend = ["Overall", *util.skillsets] # Include overall
 		m.set_args(colors, legend=legend, type_="stacked line")
