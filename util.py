@@ -18,6 +18,19 @@ skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
 
+cache_data = {}
+def cache(key, data=None):
+	global cache_data
+	
+	if not data is None: # If data was given, update cache
+		cache_data[key] = data
+	return cache_data.get(key) # Return cached data
+
+def clear_cache():
+	global cache_data
+	
+	cache_data = {}
+
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")

@@ -4,6 +4,7 @@ from PyQt5.QtCore import *
 import os, json
 
 from plotter import Plotter
+import util
 
 """
 This file mainly handles the UI and overall program state
@@ -154,6 +155,7 @@ class Application():
 			self.etterna_xml = path
 		
 		self.update_settings()
+		util.clear_cache()
 		self.refresh_graphs()
 	
 	def try_choose_replays(self):
@@ -166,6 +168,8 @@ class Application():
 			self.mark_currently_loaded(self.button_load_replays)
 			self.replays_dir = path
 		
+		self.update_settings()
+		util.clear_cache()
 		self.refresh_graphs()
 
 application = Application()

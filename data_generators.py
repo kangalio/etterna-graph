@@ -3,7 +3,7 @@ import numpy as np
 import math
 
 import util
-from util import parsedate
+from util import parsedate, cache
 
 """
 This file holds all the so-called data generators. Those take save data
@@ -154,11 +154,10 @@ def gen_wifescore(xml): return map_scores(xml, score_to_wifescore)
 def gen_accuracy(xml): return map_scores(xml, score_to_accuracy)
 
 # Returns list of sessions where a session is [(Score, datetime)]
-sessions_division_cache = {}
-def divide_into_sessions(xml, minplays=1):
-	global sessions_division_cache
-	if minplays in sessions_division_cache:
-		return sessions_division_cache[minplays]
+# A session is defined to end when there's no play in 20 minutes or more
+def divide_into_sessions(xml):
+	if cache("sessions_division_cache"):
+		return cache("sessions_division_cache")
 	
 	session_end_threshold = timedelta(minutes=20)
 	
@@ -173,14 +172,12 @@ def divide_into_sessions(xml, minplays=1):
 	for i in range(1, len(zipped)):
 		datetime = zipped[i][1]
 		if zipped[i][1] - zipped[i-1][1] > session_end_threshold:
-			if len(current_session) >= minplays:
-				sessions.append(current_session)
+			sessions.append(current_session)
 			current_session = []
 			s_start = zipped[i][1]
 		current_session.append(zipped[i])
 	
-	sessions_division_cache[minplays] = sessions
-	return sessions
+	return cache("sessions_division_cache", sessions)
 
 # Returns ({datetime: session length}, [session])
 """
@@ -355,10 +352,9 @@ def gen_plays_per_week(xml):
 	
 	return (list(weeks.keys()), list(weeks.values()))
 
-calc_ratings_for_sessions_cache = None
 def calc_ratings_for_sessions(xml):
-	global calc_ratings_for_sessions_cache
-	if calc_ratings_for_sessions_cache: return calc_ratings_for_sessions_cache
+	if cache("calc_ratings_for_sessions"):
+		return cache("calc_ratings_for_sessions")
 	
 	sessions = divide_into_sessions(xml)
 	skillsets_values = [[], [], [], [], [], [], []]
@@ -379,8 +375,7 @@ def calc_ratings_for_sessions(xml):
 		ratings = util.find_ratings(skillsets_values)
 		session_rating_pairs.append((session, ratings))
 	
-	calc_ratings_for_sessions_cache = session_rating_pairs
-	return session_rating_pairs
+	return cache("calc_ratings_for_sessions", session_rating_pairs)
 
 def gen_session_rating_improvement(xml):
 	datetimes, lengths, sizes, ids = [], [], [], []
