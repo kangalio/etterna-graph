@@ -10,8 +10,10 @@ def score_info(plotter, score):
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	percent = float(score.findtext("WifeScore"))*100
-	#print(etree.tostring(score, pretty_print=True).decode())
-	msd = float(score.findtext(".//Overall"))
+	
+	msd_str = score.findtext(".//Overall")
+	msd = float(msd_str) if msd_str else 0
+	
 	score_value = round(g.score_to_wifescore(score), 2)
 	percent = round(percent * 100) / 100 # Round to 2 places
 	
