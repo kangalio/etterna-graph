@@ -60,7 +60,6 @@ class Application():
 		
 		# Start
 		w, h = 1600, 2500
-		#w, h = 1280, 720
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		window.show()
