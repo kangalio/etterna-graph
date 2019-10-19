@@ -101,6 +101,11 @@ class Plot:
 		
 		self.plot.clear()
 		
+		if isinstance(data, str):
+			item = pg.TextItem(data, anchor=(0.5, 0.5))
+			self.plot.addItem(item)
+			return
+		
 		ids = None
 		
 		# We may have ids given which we need to separate

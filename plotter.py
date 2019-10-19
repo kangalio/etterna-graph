@@ -12,7 +12,7 @@ def score_info(plotter, score):
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	
-	if score.find("SkillsetSSRs"):
+	if hasattr(score, "SkillsetSSRs"):
 		msd = float(score.findtext(".//Overall"))
 		score_value = round(g.score_to_wifescore(score), 2)
 		return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
@@ -99,9 +99,8 @@ class Plotter:
 		next(p).draw_with_given_args(g.gen_wifescore(xml))
 		
 		print("Generating manip plot..")
-		plot = next(p)
-		if replays:
-			plot.draw_with_given_args(g.gen_manip(xml, replays))
+		data = g.gen_manip(xml, replays) if replays else "[please load replay data]"
+		next(p).draw_with_given_args(data)
 		
 		print("Generating accuracy plot..")
 		next(p).draw_with_given_args(g.gen_accuracy(xml))
