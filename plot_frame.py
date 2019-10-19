@@ -19,7 +19,7 @@ class Plot:
 			self.enableAutoSIPrefix(False)
 
 		def tickStrings(self, values, scale, spacing):
-			# Cap timestamp to 32 bit to prevent Windows crashing from
+			# Cap timestamp to 32 bit to prevent crash on Windows from
 			# out-of-bounds dates
 			capmin, capmax = 0, (2**31)-1
 			
