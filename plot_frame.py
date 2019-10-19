@@ -1,4 +1,5 @@
-import my_pyqtgraph as pg
+#import my_pyqtgraph as pg
+import pyqtgraph as pg
 from datetime import datetime
 
 import util
@@ -18,7 +19,11 @@ class Plot:
 			self.enableAutoSIPrefix(False)
 
 		def tickStrings(self, values, scale, spacing):
-			return [datetime.fromtimestamp(value).strftime("%Y-%m-%d") for value in values]
+			strings = []
+			for value in values:
+				print(value)
+				strings.append(datetime.fromtimestamp(value).strftime("%Y-%m-%d"))
+			return strings
 
 	class DIYLogAxisItem(pg.AxisItem):
 		def __init__(self, accuracy, decimal_places, *args, **kwargs):
