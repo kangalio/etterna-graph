@@ -141,6 +141,7 @@ class Application:
 			if path is None: # Dialog was cancelled
 				QMessageBox.critical(None, "Error", XML_CANCEL_MSG)
 				return
+			self.etterna_xml = path
 		
 		self.refresh_graphs()
 		

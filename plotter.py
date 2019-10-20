@@ -79,7 +79,12 @@ class Plotter:
 	
 	def draw(self, xml_path, replays_path):
 		print("Opening xml..")
-		xml = etree.parse(xml_path).getroot()
+		try: # First try UTF-8
+			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
+		except: # If that doesn't work, fall back to ISO-8859-1
+			util.logger.exception("")
+			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
+		xml = xmltree.getroot()
 		self.xml = xml
 		print("Parsing replays..")
 		if replays_path: replays = structures.Replays(xml, replays_path)
