@@ -77,7 +77,7 @@ class Plotter:
 		
 		self.plots = [a,b,c,d,e,f,g_,h,i,j,k,l,m]
 	
-	def draw(self, xml_path, replays_path):
+	def draw(self, xml_path, replays_path, qapp):
 		print("Opening xml..")
 		try: # First try UTF-8
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
@@ -96,33 +96,43 @@ class Plotter:
 		next(p).draw(g.gen_textbox_text_2(xml))
 		next(p).draw(g.gen_textbox_text_3(xml))
 		next(p).draw(g.gen_textbox_text(xml))
+		qapp.processEvents()
 		
 		next(p).draw(g.gen_textbox_text_5(xml, replays))
 		next(p).draw(g.gen_textbox_text_4(xml, replays))
+		qapp.processEvents()
 		
 		print("Generating wifescore plot..")
 		next(p).draw_with_given_args(g.gen_wifescore(xml))
+		qapp.processEvents()
 		
 		print("Generating manip plot..")
 		data = g.gen_manip(xml, replays) if replays else "[please load replay data]"
 		next(p).draw_with_given_args(data)
+		qapp.processEvents()
 		
 		print("Generating accuracy plot..")
 		next(p).draw_with_given_args(g.gen_accuracy(xml))
+		qapp.processEvents()
 		
 		print("Generating session bubble plot..")
 		next(p).draw_with_given_args(g.gen_session_rating_improvement(xml))
+		qapp.processEvents()
 		
 		print("Generating plays per hour of day..")
 		next(p).draw_with_given_args(g.gen_plays_by_hour(xml))
+		qapp.processEvents()
 		
 		print("Generating plays for each week..")
 		next(p).draw_with_given_args(g.gen_plays_per_week(xml))
+		qapp.processEvents()
 		
 		print("Generating session skillsets..")
 		next(p).draw_with_given_args(g.gen_session_skillsets(xml))
+		qapp.processEvents()
 		
 		print("Generating skillset development..")
 		next(p).draw_with_given_args(g.gen_skillset_development(xml))
+		qapp.processEvents()
 		
 		print("Done")

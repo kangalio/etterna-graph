@@ -70,9 +70,9 @@ class UI:
 		w, h = 1600, 2500
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
+		self.window.show()
 	
 	def exec_(self):
-		self.window.show()
 		self.app.exec_()
 	
 	def setup_widgets(self, layout):
@@ -148,7 +148,7 @@ class Application:
 		self.ui.exec_() # Run program
 	
 	def refresh_graphs(self):
-		self.plotter.draw(self.etterna_xml, self.replays_dir)
+		self.plotter.draw(self.etterna_xml, self.replays_dir, self.ui.app)
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
