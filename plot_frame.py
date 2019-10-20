@@ -94,8 +94,8 @@ class Plot:
 			else:
 				try:
 					text = (callback)(plotter, points[0].data())
-				except Exception as e:
-					util.print_traceback(e)
+				except Exception:
+					util.logger.exception("Click handler")
 					text = "[Error while generating info text]"
 			plotter.frame.infobar.setText(text)
 		

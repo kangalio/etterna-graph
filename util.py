@@ -3,11 +3,17 @@ from datetime import datetime
 import math
 from numba import jit
 import numpy as np
-import traceback
+import logging
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
 
+logger = logging.getLogger()
+"""logger.addHandler(logging.handlers.SMTPHandler(
+		mailhost=("smtp.example.com", 25),
+		fromaddr="from@example.com", 
+		toaddrs="to@example.com",
+		subject=u"AppName error!")"""
 
 # Official EO colors
 #skillset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
@@ -35,9 +41,6 @@ def clear_cache():
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
-
-def print_traceback(exception):
-	traceback.print_tb(exception.__traceback__)
 
 # Abbreviates a number, e.g. (with default `min_precision`):
 #  1367897 -> 1367k

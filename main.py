@@ -28,8 +28,8 @@ Discord/Reddit
 """.strip() # strip() to remove leading and trailing newlines
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
-
 SETTINGS_PATH = "etterna-graph-settings.json"
+IGNORE_REPLAYS = True
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
 # I did this to prevent simultaneous scrolling and panning 
@@ -70,9 +70,10 @@ class UI:
 		w, h = 1600, 2500
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
-		window.show()
 	
-	def exec_(self): self.app.exec_()
+	def exec_(self):
+		self.window.show()
+		self.app.exec_()
 	
 	def setup_widgets(self, layout):
 		# Add infobox
@@ -165,11 +166,12 @@ class Application:
 		try:
 			settings = json.load(open(SETTINGS_PATH))
 			self.etterna_xml = settings["etterna-xml"]
-			self.set_replays(settings["replays-dir"])
+			if not IGNORE_REPLAYS:
+				self.set_replays(settings["replays-dir"])
 		except Exception as e:
-			util.print_traceback(e)
+			util.logger.exception("Loading settings")
 			msgbox = QMessageBox.warning(None, "Warning",
-				"Could not load settings")
+				"Could not load settings. Deleting them")
 			# Overwrite old (prbly corrupted) settings
 			self.write_settings()
 	
@@ -181,9 +183,12 @@ class Application:
 			}
 			json.dump(settings, open(SETTINGS_PATH, "w"))
 		except Exception as e:
-			util.print_traceback(e)
+			util.logger.exception("Writing settings")
 			msgbox = QMessageBox.warning(None, "Warning",
 				"Could not write settings")
 
-
-application = Application()
+try:
+	application = Application()
+except Exception:
+	# Maybe send an automated E-Mail to me on Exception in the future?
+	util.logger.exception("Main")
