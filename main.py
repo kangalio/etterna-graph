@@ -1,7 +1,7 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import os, json
+import os, json, socket
 
 from plotter import Plotter
 import util
@@ -29,7 +29,8 @@ Discord/Reddit
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
-IGNORE_REPLAYS = True
+IGNORE_REPLAYS = True # Development purposes
+if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
 # I did this to prevent simultaneous scrolling and panning 
