@@ -149,6 +149,8 @@ class Plot:
 				lowlevel_callback = lambda *args: click_handler(self.plotter, click_callback, *args)
 				item.sigClicked.connect(lowlevel_callback)
 			self.plot.addItem(item)
+		
+		self.plot.autoBtnClicked()
 
 class TextBox:
 	def __init__(self, plotter, frame, colspan=1):
