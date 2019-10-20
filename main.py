@@ -10,10 +10,7 @@ import util
 This file mainly handles the UI and overall program state
 """
 
-SETTINGS_PATH = "etterna-graph-settings.json"
-INCLUDE_REPLAYS = True # For debug purposes
-
-infobox_text = """
+ABOUT_TEXT = """
 This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
 
 The manipulation percentage is calculated by counting the number of
@@ -30,24 +27,32 @@ whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit
 """.strip() # strip() to remove leading and trailing newlines
 
-# Like QScrollArea, but without scroll wheel scrolling :p
-# I did this to prevent simultaneous scrolling and panning when hovering
-# a plot while scrolling, which was annoying af.
+XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
+
+SETTINGS_PATH = "etterna-graph-settings.json"
+
+# QScrollArea wrapper with scroll wheel scrolling disabled.
+# I did this to prevent simultaneous scrolling and panning 
+# when hovering a plot while scrolling, which was annoying af.
 class ScrollArea(QScrollArea):
 	def wheelEvent(self, event):
 		pass
 
-class Application():
-	etterna_xml = None
-	replays_dir = None
-	plotter = None
+# Handles UI
+class UI:
+	state = None # Reference to the enclosing Application object
+	app = window = layout = None
+	replays_button = None
 	
-	def __init__(self):
+	def __init__(self, state):
+		self.state = state
+		
 		# Construct app, root widget and layout 
 		app = QApplication(["Kangalioo's Etterna stats analyzer"])
 		self.app = app
 		app.setStyle("Fusion")
 		
+		# Prepare area for the widgets
 		window = QMainWindow()
 		self.window = window
 		root = QWidget()
@@ -58,18 +63,18 @@ class Application():
 		scroll.setWidgetResizable(True)
 		window.setCentralWidget(scroll)
 		
-		self.setup_ui(layout)
+		# Put the widgets in
+		self.setup_widgets(layout)
 		
 		# Start
 		w, h = 1600, 2500
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		window.show()
-		app.exec_()
-		
-		self.update_settings()
 	
-	def setup_ui(self, layout):
+	def exec_(self): self.app.exec_()
+	
+	def setup_widgets(self, layout):
 		# Add infobox
 		toolbar = QToolBar()
 		infobar = QLabel("This is the infobox. Press on a scatter point to see information about the score")
@@ -84,94 +89,101 @@ class Application():
 		button_row = QHBoxLayout(button_row_widget)
 		layout.addWidget(button_row_widget)
 		
-		button = QPushButton("Reload Etterna.xml")
-		self.button_load_xml = button
-		button_row.addWidget(button)
-		button.clicked.connect(self.try_choose_etterna_xml)
-		
+		# Load Replays button
 		button = QPushButton("Load Replays")
-		button.setToolTip("Replay data is required for the manipulation chart")
+		self.replays_button = button
+		button.setToolTip("Replay data is required for various statistics")
 		self.button_load_replays = button
 		button_row.addWidget(button)
-		button.clicked.connect(self.try_choose_replays)
+		button.clicked.connect(self.state.try_choose_replays)
 		
+		# About button
 		button = QPushButton("About this program")
 		button_row.addWidget(button)
-		button.clicked.connect(self.display_info_box)
+		button.clicked.connect(
+			lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 		
-		self.try_load_settings()
-		
-		self.try_choose_etterna_xml()
-		
-		# Add plot frame
+		# Add plot frame (that thing that contains all the plots)
 		self.plotter = Plotter(infobar)
 		layout.addWidget(self.plotter.frame)
+	
+	# Returns path to Etterna.xml
+	def choose_etterna_xml(self):
+		result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
+		path = result[0] # getOpenFileName returns tuple of path and filetype
+		
+		if path == "": return None
+		return path
+	
+	# Returns path to ReplaysV2 directory
+	def choose_replays(self):
+		path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
+		
+		if path == "": return None # User cancelled the chooser
+		return path
+	
+# Handles general application state
+class Application:
+	etterna_xml = None
+	replays_dir = None
+	ui = None
+	plotter = None
+	
+	def __init__(self):
+		self.ui = UI(self) # Init UI
+		self.plotter = self.ui.plotter
+		self.load_settings() # Apply settings
+		
+		# If Etterna.xml isn't already defined, let the user choose it
+		if self.etterna_xml is None:
+			path = self.ui.choose_etterna_xml()
+			if path is None: # Dialog was cancelled
+				QMessageBox.critical(None, "Error", XML_CANCEL_MSG)
+				return
 		
 		self.refresh_graphs()
 		
-		self.update_settings()
-	
-	def try_load_settings(self):
-		try:
-			if os.path.exists(SETTINGS_PATH):
-				settings = json.load(open(SETTINGS_PATH))
-				self.etterna_xml = settings["etterna-xml"]
-				self.replays_dir = settings["replays-dir"]
-		except Exception as e:
-			msgbox = QMessageBox()
-			msgbox.setText("Could not load settings")
-			msgbox.exec_()
-			self.update_settings()
-	
-	def update_settings(self):
-		settings = {
-			"etterna-xml": self.etterna_xml,
-			"replays-dir": self.replays_dir
-		}
-		json.dump(settings, open(SETTINGS_PATH, "w"))
+		self.ui.exec_() # Run program
 	
 	def refresh_graphs(self):
-		if not self.plotter is None:
-			replays_dir = self.replays_dir if INCLUDE_REPLAYS else None
-			self.plotter.draw(self.etterna_xml, replays_dir)
-	
-	def display_info_box(self):
-		msgbox = QMessageBox()
-		msgbox.setText(infobox_text)
-		msgbox.exec_()
-	
-	def mark_currently_loaded(self, button):
-		current_text = button.text()
-		if not current_text.endswith(" [currently loaded]"):
-			button.setText(current_text + " [currently loaded]")
-	
-	def try_choose_etterna_xml(self):
-		if self.etterna_xml is None:
-			result = QFileDialog.getOpenFileName(filter="Etterna XML files(*.xml)")
-			path = result[0] # getOpenFileName returns tuple of path and filetype
-			
-			if path == "": return # User cancelled the file chooser
-			
-			print(f"[UI] User selected Etterna.xml: {path}")
-			self.mark_currently_loaded(self.button_load_xml)
-			self.etterna_xml = path
-		
-		self.update_settings()
-		util.clear_cache()
-		self.refresh_graphs()
+		self.plotter.draw(self.etterna_xml, self.replays_dir)
 	
 	def try_choose_replays(self):
-		if self.replays_dir is None:
-			path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
-			
-			if path == "": return # User cancelled the chooser
-			
-			print(f"[UI] User selected ReplaysV2: {path}")
-			self.mark_currently_loaded(self.button_load_replays)
-			self.replays_dir = path
+		path = self.ui.choose_replays()
+		if not path is None:
+			self.set_replays(path)
+			self.refresh_graphs()
+	
+	def set_replays(self, path):
+		self.replays_dir = path
+		self.ui.replays_button.setEnabled(False)
+	
+	def load_settings(self):
+		if not os.path.exists(SETTINGS_PATH):
+			return
 		
-		self.update_settings()
-		util.clear_cache()
-		self.refresh_graphs()
+		try:
+			settings = json.load(open(SETTINGS_PATH))
+			self.etterna_xml = settings["etterna-xml"]
+			self.set_replays(settings["replays-dir"])
+		except Exception as e:
+			util.print_traceback(e)
+			msgbox = QMessageBox.warning(None, "Warning",
+				"Could not load settings")
+			# Overwrite old (prbly corrupted) settings
+			self.write_settings()
+	
+	def write_settings(self):
+		try:
+			settings = {
+				"etterna-xml": self.etterna_xml,
+				"replays-dir": self.replays_dir
+			}
+			json.dump(settings, open(SETTINGS_PATH, "w"))
+		except Exception as e:
+			util.print_traceback(e)
+			msgbox = QMessageBox.warning(None, "Warning",
+				"Could not write settings")
+
 
 application = Application()
