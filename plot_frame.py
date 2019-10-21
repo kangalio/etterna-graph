@@ -116,6 +116,11 @@ class Plot:
 		if "time_xaxis" in self.flags:
 			x = [value.timestamp() for value in x]
 		
+		step_mode = ("step" in self.flags)
+		if step_mode:
+			x = [*x, x[-1]] # Duplicate last elemenet to satisfy pyqtgraph with stepMode
+			# Out-of-place to avoid modifying the passed-in list
+		
 		if legend != None: self.plot.addLegend()
 		
 		if type_ == "stacked bar":
@@ -132,7 +137,7 @@ class Plot:
 			num_cols = len(y)
 			y = list(zip(*y))
 			for (row_i, row) in enumerate(y):
-				item = pg.PlotCurveItem(x=x, y=list(row), pen=color[row_i], brush=color[row_i])
+				item = pg.PlotCurveItem(x=x, y=list(row), pen=color[row_i], brush=color[row_i], stepMode=step_mode)
 				if legend != None: self.plot.legend.addItem(item, legend[row_i])
 				self.plot.addItem(item)
 		else:
