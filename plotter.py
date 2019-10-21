@@ -12,11 +12,12 @@ def score_info(plotter, score):
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	
-	if hasattr(score, "SkillsetSSRs"):
+	if len(score.findall("SkillsetSSRs")) == 1:
 		msd = float(score.findtext(".//Overall"))
 		score_value = round(g.score_to_wifescore(score), 2)
 		return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
 	else:
+		util.logger.warning("Selected scatter point doesn't have SkillsetSSRs data")
 		return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
 
 def session_info(plotter, data):
