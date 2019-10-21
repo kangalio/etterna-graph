@@ -44,15 +44,17 @@ manipulations = None
 cbs_per_column = None
 notes_per_column = None
 offset_means = None
+offset_mean = None
 longest_combo = None
 longest_combo_chart = None
+offset_buckets = None
 # This could also be implemented by counting the various note scores in 
 # the Etterna.xml, but it's easier to count in the replays.
 total_notes = None
 def analyze_replays(xml, replays):
 	#extract_replay_data(xml, replays)
 	
-	global scores, datetimes, manipulations, cbs_per_column, offset_means, total_notes, notes_per_column, longest_combo, longest_combo_chart
+	global scores, datetimes, manipulations, cbs_per_column, offset_means, total_notes, notes_per_column, longest_combo, longest_combo_chart, offset_buckets, offset_mean
 	
 	scores = []
 	datetimes = []
@@ -60,9 +62,11 @@ def analyze_replays(xml, replays):
 	offset_means = []
 	notes_per_column = [0, 0, 0, 0]
 	cbs_per_column = [0, 0, 0, 0]
+	offset_buckets = {}
 	total_notes = 0
 	longest_combo = 0
 	
+	offset_mean = 0
 	def do_combo_end(combo):
 		global longest_combo, longest_combo_chart
 		
@@ -90,6 +94,10 @@ def analyze_replays(xml, replays):
 			if time < previous_time: num_manipulated += 1
 			previous_time = time
 			
+			if abs(offset) < 0.1:
+				bucket_key = round(offset * 1000)
+				offset_buckets[bucket_key] = offset_buckets.get(bucket_key, 0) + 1
+			
 			if column < 4: # Ignore 6-and-up-key scores
 				if abs(offset) > 0.09:
 					do_combo_end(combo)
@@ -107,11 +115,14 @@ def analyze_replays(xml, replays):
 		manipulations.append(num_manipulated / num_total)
 		
 		offset_means.append(sum(offsets) / len(offsets))
+		offset_mean += sum(offsets)
 		
 		scores.append(score)
 		datetimes.append(parsedate(score.findtext("DateTime")))
 		
 		total_notes += num_total
+	
+	offset_mean /= total_notes
 
 def gen_manip(xml, replays):
 	if manipulations is None: analyze_replays(xml, replays)
@@ -352,6 +363,11 @@ def gen_plays_per_week(xml):
 	
 	return (list(weeks.keys()), list(weeks.values()))
 
+def gen_hit_distribution(xml, replays):
+	if offset_buckets is None: analyze_replays(xml, replays)
+	print(offset_buckets)
+	return (list(offset_buckets.keys()), list(offset_buckets.values()))
+
 def calc_ratings_for_sessions(xml):
 	if cache("calc_ratings_for_sessions"):
 		return cache("calc_ratings_for_sessions")
@@ -484,11 +500,13 @@ def gen_textbox_text_5(xml, replays):
 				in zip(cbs_per_column, notes_per_column)]
 		cbs_string = ', '.join([f"{round(100*r, 2)}%" for r in cb_ratio_per_column])
 		
-		offset_mean = sum(offset_means) / len(offset_means)
-		mean_string = f"{round(offset_mean * 1000, 1)}ms"
+		final_mean_offset = sum(offset_means) / len(offset_means)
+		mean_string = f"{round(final_mean_offset * 1000, 1)}ms"
+		mean_string_2 = f"{round(offset_mean * 1000, 1)}ms"
 	else:
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
+		mean_string_2 = "[please load replay data]"
 	
 	session_secs = xml.find("GeneralData").findtext("TotalSessionSeconds")
 	play_secs = xml.find("GeneralData").findtext("TotalGameplaySeconds")
@@ -500,7 +518,7 @@ def gen_textbox_text_5(xml, replays):
 		f"You spend {play_percentage}% of your sessions actually playing (also counting Etterna idling in background)",
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
-		f"Mean hit offset: {mean_string}",
+		f"Mean hit offset: {mean_string}, raw {mean_string_2}",
 	])
 
 # Calculate the median score increase, when playing a chart twice

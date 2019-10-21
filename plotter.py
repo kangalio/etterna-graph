@@ -58,6 +58,15 @@ class Plotter:
 		i.set_args(cmap[2], type_="bubble", click_callback=session_info)
 		self.frame.next_row()
 		
+		m = Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")
+		colors = ["ffffff", *util.skillset_colors] # Include overall
+		legend = ["Overall", *util.skillsets] # Include overall
+		m.set_args(colors, legend=legend, type_="stacked line")
+		
+		n = Plot(self, frame, 6, title="Distribution of hit offset")
+		n.set_args(cmap[6], type_="bar")
+		self.frame.next_row()
+		
 		j = Plot(self, frame, 6, title="Number of plays per hour of day")
 		j.set_args(cmap[4], type_="bar")
 		
@@ -69,20 +78,14 @@ class Plotter:
 		l.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
 		self.frame.next_row()
 		
-		m = Plot(self, frame, 12, flags="time_xaxis", title="Skillsets over time")
-		colors = ["ffffff", *util.skillset_colors] # Include overall
-		legend = ["Overall", *util.skillsets] # Include overall
-		m.set_args(colors, legend=legend, type_="stacked line")
-		self.frame.next_row()
-		
-		self.plots = [a,b,c,d,e,f,g_,h,i,j,k,l,m]
+		self.plots = [a,b,c,d,e,f,g_,h,i,m,n,j,k,l] #opqrstu...
 	
 	def draw(self, xml_path, replays_path, qapp):
 		print("Opening xml..")
 		try: # First try UTF-8
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
 		except: # If that doesn't work, fall back to ISO-8859-1
-			util.logger.exception("")
+			util.logger.exception("XML parsing with UTF-8 failed")
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
 		xml = xmltree.getroot()
 		self.xml = xml
@@ -119,6 +122,15 @@ class Plotter:
 		next(p).draw_with_given_args(g.gen_session_rating_improvement(xml))
 		qapp.processEvents()
 		
+		print("Generating skillset development..")
+		next(p).draw_with_given_args(g.gen_skillset_development(xml))
+		qapp.processEvents()
+		
+		print("Generating hit offset distribution..")
+		data = g.gen_hit_distribution(xml, replays) if replays else "[please load replay data]"
+		next(p).draw_with_given_args(data)
+		qapp.processEvents()
+		
 		print("Generating plays per hour of day..")
 		next(p).draw_with_given_args(g.gen_plays_by_hour(xml))
 		qapp.processEvents()
@@ -129,10 +141,6 @@ class Plotter:
 		
 		print("Generating session skillsets..")
 		next(p).draw_with_given_args(g.gen_session_skillsets(xml))
-		qapp.processEvents()
-		
-		print("Generating skillset development..")
-		next(p).draw_with_given_args(g.gen_skillset_development(xml))
 		qapp.processEvents()
 		
 		print("Done")
