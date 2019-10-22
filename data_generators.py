@@ -44,8 +44,8 @@ manipulations = None
 cbs_per_column = None
 notes_per_column = None
 offset_mean = None
-longest_combo = None
-longest_combo_chart = None
+longest_combo = None # Combo variables are lists of `[combo length, chart]`
+longest_mcombo = None
 offset_buckets = None
 # This could also be implemented by counting the various note scores in 
 # the Etterna.xml, but it's easier to count in the replays.
@@ -53,7 +53,7 @@ total_notes = None
 def analyze_replays(xml, replays):
 	#extract_replay_data(xml, replays)
 	
-	global scores, datetimes, manipulations, cbs_per_column, total_notes, notes_per_column, longest_combo, longest_combo_chart, offset_buckets, offset_mean
+	global scores, datetimes, manipulations, cbs_per_column, total_notes, notes_per_column, longest_combo, longest_mcombo, offset_buckets, offset_mean
 	
 	scores = []
 	datetimes = []
@@ -63,15 +63,16 @@ def analyze_replays(xml, replays):
 	cbs_per_column = [0, 0, 0, 0]
 	offset_buckets = {}
 	total_notes = 0
-	longest_combo = 0
+	longest_combo = [0, None]
+	longest_mcombo = [0, None]
 	num_near_hits = 0
 	
-	def do_combo_end(combo):
+	def do_combo_end(combo, longest):
 		global longest_combo, longest_combo_chart
 		
-		if combo > longest_combo:
-			longest_combo = combo
-			longest_combo_chart = util.find_parent_chart(xml, score)
+		if combo > longest[0]:
+			longest[0] = combo
+			longest[1] = util.find_parent_chart(xml, score)
 	
 	for score in xml.iter("Score"):
 		replay = replays.get(score.get("Key"))
@@ -81,7 +82,8 @@ def analyze_replays(xml, replays):
 		num_total = 0
 		num_manipulated = 0
 		near_offsets = []
-		combo = 0
+		combo = 0 # Counter for combo
+		mcombo = 0 # Counter for marvelous combo
 		for line in replay:
 			try:
 				tokens = line.split(" ")
@@ -100,15 +102,23 @@ def analyze_replays(xml, replays):
 			
 			if column < 4: # Ignore 6-and-up-key scores
 				if abs(offset) > 0.09:
-					do_combo_end(combo)
+					do_combo_end(combo, longest_combo)
 					combo = 0
 					cbs_per_column[column] += 1
 				else:
 					combo += 1
+				
+				if abs(offset) > 0.0225:
+					do_combo_end(mcombo, longest_mcombo)
+					mcombo = 0
+				else:
+					mcombo += 1
+				
 				notes_per_column[column] += 1
 			
 			num_total += 1
-		do_combo_end(combo)
+		do_combo_end(combo, longest_combo)
+		do_combo_end(mcombo, longest_mcombo)
 		
 		manipulations.append(num_manipulated / num_total)
 		
@@ -467,12 +477,17 @@ def gen_textbox_text_4(xml, replays):
 		if total_notes is None: analyse_replays(xml, replays)
 		total_notes_string = util.abbreviate(total_notes, min_precision=3)
 		
-		chart = longest_combo_chart
+		chart = longest_combo[1]
 		long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_combo_str = f"{longest_combo} on {long_combo_chart}"
+		long_combo_str = f"{longest_combo[0]} on {long_combo_chart}"
+		
+		chart = longest_mcombo[1]
+		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+		long_mcombo_str = f"{longest_mcombo[0]} on {long_mcombo_chart}"
 	else:
 		total_notes_string = "[please load replay data]"
 		long_combo_str = "[please load replay data]"
+		long_mcombo_str = "[please load replay data]"
 	
 	scores = list(xml.iter("Score"))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
@@ -485,6 +500,7 @@ def gen_textbox_text_4(xml, replays):
 		f"Number of scores: {len(scores)}",
 		f"Total arrows hit: {total_notes_string}",
 		f"Longest combo: {long_combo_str}",
+		f"Longest marvelous combo: {long_mcombo_str}",
 	])
 
 def gen_textbox_text_5(xml, replays):
