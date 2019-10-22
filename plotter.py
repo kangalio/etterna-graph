@@ -59,7 +59,7 @@ class Plotter:
 		i.set_args(cmap[2], type_="bubble", click_callback=session_info)
 		self.frame.next_row()
 		
-		m = Plot(self, frame, 6, flags="time_xaxis", title="Skillsets over time")
+		m = Plot(self, frame, 6, flags="time_xaxis step", title="Skillsets over time")
 		colors = ["ffffff", *util.skillset_colors] # Include overall
 		legend = ["Overall", *util.skillsets] # Include overall
 		m.set_args(colors, legend=legend, type_="stacked line")
