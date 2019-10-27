@@ -1,6 +1,6 @@
 import pyqtgraph as pg
 from datetime import datetime
-import math
+import math, os
 from numba import jit
 import numpy as np
 import logging
@@ -24,6 +24,15 @@ skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
+
+# Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
+# Returns list of the files' lines
+def read_replay(replays, key):
+	path = replays + "/" + key
+	if os.path.exists(path):
+		return open(path).readlines()
+	else:
+		return None
 
 cache_data = {}
 def cache(key, data=None):

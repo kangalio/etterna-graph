@@ -3,7 +3,7 @@ from lxml import etree
 from plot_frame import PlotFrame, Plot, TextBox
 import data_generators as g
 import util
-import structures
+#import structures
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
@@ -91,8 +91,7 @@ class Plotter:
 		xml = xmltree.getroot()
 		self.xml = xml
 		print("Parsing replays..")
-		if replays_path: replays = structures.Replays(xml, replays_path)
-		else: replays = None
+		replays = replays_path
 		
 		print("Generating textboxes..")
 		p = iter(self.plots)

@@ -75,7 +75,7 @@ def analyze_replays(xml, replays):
 			longest[1] = util.find_parent_chart(xml, score)
 	
 	for score in xml.iter("Score"):
-		replay = replays.get(score.get("Key"))
+		replay = util.read_replay(replays, score.get("Key"))
 		if replay is None: continue
 		
 		previous_time = 0
