@@ -5,25 +5,13 @@ import math
 import util
 from util import parsedate, cache
 
-# This function is responsible for replay analysis. Every chart that 
-# uses replay data uses the data generated from this function.
-scores = None
-datetimes = None
-manipulations = None
-cbs_per_column = None
-notes_per_column = None
-offset_mean = None
-longest_combo = None # Combo variables are lists of `[combo length, chart]`
-longest_mcombo = None
-offset_buckets = None
-# This could also be implemented by counting the various note scores in 
-# the Etterna.xml, but it's easier to count in the replays.
-total_notes = None
-def analyze_replays(xml, replays):
-	#extract_replay_data(xml, replays)
-	
-	global scores, datetimes, manipulations, cbs_per_column, total_notes, notes_per_column, longest_combo, longest_mcombo, offset_buckets, offset_mean
-	
+"""
+This file holds all the so-called data generators. Those take save data
+and generate data points out of them. There are multiple data generator
+functions here, one for each plot
+"""
+
+class ReplaysAnalysis:
 	scores = []
 	datetimes = []
 	manipulations = []
@@ -31,10 +19,19 @@ def analyze_replays(xml, replays):
 	notes_per_column = [0, 0, 0, 0]
 	cbs_per_column = [0, 0, 0, 0]
 	offset_buckets = {}
+	# This could also be implemented by counting the various note scores in 
+	# the Etterna.xml, but it's easier to count in the replays.
 	total_notes = 0
-	longest_combo = [0, None]
+	longest_combo = [0, None] # Combo variables are lists of `[combo length, chart]`
 	longest_mcombo = [0, None]
 	num_near_hits = 0
+
+# This function is responsible for replay analysis. Every chart that 
+# uses replay data uses the data generated from this function.
+analysis = None # Holds a ReplayAnalysis
+def analyze_replays(xml, replays):
+	global analysis
+	r = analysis = ReplaysAnalysis() # Alias
 	
 	def do_combo_end(combo, longest):
 		global longest_combo, longest_combo_chart
@@ -67,46 +64,46 @@ def analyze_replays(xml, replays):
 			if abs(offset) < 0.1:
 				near_offsets.append(offset)
 				bucket_key = round(offset * 1000)
-				offset_buckets[bucket_key] = offset_buckets.get(bucket_key, 0) + 1
+				r.offset_buckets[bucket_key] = r.offset_buckets.get(bucket_key, 0) + 1
 			
 			if column < 4: # Ignore 6-and-up-key scores
 				if abs(offset) > 0.09:
-					do_combo_end(combo, longest_combo)
+					do_combo_end(combo, r.longest_combo)
 					combo = 0
-					cbs_per_column[column] += 1
+					r.cbs_per_column[column] += 1
 				else:
 					combo += 1
 				
 				if abs(offset) > 0.0225:
-					do_combo_end(mcombo, longest_mcombo)
+					do_combo_end(mcombo, r.longest_mcombo)
 					mcombo = 0
 				else:
 					mcombo += 1
 				
-				notes_per_column[column] += 1
+				r.notes_per_column[column] += 1
 			
 			num_total += 1
-		do_combo_end(combo, longest_combo)
-		do_combo_end(mcombo, longest_mcombo)
+		do_combo_end(combo, r.longest_combo)
+		do_combo_end(mcombo, r.longest_mcombo)
 		
-		manipulations.append(num_manipulated / num_total)
+		r.manipulations.append(num_manipulated / num_total)
 		
-		num_near_hits += len(near_offsets)
-		offset_mean += sum(near_offsets)
+		r.num_near_hits += len(near_offsets)
+		r.offset_mean += sum(near_offsets)
 		
-		scores.append(score)
-		datetimes.append(parsedate(score.findtext("DateTime")))
+		r.scores.append(score)
+		r.datetimes.append(parsedate(score.findtext("DateTime")))
 		
-		total_notes += num_total
+		r.total_notes += num_total
 	
-	offset_mean /= num_near_hits
+	r.offset_mean /= r.num_near_hits
 
 def gen_manip(xml, replays):
-	if manipulations is None: analyze_replays(xml, replays)
+	if analysis is None: analyze_replays(xml, replays)
 	
-	x = datetimes
-	y = [math.log(max(m*100, 0.01)) / math.log(10) for m in manipulations]
-	ids = scores
+	x = analysis.datetimes
+	y = [math.log(max(m*100, 0.01)) / math.log(10) for m in analysis.manipulations]
+	ids = analysis.scores
 	return ((x, y), ids)
 
 # This method does not model the actual game mechanics 100% accurately
@@ -229,37 +226,6 @@ def gen_most_played_charts(xml, num_charts):
 	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
 	return charts_num_plays[:num_charts]
 
-# Returns tuple of (combo length, chart object)
-def get_longest_combo(xml, replays_dir):
-	longest_combo = 0
-	longest_combo_chart = None
-	
-	for score in xml.iter("Score"):
-		try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
-		except: continue
-		print("opened")
-		
-		def do_combo_end(combo):
-			print("Combo ended", combo)
-			
-			if combo > longest_combo:
-				longest_combo = combo
-				longest_combo_chart = util.find_parent_chart(xml, score)
-		
-		# TODO choose J4/J5/... time window depending on play data
-		great_window = 0.09 # 'Great' time window, seconds, Wife J4
-		combo = 0
-		for line in replayfile.readlines():
-			deviation = float(line.split(" ")[1])
-			if deviation <= great_window:
-				combo += 1
-			else:
-				do_combo_end(combo)
-				combo = 0
-		do_combo_end(combo)
-		
-	return (longest_combo, longest_combo_chart)
-
 def gen_hours_per_skillset(xml):
 	hours = [0, 0, 0, 0, 0, 0, 0]
 	
@@ -294,8 +260,9 @@ def gen_plays_per_week(xml):
 	return (list(weeks.keys()), list(weeks.values()))
 
 def gen_hit_distribution(xml, replays):
-	if offset_buckets is None: analyze_replays(xml, replays)
-	return (list(offset_buckets.keys()), list(offset_buckets.values()))
+	if analysis is None: analyze_replays(xml, replays)
+	buckets = analysis.offset_buckets
+	return (list(buckets.keys()), list(buckets.values()))
 
 def calc_ratings_for_sessions(xml):
 	if cache("calc_ratings_for_sessions"):
@@ -396,16 +363,17 @@ def gen_textbox_text_4(xml, replays):
 	from dateutil.relativedelta import relativedelta
 	
 	if replays:
-		if total_notes is None: analyse_replays(xml, replays)
-		total_notes_string = util.abbreviate(total_notes, min_precision=3)
+		if analysis is None: analyse_replays(xml, replays)
+		r = analysis # Alias
+		total_notes_string = util.abbreviate(r.total_notes, min_precision=3)
 		
-		chart = longest_combo[1]
+		chart = r.longest_combo[1]
 		long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_combo_str = f"{longest_combo[0]} on {long_combo_chart}"
+		long_combo_str = f"{r.longest_combo[0]} on {long_combo_chart}"
 		
-		chart = longest_mcombo[1]
+		chart = r.longest_mcombo[1]
 		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_mcombo_str = f"{longest_mcombo[0]} on {long_mcombo_chart}"
+		long_mcombo_str = f"{r.longest_mcombo[0]} on {long_mcombo_chart}"
 	else:
 		total_notes_string = "[please load replay data]"
 		long_combo_str = "[please load replay data]"
@@ -426,16 +394,15 @@ def gen_textbox_text_4(xml, replays):
 	])
 
 def gen_textbox_text_5(xml, replays):
-	global notes_per_column, cbs_per_column
-	
 	if replays:
-		if cbs_per_column is None: analyze_replays(xml, replays)
+		if analysis is None: analyze_replays(xml, replays)
+		a = analysis # Alias
 		
 		cb_ratio_per_column = [cbs/total for (cbs, total)
-				in zip(cbs_per_column, notes_per_column)]
+				in zip(a.cbs_per_column, a.notes_per_column)]
 		cbs_string = ', '.join([f"{round(100*r, 2)}%" for r in cb_ratio_per_column])
 		
-		mean_string = f"{round(offset_mean * 1000, 1)}ms"
+		mean_string = f"{round(a.offset_mean * 1000, 1)}ms"
 	else:
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
