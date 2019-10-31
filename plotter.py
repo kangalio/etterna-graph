@@ -140,7 +140,7 @@ class Plotter:
 		qapp.processEvents()
 		
 		print("Generating session skillsets..")
-		next(p).draw_with_given_args(g.gen_session_skillsets(xml))
+		next(p).draw_with_given_args(g.gen_week_skillsets(xml))
 		qapp.processEvents()
 		
 		print("Done")

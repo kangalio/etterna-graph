@@ -5,37 +5,6 @@ import math
 import util
 from util import parsedate, cache
 
-"""
-This file holds all the so-called data generators. Those take save data
-and generate data points out of them. There are multiple data generator
-functions here, one for each plot
-"""
-
-"""def extract_replay_data(xml, replays):
-	all_times, all_offsets, all_columns = [], [], []
-	for score in xml.iter("Score"):
-		replay = replays.get(score.get("Key"))
-		if replay is None: continue
-		
-		length = len(replay)
-		times = np.empty(length)
-		offsets = np.empty(length)
-		columns = np.empty(length)
-		for (i, line) in enumerate(replay):
-			try:
-				tokens = line.split(" ")
-				times[i] = int(tokens[0])
-				offsets[i] = float(tokens[1])
-				columns[i] = int(tokens[2])
-			except ValueError:
-				continue
-		
-		all_times.append(times)
-		all_offsets.append(offsets)
-		all_columns.append(columns)
-	
-	return (times, offsets, columns)"""
-
 # This function is responsible for replay analysis. Every chart that 
 # uses replay data uses the data generated from this function.
 scores = None
@@ -198,21 +167,9 @@ def divide_into_sessions(xml):
 	
 	return cache("sessions_division_cache", sessions)
 
-# Returns ({datetime: session length}, [session])
-"""
-def gen_session_length(xml):
-	sessions = divide_into_sessions(xml)
-	x, y = [], []
-	for s in sessions:
-		x.append(s[0][1]) # Datetime [1] of first play [0] in session
-		y.append((s[-1][1]-s[0][1]).total_seconds() / 60) # Length in minutes
-	
-	return ((x, y), sessions)
-"""
-
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
-def gen_session_skillsets(xml):
-	# Divide scores into 'sessions' which are actually whole weeks
+def gen_week_skillsets(xml):
+	# Divide scores into weeks
 	sessions = []
 	current_session = []
 	previous_week = -1
@@ -261,13 +218,6 @@ def gen_plays_by_hour(xml):
 	#return {time(hour=i): num_plays[i] for i in range(24)}
 	return zip(*[(i, num_plays[i]) for i in range(24)])
 
-"""
-def gen_session_plays(xml):
-	sessions = divide_into_sessions(xml)
-	nums_plays = [len(session) for session in sessions]
-	nums_sessions_with_x_plays = Counter(nums_plays)
-	return nums_sessions_with_x_plays
-"""
 
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
@@ -278,34 +228,6 @@ def gen_most_played_charts(xml, num_charts):
 	
 	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
 	return charts_num_plays[:num_charts]
-
-"""
-def gen_cb_probability(xml, replays_dir):
-	# {combo length: (base number, cb number)
-	base = [0] * 10000
-	cbs = [0] * 10000
-	for score in xml.iter("Score"):
-		try: replayfile = open(replays_dir+"/"+score.attrib['Key'])
-		except: continue
-
-		# TODO choose J4/J5/... time window depending on play data
-		great_window = 0.09 # 'Great' time window, seconds, Wife J4
-		combo = 0
-		base[combo] += 1
-		for line in replayfile.readlines():
-			deviation = float(line.split(" ")[1])
-			if deviation <= great_window:
-				combo += 1
-			else:
-				cbs[combo] += 1
-				combo = 0
-			base[combo] += 1
-		
-	# Find first combo that was never reached (0), starting with combo 1
-	max_combo = base.index(0, 1)
-	result = {i: (cbs[i]/base[i]) for i in range(max_combo) if base[i] >= 0}
-	return result
-"""
 
 # Returns tuple of (combo length, chart object)
 def get_longest_combo(xml, replays_dir):
