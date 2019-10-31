@@ -1,7 +1,7 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import os, json, socket
+import os, json, socket, glob
 
 from plotter import Plotter
 import util
@@ -136,17 +136,49 @@ class Application:
 		self.plotter = self.ui.plotter
 		self.load_settings() # Apply settings
 		
-		# If Etterna.xml isn't already defined, let the user choose it
+		# If Etterna.xml isn't already defined, search it
 		if self.etterna_xml is None:
-			path = self.ui.choose_etterna_xml()
-			if path is None: # Dialog was cancelled
-				QMessageBox.critical(None, "Error", XML_CANCEL_MSG)
-				return
-			self.etterna_xml = path
+			self.detect_etterna()
+			# If searching fails, ask user to choose Etterna.xml
+			if self.etterna_xml is None:
+				path = self.ui.choose_etterna_xml()
+				if path is None: # Dialog was cancelled
+					QMessageBox.critical(None, "Error", XML_CANCEL_MSG)
+					return
+				self.etterna_xml = path
 		
+		# Now, after the correct paths were established, save them
+		self.write_settings()
+		
+		# Generate plots
 		self.refresh_graphs()
 		
-		self.ui.exec_() # Run program
+		# Pass on control to Qt
+		self.ui.exec_()
+	
+	# Detects an Etterna installation and sets etterna_xml and
+	# replays_dir to the paths in it
+	def detect_etterna(self):
+		globs = [
+			"C:\Games\Etterna*",
+			os.path.expanduser("~") + "/.etterna*",
+		]
+		for glob_str in globs:
+			for path in glob.iglob(glob_str):
+				self.try_apply_paths(path)
+	
+	# Takes the path of an Etterna installation (e.g.
+	# "/home/kangalioo/.etterna") and sets etterna_xml and replays_dir
+	# correspondingly. If the path
+	def try_apply_paths(self, path):
+		etterna_xml = path + "/Save/LocalProfiles/00000000/Etterna.xml"
+		if os.path.exists(etterna_xml):
+			self.etterna_xml = etterna_xml
+		
+		replays_dir = path + "/Save/ReplaysV2"
+		if os.path.exists(replays_dir):
+			self.replays_dir = replays_dir
+		
 	
 	def refresh_graphs(self):
 		self.plotter.draw(self.etterna_xml, self.replays_dir, self.ui.app)
