@@ -312,6 +312,29 @@ def gen_session_rating_improvement(xml):
 	
 	return ((datetimes, lengths, sizes), ids)
 
+# Returns dict with pack names as keys and the respective "pack liking"
+# as value. The liking value is currently simply the amount of recent
+# plays in the pack. Recent = in the last `timespan_months` months
+def generate_pack_likings(xml, timespan_months):
+	SCORE_DATE_THRESHOLD = datetime.now() - timedelta(days=timespan_months*365//12)
+	
+	def condition(score):
+		date_str = score.findtext("DateTime")
+		if date_str is None: return False
+		
+		date = datetime.fromisoformat(date_str)
+		return date > SCORE_DATE_THRESHOLD
+	
+	likings = {}
+	for chart in xml.iter("Chart"):
+		valid_plays = sum(1 for s in chart.iter("Score") if (condition)(s))
+		pack = chart.get("Pack")
+		
+		if not pack in likings: likings[pack] = 0
+		likings[pack] += valid_plays
+	
+	return likings
+
 def gen_skillset_development(xml):
 	datetimes, all_ratings = [], []
 	for (session, ratings) in calc_ratings_for_sessions(xml):
@@ -340,8 +363,8 @@ def gen_textbox_text_2(xml):
 	i = 1
 	for (session, length) in sessions:
 		num_plays = len(session)
-		datetime = session[0][1]
-		text.append(f"{i}) {datetime}, {round(length)} minutes long with {num_plays} scores")
+		datetime = str(session[0][1])[:-3] # Cut off seconds
+		text.append(f"{i}) {datetime}, {round(length)} minutes, {num_plays} scores")
 		i += 1
 	
 	return "<br>".join(text)
@@ -349,7 +372,7 @@ def gen_textbox_text_2(xml):
 def gen_textbox_text_3(xml):
 	hours = gen_hours_per_skillset(xml)
 	
-	text = ["Hours spent training each skillset"]
+	text = ["Hours spent training each skillset:"]
 	for i in range(7):
 		skillset = util.skillsets[i]
 		m_total = int(hours[i] * 60)
@@ -414,11 +437,26 @@ def gen_textbox_text_5(xml, replays):
 	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
 	return "<br>".join([
-		f"You spend {play_percentage}% of your sessions actually playing (also counting Etterna idling in background)",
+		f"You spend {play_percentage}% of your sessions in gameplay",
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
 	])
+
+def gen_textbox_text_6(xml):
+	likings = generate_pack_likings(xml, 6)
+	
+	sorted_packs = sorted(likings, key=likings.get, reverse=True)
+	best_packs = sorted_packs[:min(12, len(sorted_packs))]
+	text = ["Most played packs (last 6 months):"]
+	for i, pack in enumerate(best_packs):
+		if len(pack) > 25:
+			pack_str = pack[:25] + "…"
+		else:
+			pack_str = pack
+		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
+	
+	return "<br>".join(text)
 
 # Calculate the median score increase, when playing a chart twice
 # successively

@@ -158,9 +158,9 @@ class Plot:
 		self.plot.autoBtnClicked()
 
 class TextBox:
-	def __init__(self, plotter, frame, colspan=1):
+	def __init__(self, plotter, frame, colspan=1, rowspan=1):
 		self.plotter = plotter
-		self.label = frame.addLabel(justify="left", colspan=colspan)
+		self.label = frame.addLabel(justify="left", colspan=colspan, rowspan=rowspan)
 	
 	def draw(self, text): self.label.setText(text)
 
