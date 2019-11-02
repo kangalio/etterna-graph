@@ -106,11 +106,16 @@ def gen_manip(xml, replays):
 	ids = analysis.scores
 	return ((x, y), ids)
 
-# This method does not model the actual game mechanics 100% accurately
-def score_to_wifescore(score):
+# This is only an approximation of the actual game mechanics
+def score_to_msd(score):
 	overall = float(score.findtext(".//Overall"))
 	percentage = float(score.findtext("WifeScore"))
-	return overall * percentage / 0.93
+	percentage = min(0.965, percentage) # Cap to 96.5%, like in the real game
+	return overall * (0.93 / percentage)
+
+def score_to_wifescore(score):
+	overall = float(score.findtext(".//Overall"))
+	return overall
 
 def score_to_accuracy(score):
 	percent = float(score.find("WifeScore").text)*100
