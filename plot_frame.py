@@ -1,9 +1,13 @@
-#import my_pyqtgraph as pg
-import pyqtgraph as pg
 from datetime import datetime
 
 import util
 import data_generators as g
+
+try: # Try loading pyqtgraph from a folder named "pyqtgraph_git"
+	import pyqtgraph_git as pg
+except ModuleNotFoundError: # Fallback to normal pip-installed pyqtgraph
+	print("Fell back to normal pyqtgraph")
+	import pyqtgraph as pg
 
 """
 This file handles all graphics library interaction through the classes

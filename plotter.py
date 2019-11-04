@@ -91,6 +91,10 @@ class Plotter:
 		xml = xmltree.getroot()
 		self.xml = xml
 		
+		# Let the window draw itself once before becoming unresponsive
+		# for a while furing replays analysis
+		qapp.processEvents()
+		
 		analysis = None
 		if replays_path:
 			print("Analyzing replays (this takes a while)..")
