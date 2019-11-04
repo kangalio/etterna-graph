@@ -34,7 +34,7 @@ if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
 # I did this to prevent simultaneous scrolling and panning 
-# when hovering a plot while scrolling, which was annoying af.
+# when hovering a plot while scrolling
 class ScrollArea(QScrollArea):
 	def wheelEvent(self, event):
 		pass
@@ -181,7 +181,8 @@ class Application:
 		
 	
 	def refresh_graphs(self):
-		self.plotter.draw(self.etterna_xml, self.replays_dir, self.ui.app)
+		replays_dir = None if IGNORE_REPLAYS else self.replays_dir
+		self.plotter.draw(self.etterna_xml, replays_dir, self.ui.app)
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
@@ -191,7 +192,7 @@ class Application:
 	
 	def set_replays(self, path):
 		self.replays_dir = path
-		self.ui.replays_button.setEnabled(False)
+		self.write_settings()
 	
 	def load_settings(self):
 		if not os.path.exists(SETTINGS_PATH):
@@ -200,7 +201,7 @@ class Application:
 		try:
 			settings = json.load(open(SETTINGS_PATH))
 			self.etterna_xml = settings["etterna-xml"]
-			if settings["replays-dir"] and not IGNORE_REPLAYS:
+			if settings["replays-dir"]:
 				self.set_replays(settings["replays-dir"])
 		except Exception as e:
 			util.logger.exception("Loading settings")

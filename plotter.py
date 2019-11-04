@@ -2,8 +2,7 @@ from lxml import etree
 
 from plot_frame import PlotFrame, Plot, TextBox
 import data_generators as g
-import util
-#import structures
+import util, replays_analysis
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
@@ -91,8 +90,12 @@ class Plotter:
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
 		xml = xmltree.getroot()
 		self.xml = xml
-		print("Parsing replays..")
-		replays = replays_path
+		
+		analysis = None
+		if replays_path:
+			print("Analyzing replays (this takes a while)..")
+			analysis = replays_analysis.analyze(xml, replays_path)
+			# Analysis might be None if the analysis failed
 		
 		print("Generating textboxes..")
 		p = iter(self.plots)
@@ -103,8 +106,8 @@ class Plotter:
 		next(p).draw(g.gen_textbox_text(xml))
 		qapp.processEvents()
 		
-		next(p).draw(g.gen_textbox_text_5(xml, replays))
-		next(p).draw(g.gen_textbox_text_4(xml, replays))
+		next(p).draw(g.gen_textbox_text_5(xml, analysis))
+		next(p).draw(g.gen_textbox_text_4(xml, analysis))
 		qapp.processEvents()
 		
 		print("Generating wifescore plot..")
@@ -112,7 +115,7 @@ class Plotter:
 		qapp.processEvents()
 		
 		print("Generating manip plot..")
-		data = g.gen_manip(xml, replays) if replays else "[please load replay data]"
+		data = g.gen_manip(xml, analysis) if analysis else "[please load replay data]"
 		next(p).draw_with_given_args(data)
 		qapp.processEvents()
 		
@@ -129,7 +132,7 @@ class Plotter:
 		qapp.processEvents()
 		
 		print("Generating hit offset distribution..")
-		data = g.gen_hit_distribution(xml, replays) if replays else "[please load replay data]"
+		data = g.gen_hit_distribution(xml, analysis) if analysis else "[please load replay data]"
 		next(p).draw_with_given_args(data)
 		qapp.processEvents()
 		
