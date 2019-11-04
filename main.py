@@ -200,7 +200,7 @@ class Application:
 		try:
 			settings = json.load(open(SETTINGS_PATH))
 			self.etterna_xml = settings["etterna-xml"]
-			if not IGNORE_REPLAYS:
+			if settings["replays-dir"] and not IGNORE_REPLAYS:
 				self.set_replays(settings["replays-dir"])
 		except Exception as e:
 			util.logger.exception("Loading settings")
