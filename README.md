@@ -9,10 +9,9 @@ You can click on the individual scatter points to see information about the corr
 ## Running from source
 Alternatively you can run the program from source directly:
 1. Get a copy of this repository (`git clone` or "Download ZIP")
-2. Install the latest version of Python 3 ([download](https://www.python.org/downloads/release/python-373/)) as well as Python libraries lxml, pyqtgraph and numba.
+2. Install the latest version of Python 3 ([download](https://www.python.org/downloads/release/python-373/)) as well as Python libraries lxml, numba and pyqtgraph
+    - Note: the latest official release of pyqtgraph is 0.10 and it's quite buggy. You're recommended to install the development version (`pip install git+https://github.com/pyqtgraph/pyqtgraph@develop`)
 3. Now execute the main.py file and the statistics _should_ pop up
 
-# Screenshots
-![First screenshot](https://imgur.com/OW1dIEB.jpg)
-![Second screenshot](https://imgur.com/U9lBwBi.jpg)
-![Third screenshot](https://imgur.com/JbuCIPN.jpg)
+# Screenshot
+![](https://imgur.com/gRG1uKM.jpg)
