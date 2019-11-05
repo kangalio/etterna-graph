@@ -257,7 +257,7 @@ def gen_skillset_development(xml):
 		all_ratings.append(ratings)
 	return (datetimes, all_ratings)
 
-def gen_textbox_text(xml):
+def gen_text_most_played_charts(xml):
 	text = ["Most played charts:"]
 	charts = gen_most_played_charts(xml, num_charts=5)
 	i = 1
@@ -268,7 +268,7 @@ def gen_textbox_text(xml):
 	
 	return "<br>".join(text)
 
-def gen_textbox_text_2(xml):
+def gen_text_longest_sessions(xml):
 	sessions = divide_into_sessions(xml)
 	sessions = [(s, (s[-1][1]-s[0][1]).total_seconds()/60) for s in sessions]
 	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
@@ -284,7 +284,7 @@ def gen_textbox_text_2(xml):
 	
 	return "<br>".join(text)
 
-def gen_textbox_text_3(xml):
+def gen_text_skillset_hours(xml):
 	hours = gen_hours_per_skillset(xml)
 	
 	text = ["Hours spent training each skillset:"]
@@ -298,7 +298,7 @@ def gen_textbox_text_3(xml):
 	return "<br>".join(text)
 
 # Parameter r is the ReplaysAnalysis
-def gen_textbox_text_4(xml, r):
+def gen_text_general_info(xml, r):
 	from dateutil.relativedelta import relativedelta
 	
 	if r: # If ReplaysAnalysis is avilable
@@ -331,7 +331,7 @@ def gen_textbox_text_4(xml, r):
 	])
 
 # a stands for ReplaysAnalysis
-def gen_textbox_text_5(xml, a):
+def gen_text_general_analysis_info(xml, a):
 	if a:
 		cb_ratio_per_column = [cbs/total for (cbs, total)
 				in zip(a.cbs_per_column, a.notes_per_column)]
@@ -355,7 +355,7 @@ def gen_textbox_text_5(xml, a):
 		f"Mean hit offset: {mean_string}",
 	])
 
-def gen_textbox_text_6(xml):
+def gen_text_most_played_packs(xml):
 	likings = generate_pack_likings(xml, 6)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)

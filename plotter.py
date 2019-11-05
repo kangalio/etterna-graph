@@ -1,4 +1,5 @@
 from lxml import etree
+from multiprocessing import Process
 
 from plot_frame import PlotFrame, Plot, TextBox
 import data_generators as g
@@ -27,6 +28,16 @@ def session_info(plotter, data):
 	
 	return f'From {prev_rating} to {then_rating}    Total {length} minutes ({num_scores} scores)'
 
+class PlotEntry:
+	plot = None
+	data_generator = None
+	analysis_requirement = None # "no", "yes" or "optional"
+	
+	def __init__(self, plot, data_generator, analysis_requirement):
+		self.plot = plot
+		self.data_generator = data_generator
+		self.analysis_requirement = analysis_requirement
+
 class Plotter:
 	def __init__(self, infobar):
 		frame = PlotFrame(infobar)
@@ -35,51 +46,68 @@ class Plotter:
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
-		o = TextBox(self, frame, 20, rowspan=2)
-		a = TextBox(self, frame, 10)
-		b = TextBox(self, frame, 19)
-		c = TextBox(self, frame, 11)
+		plots = []
+		
+		_ = TextBox(self, frame, 20, rowspan=2)
+		plots.append(PlotEntry(_, g.gen_text_most_played_packs, "no"))
+		_ = TextBox(self, frame, 10)
+		plots.append(PlotEntry(_, g.gen_text_longest_sessions, "no"))
+		_ = TextBox(self, frame, 19)
+		plots.append(PlotEntry(_, g.gen_text_skillset_hours, "no"))
+		_ = TextBox(self, frame, 11)
+		plots.append(PlotEntry(_, g.gen_text_most_played_charts, "no"))
 		self.frame.next_row()
 		
-		d = TextBox(self, frame, 17)
-		e = TextBox(self, frame, 23)
+		_ = TextBox(self, frame, 17)
+		plots.append(PlotEntry(_, g.gen_text_general_analysis_info, "optional"))
+		_ = TextBox(self, frame, 23)
+		plots.append(PlotEntry(_, g.gen_text_general_info, "optional"))
 		self.frame.next_row()
 		
-		f = Plot(self, frame, 30, flags="time_xaxis", title="Wife score over time")
-		f.set_args(cmap[0], click_callback=score_info)
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Wife score over time")
+		_.set_args(cmap[0], click_callback=score_info)
+		plots.append(PlotEntry(_, g.gen_wifescore, "no"))
 		
-		g_ = Plot(self, frame, 30, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
-		g_.set_args(cmap[3], click_callback=score_info)
+		_ = Plot(self, frame, 30, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
+		_.set_args(cmap[3], click_callback=score_info)
+		plots.append(PlotEntry(_, g.gen_manip, "yes"))
 		self.frame.next_row()
 		
-		h = Plot(self, frame, 30, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
-		h.set_args(cmap[1], click_callback=score_info)
+		_ = Plot(self, frame, 30, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
+		_.set_args(cmap[1], click_callback=score_info)
+		plots.append(PlotEntry(_, g.gen_accuracy, "no"))
 		
-		i = Plot(self, frame, 30, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
-		i.set_args(cmap[2], type_="bubble", click_callback=session_info)
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
+		_.set_args(cmap[2], type_="bubble", click_callback=session_info)
+		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
 		self.frame.next_row()
 		
-		m = Plot(self, frame, 30, flags="time_xaxis step", title="Skillsets over time")
+		_ = Plot(self, frame, 30, flags="time_xaxis step", title="Skillsets over time")
 		colors = ["ffffff", *util.skillset_colors] # Include overall
 		legend = ["Overall", *util.skillsets] # Include overall
-		m.set_args(colors, legend=legend, type_="stacked line")
+		_.set_args(colors, legend=legend, type_="stacked line")
+		plots.append(PlotEntry(_, g.gen_skillset_development, "no"))
 		
-		n = Plot(self, frame, 30, title="Distribution of hit offset")
-		n.set_args(cmap[6], type_="bar")
+		_ = Plot(self, frame, 30, title="Distribution of hit offset")
+		_.set_args(cmap[6], type_="bar")
+		plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
 		self.frame.next_row()
 		
-		j = Plot(self, frame, 30, title="Number of plays per hour of day")
-		j.set_args(cmap[4], type_="bar")
+		_ = Plot(self, frame, 30, title="Number of plays per hour of day")
+		_.set_args(cmap[4], type_="bar")
+		plots.append(PlotEntry(_, g.gen_plays_by_hour, "no"))
 		
-		k = Plot(self, frame, 30, flags="time_xaxis", title="Number of plays each week")
-		k.set_args(cmap[5], type_="bar", width=604800*0.8)
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of plays each week")
+		_.set_args(cmap[5], type_="bar", width=604800*0.8)
+		plots.append(PlotEntry(_, g.gen_plays_per_week, "no"))
 		self.frame.next_row()
 		
-		l = Plot(self, frame, 60, title="Skillsets trained per week")
-		l.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
+		_ = Plot(self, frame, 60, title="Skillsets trained per week")
+		_.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
+		plots.append(PlotEntry(_, g.gen_week_skillsets, "no"))
 		self.frame.next_row()
 		
-		self.plots = [a,b,o,c,d,e,f,g_,h,i,m,n,j,k,l] #opqrstu...
+		self.plots = plots
 	
 	def draw(self, xml_path, replays_path, qapp):
 		print("Opening xml..")
@@ -89,7 +117,6 @@ class Plotter:
 			util.logger.exception("XML parsing with UTF-8 failed")
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
 		xml = xmltree.getroot()
-		self.xml = xml
 		
 		# Let the window draw itself once before becoming unresponsive
 		# for a while furing replays analysis
@@ -101,55 +128,17 @@ class Plotter:
 			analysis = replays_analysis.analyze(xml, replays_path)
 			# Analysis might be None if the analysis failed
 		
-		print("Generating textboxes..")
-		p = iter(self.plots)
-		
-		next(p).draw(g.gen_textbox_text_2(xml))
-		next(p).draw(g.gen_textbox_text_3(xml))
-		next(p).draw(g.gen_textbox_text_6(xml))
-		next(p).draw(g.gen_textbox_text(xml))
-		qapp.processEvents()
-		
-		next(p).draw(g.gen_textbox_text_5(xml, analysis))
-		next(p).draw(g.gen_textbox_text_4(xml, analysis))
-		qapp.processEvents()
-		
-		print("Generating wifescore plot..")
-		next(p).draw_with_given_args(g.gen_wifescore(xml))
-		qapp.processEvents()
-		
-		print("Generating manip plot..")
-		data = g.gen_manip(xml, analysis) if analysis else "[please load replay data]"
-		next(p).draw_with_given_args(data)
-		qapp.processEvents()
-		
-		print("Generating accuracy plot..")
-		next(p).draw_with_given_args(g.gen_accuracy(xml))
-		qapp.processEvents()
-		
-		print("Generating session bubble plot..")
-		next(p).draw_with_given_args(g.gen_session_rating_improvement(xml))
-		qapp.processEvents()
-		
-		print("Generating skillset development..")
-		next(p).draw_with_given_args(g.gen_skillset_development(xml))
-		qapp.processEvents()
-		
-		print("Generating hit offset distribution..")
-		data = g.gen_hit_distribution(xml, analysis) if analysis else "[please load replay data]"
-		next(p).draw_with_given_args(data)
-		qapp.processEvents()
-		
-		print("Generating plays per hour of day..")
-		next(p).draw_with_given_args(g.gen_plays_by_hour(xml))
-		qapp.processEvents()
-		
-		print("Generating plays for each week..")
-		next(p).draw_with_given_args(g.gen_plays_per_week(xml))
-		qapp.processEvents()
-		
-		print("Generating session skillsets..")
-		next(p).draw_with_given_args(g.gen_week_skillsets(xml))
-		qapp.processEvents()
+		for i, plot in enumerate(self.plots):
+			print(f"Generating plot {i+1}")
+			if plot.analysis_requirement == "no":
+				data = (plot.data_generator)(xml)
+			else:
+				if analysis or plot.analysis_requirement == "optional":
+					data = (plot.data_generator)(xml, analysis)
+				else:
+					data = "[please load replay data]"
+				
+			plot.plot.draw_with_given_args(data)
+			qapp.processEvents()
 		
 		print("Done")
