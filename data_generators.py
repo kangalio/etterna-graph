@@ -156,17 +156,20 @@ def gen_hours_per_skillset(xml):
 	
 	return hours
 
-def gen_plays_per_week(xml):
-	datetimes = [parsedate(s.findtext("DateTime")) for s in xml.iter("Score")]
-	datetimes.sort()
+def gen_hours_per_week(xml):
+	scores = xml.iter("Score")
+	pairs = [(s, parsedate(s.findtext("DateTime"))) for s in scores]
+	pairs.sort(key=lambda pair: pair[1]) # Sort by datetime
 	
 	weeks = {}
-	week_end = datetimes[0]
+	week_end = pairs[0][1] # First (earliest) datetime
 	week_start = week_end - timedelta(weeks=1)
 	i = 0
-	while i < len(datetimes):
-		if datetimes[i] < week_end:
-			weeks[week_start] += 1
+	while i < len(pairs):
+		score, datetime = pairs[i][0], pairs[i][1]
+		if datetime < week_end:
+			score_seconds = float(score.findtext("SurviveSeconds")) or 0
+			weeks[week_start] += score_seconds / 3600
 			i += 1
 		else:
 			week_start += timedelta(weeks=1)

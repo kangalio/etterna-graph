@@ -97,9 +97,9 @@ class Plotter:
 		_.set_args(cmap[4], type_="bar")
 		plots.append(PlotEntry(_, g.gen_plays_by_hour, "no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of plays each week")
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of play-hours each week")
 		_.set_args(cmap[5], type_="bar", width=604800*0.8)
-		plots.append(PlotEntry(_, g.gen_plays_per_week, "no"))
+		plots.append(PlotEntry(_, g.gen_hours_per_week, "no"))
 		self.frame.next_row()
 		
 		_ = Plot(self, frame, 60, title="Skillsets trained per week")
