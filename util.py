@@ -34,6 +34,13 @@ def read_replay(replays, key):
 	else:
 		return None
 
+# Convert a float of hours to a string, e.g. "5h 35min"
+def timespan_str(hours):
+	minutes_total = round(hours * 60)
+	hours = int(minutes_total / 60)
+	minutes = minutes_total - 60 * hours
+	return f"{hours}h {minutes}min"
+
 cache_data = {}
 def cache(key, data=None):
 	global cache_data

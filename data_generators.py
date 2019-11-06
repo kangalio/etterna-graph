@@ -178,6 +178,15 @@ def gen_hours_per_week(xml):
 	
 	return (list(weeks.keys()), list(weeks.values()))
 
+def calc_average_hours_per_day(xml, timespan=timedelta(days=365/2)):
+	scores = sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime"))
+	
+	total_hours = 0
+	for score in scores:
+		total_hours += float(score.findtext("SurviveSeconds")) / 3600
+	
+	return total_hours / timespan.days
+
 def gen_hit_distribution(xml, analysis):
 	buckets = analysis.offset_buckets
 	return (list(buckets.keys()), list(buckets.values()))
@@ -296,7 +305,7 @@ def gen_text_skillset_hours(xml):
 		m_total = int(hours[i] * 60)
 		h = int(m_total / 60)
 		m = m_total - 60 * h
-		text.append(f"- {skillset}: {h}h {m}min")
+		text.append(f"- {skillset}: {util.timespan_str(hours[i])}")
 	
 	return "<br>".join(text)
 
@@ -351,11 +360,15 @@ def gen_text_general_analysis_info(xml, a):
 	
 	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
+	average_hours = calc_average_hours_per_day(xml)
+	average_hours_str = util.timespan_str(average_hours)
+	
 	return "<br>".join([
 		f"You spend {play_percentage}% of your sessions in gameplay",
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
+		f"Average hours per day (last 6 months): {average_hours_str}"
 	])
 
 def gen_text_most_played_packs(xml):
