@@ -171,22 +171,22 @@ class Application:
 			"C:\Games\Etterna*",
 			os.path.expanduser("~") + "/.etterna*",
 		]
+		# Assemble all possible save game locations. path_pairs is a
+		# list of tuples `(xml_path, replays_dir_path)`
+		path_pairs = []
 		for glob_str in globs:
 			for path in glob.iglob(glob_str):
-				self.try_apply_paths(path)
-	
-	# Takes the path of an Etterna installation (e.g.
-	# "/home/kangalioo/.etterna") and sets etterna_xml and replays_dir
-	# correspondingly. If the path
-	def try_apply_paths(self, path):
-		etterna_xml = path + "/Save/LocalProfiles/00000000/Etterna.xml"
-		if os.path.exists(etterna_xml):
-			self.etterna_xml = etterna_xml
+				replays_dir = path + "/Save/ReplaysV2"
+				for xml_path in glob.iglob(path+"/Save/LocalProfiles/*/Etterna.xml"):
+					path_pairs.append((xml_path, replays_dir))
 		
-		replays_dir = path + "/Save/ReplaysV2"
-		if os.path.exists(replays_dir):
-			self.replays_dir = replays_dir
+		# Select the savegame pair with the largest XML
+		path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
 		
+		# Apply the paths. Also, do a check if files exist. I mean, they
+		# _should_ exist, but you can never be too sure
+		if os.path.exists(path_pair[0]): self.etterna_xml = path_pair[0]
+		if os.path.exists(path_pair[1]): self.replays_dir = path_pair[1]
 	
 	def refresh_graphs(self):
 		replays_dir = None if IGNORE_REPLAYS else self.replays_dir
