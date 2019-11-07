@@ -27,6 +27,13 @@ whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit
 """.strip() # strip() to remove leading and trailing newlines
 
+REPLAYS_CHOOSER_INFO_MSG = """
+In the following dialog you need to select the ReplaysV2 directory in
+your 'Save' directory and click OK. Important: don't enter ReplaysV2
+or try to select individual files within. This program requires you
+to select the ReplaysV2 folder as a whole.
+""".strip()
+
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
 IGNORE_REPLAYS = True # Development purposes
@@ -119,6 +126,7 @@ class UI:
 	
 	# Returns path to ReplaysV2 directory
 	def choose_replays(self):
+		QMessageBox.information(None, "How to use", REPLAYS_CHOOSER_INFO_MSG)
 		path = QFileDialog.getExistingDirectory(None, "Select ReplaysV2 folder")
 		
 		if path == "": return None # User cancelled the chooser
