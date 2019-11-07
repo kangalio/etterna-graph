@@ -88,9 +88,13 @@ class Plotter:
 		_.set_args(colors, legend=legend, type_="stacked line")
 		plots.append(PlotEntry(_, g.gen_skillset_development, "no"))
 		
-		_ = Plot(self, frame, 30, title="Distribution of hit offset")
+		# ~ _ = Plot(self, frame, 30, title="Distribution of hit offset")
+		# ~ _.set_args(cmap[6], type_="bar")
+		# ~ plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
+		# ~ self.frame.next_row()
+		_ = Plot(self, frame, 30, title="Idle time between plays")
 		_.set_args(cmap[6], type_="bar")
-		plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
+		plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
 		self.frame.next_row()
 		
 		_ = Plot(self, frame, 30, title="Number of plays per hour of day")

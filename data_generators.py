@@ -131,6 +131,38 @@ def gen_plays_by_hour(xml):
 	#return {time(hour=i): num_plays[i] for i in range(24)}
 	return zip(*[(i, num_plays[i]) for i in range(24)])
 
+def gen_idle_time_buckets(xml):
+	# Each bucket is 5 seconds. Total 10 minutes is tracked
+	buckets = [0] * 600
+	
+	a, b = 0, 0
+	
+	sorted_scores = sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime"))
+	last_play_end = None
+	for score in sorted_scores:
+		a+=1
+		datetime = util.parsedate(score.findtext("DateTime"))
+		length = timedelta(seconds=float(score.findtext("SurviveSeconds")))
+		
+		print("Datetime:", datetime)
+		print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")
+		if last_play_end is not None:
+			idle_time = datetime - last_play_end
+			if idle_time >= timedelta():
+				bucket_index = int(idle_time.total_seconds() // 5)
+				if bucket_index < len(buckets):
+					buckets[bucket_index] += 1
+			else:
+				print("Negative idle time!")
+				b+=1
+		
+		last_play_end = datetime + length
+		print("Finished", last_play_end)
+		print()
+	
+	# ~ keys = [i * 5 for i in range(len(buckets))]
+	keys = range(len(buckets))
+	return (keys, buckets)
 
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
