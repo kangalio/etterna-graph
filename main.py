@@ -29,9 +29,9 @@ Discord/Reddit
 
 REPLAYS_CHOOSER_INFO_MSG = """
 In the following dialog you need to select the ReplaysV2 directory in
-your 'Save' directory and click OK. Important: don't enter ReplaysV2
-or try to select individual files within. This program requires you
-to select the ReplaysV2 folder as a whole.
+your 'Save' directory and click OK. Important: don't try to select
+individual files within and don't choose another directory. This
+program requires you to select the ReplaysV2 folder as a whole.
 """.strip()
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
@@ -180,13 +180,19 @@ class Application:
 				for xml_path in glob.iglob(path+"/Save/LocalProfiles/*/Etterna.xml"):
 					path_pairs.append((xml_path, replays_dir))
 		
-		# Select the savegame pair with the largest XML
-		path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+		# Select the savegame pair with the largest XML, ask user if that one is right
+		largest_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+		mibs = os.path.getsize(largest_pair[0]) / 1024**2 # MiB's
+		text = f"Found {len(path_pairs)} Etterna.xml's. The largest one is {mibs:.2f} MiB; should the program use that?"
+		reply = QMessageBox.question(None, "Which Etterna.xml?", text,
+				QMessageBox.Yes, QMessageBox.No)
+		if reply == QMessageBox.No: return
 		
 		# Apply the paths. Also, do a check if files exist. I mean, they
 		# _should_ exist, but you can never be too sure
-		if os.path.exists(path_pair[0]): self.etterna_xml = path_pair[0]
-		if os.path.exists(path_pair[1]): self.replays_dir = path_pair[1]
+		etterna_xml, replays_dir = largest_pair
+		if os.path.exists(etterna_xml): self.etterna_xml = etterna_xml
+		if os.path.exists(replays_dir): self.replays_dir = replays_dir
 	
 	def refresh_graphs(self):
 		replays_dir = None if IGNORE_REPLAYS else self.replays_dir
