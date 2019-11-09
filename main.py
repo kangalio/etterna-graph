@@ -180,13 +180,20 @@ class Application:
 				for xml_path in glob.iglob(path+"/Save/LocalProfiles/*/Etterna.xml"):
 					path_pairs.append((xml_path, replays_dir))
 		
-		# Select the savegame pair with the largest XML, ask user if that one is right
-		largest_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
-		mibs = os.path.getsize(largest_pair[0]) / 1024**2 # MiB's
-		text = f"Found {len(path_pairs)} Etterna.xml's. The largest one is {mibs:.2f} MiB; should the program use that?"
-		reply = QMessageBox.question(None, "Which Etterna.xml?", text,
-				QMessageBox.Yes, QMessageBox.No)
-		if reply == QMessageBox.No: return
+		if len(path_pairs) == 0:
+			return # No installation could be found
+		elif len(path_pairs) == 1:
+			# It's obvious which one to choose, when there's only one
+			# path pair to choose from. So, go on
+			pass
+		else: # With multiple possible installations, it's tricky
+			# Select the savegame pair with the largest XML, ask user if that one is right
+			largest_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+			mibs = os.path.getsize(largest_pair[0]) / 1024**2 # MiB's
+			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one is {mibs:.2f} MiB; should the program use that?"
+			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
+					QMessageBox.Yes, QMessageBox.No)
+			if reply == QMessageBox.No: return
 		
 		# Apply the paths. Also, do a check if files exist. I mean, they
 		# _should_ exist at this point, but you can never be too sure
