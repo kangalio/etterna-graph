@@ -143,8 +143,13 @@ class Plot:
 		elif type_ == "stacked line":
 			num_cols = len(y)
 			y = list(zip(*y))
-			for (row_i, row) in enumerate(y):
-				item = pg.PlotCurveItem(x=x, y=list(row), pen=color[row_i], brush=color[row_i], stepMode=step_mode)
+			# Iterate in reverse so that overall comes last and draws
+			# above the rest
+			for (row_i, row) in list(enumerate(y))[::-1]:
+				# ~ item = pg.PlotCurveItem(x=x, y=list(row), pen=color[row_i], brush=color[row_i], stepMode=step_mode)
+				width = 3 if row_i == 0 else 1
+				pen = pg.mkPen(color[row_i], width=width)
+				item = pg.PlotCurveItem(x=x, y=list(row), pen=pen, stepMode=step_mode)
 				if legend != None: self.plot.legend.addItem(item, legend[row_i])
 				self.plot.addItem(item)
 		else:
