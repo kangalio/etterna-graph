@@ -77,9 +77,9 @@ class Plotter:
 		_.set_args(cmap[1], click_callback=score_info)
 		plots.append(PlotEntry(_, g.gen_accuracy, "no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
-		_.set_args(cmap[2], type_="bubble", click_callback=session_info)
-		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
+		_ = Plot(self, frame, 30, flags="time_xaxis ma_yaxis", title="MA over time (marvelouses÷perfects)")
+		_.set_args(cmap[6], click_callback=score_info)
+		plots.append(PlotEntry(_, g.gen_ma, "no"))
 		self.frame.next_row()
 		
 		_ = Plot(self, frame, 30, flags="time_xaxis step", title="Skillsets over time")
@@ -88,14 +88,20 @@ class Plotter:
 		_.set_args(colors, legend=legend, type_="stacked line")
 		plots.append(PlotEntry(_, g.gen_skillset_development, "no"))
 		
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
+		_.set_args(cmap[2], type_="bubble", click_callback=session_info)
+		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
+		self.frame.next_row()
+		
 		# ~ _ = Plot(self, frame, 30, title="Distribution of hit offset")
 		# ~ _.set_args(cmap[6], type_="bar")
 		# ~ plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
 		# ~ self.frame.next_row()
-		_ = Plot(self, frame, 30, title="Idle time between plays")
-		_.set_args(cmap[6], type_="bar")
-		plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
-		self.frame.next_row()
+		
+		# ~ _ = Plot(self, frame, 30, title="Idle time between plays")
+		# ~ _.set_args(cmap[6], type_="bar")
+		# ~ plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
+		# ~ self.frame.next_row()
 		
 		_ = Plot(self, frame, 30, title="Number of plays per hour of day")
 		_.set_args(cmap[4], type_="bar")

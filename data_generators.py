@@ -29,10 +29,18 @@ def score_to_wifescore(score):
 	return overall
 
 def score_to_accuracy(score):
-	percent = float(score.find("SSRNormPercent").text)*100
+	percent = float(score.findtext("SSRNormPercent"))*100
 	if percent <= -400: return None # Those are weird
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
+
+def score_to_ma(score):
+	tap_note_scores = score.find("TapNoteScores")
+	marvelouses = float(tap_note_scores.findtext("W1"))
+	perfects = float(tap_note_scores.findtext("W2"))
+	
+	ma = marvelouses / perfects
+	return math.log(ma) / math.log(10) # For log scale support
 
 def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 	x, y = [], []
@@ -53,6 +61,7 @@ def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 
 def gen_wifescore(xml): return map_scores(xml, score_to_wifescore)
 def gen_accuracy(xml): return map_scores(xml, score_to_accuracy)
+def gen_ma(xml): return map_scores(xml, score_to_ma)
 
 # Returns list of sessions where a session is [(Score, datetime)]
 # A session is defined to end when there's no play in 20 minutes or more
@@ -150,11 +159,11 @@ def gen_idle_time_buckets(xml):
 		a+=1
 		datetime = util.parsedate(score.findtext("DateTime"))
 		survive_seconds = float(score.findtext("SurviveSeconds"))
-		print(survive_seconds, rate)
+		#print(survive_seconds, rate)
 		length = timedelta(seconds=survive_seconds*rate)
 		
-		print("Datetime:", datetime)
-		print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")
+		#print("Datetime:", datetime)
+		#print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")
 		if last_play_end is not None:
 			idle_time = datetime - last_play_end
 			if idle_time >= timedelta():
@@ -162,12 +171,12 @@ def gen_idle_time_buckets(xml):
 				if bucket_index < len(buckets):
 					buckets[bucket_index] += 1
 			else:
-				print("Negative idle time!")
+				#print("Negative idle time!")
 				b+=1
 		
 		last_play_end = datetime + length
-		print("Finished", last_play_end)
-		print()
+		#print("Finished", last_play_end)
+		#print()
 	
 	# ~ keys = [i * 5 for i in range(len(buckets))]
 	keys = range(len(buckets))

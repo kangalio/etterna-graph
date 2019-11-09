@@ -34,13 +34,14 @@ class Plot:
 			return strings
 
 	class DIYLogAxisItem(pg.AxisItem):
-		def __init__(self, accuracy, decimal_places, *args, **kwargs):
+		def __init__(self, accuracy, decimal_places, postfix = "", *args, **kwargs):
 			super().__init__(*args, **kwargs)
 			self.setLabel(units=None)
 			self.enableAutoSIPrefix(False)
 			
 			self.accuracy = accuracy
 			self.decimal_places = decimal_places
+			self.postfix = postfix
 
 		def tickStrings(self, values, scale, spacing):
 			result = []
@@ -50,7 +51,7 @@ class Plot:
 				else:
 					value = 10 ** value
 				value = round(value, self.decimal_places)
-				result.append(str(value) + "%")
+				result.append(str(value) + self.postfix)
 			return result
 	
 	def __init__(self, plotter, frame, colspan=1, rowspan=1, flags="", title=None):
@@ -64,8 +65,10 @@ class Plot:
 		if "time_xaxis" in flags:
 			axisItems["bottom"] = self.TimeAxisItem(orientation="bottom")
 		if "accuracy_yaxis" in flags:
-			axisItems["left"] = self.DIYLogAxisItem(accuracy=True, decimal_places=3, orientation="left")
+			axisItems["left"] = self.DIYLogAxisItem(accuracy=True, decimal_places=3, postfix="%", orientation="left")
 		elif "manip_yaxis" in flags:
+			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, postfix="%", orientation="left")
+		elif "ma_yaxis" in flags:
 			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 		
 		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
