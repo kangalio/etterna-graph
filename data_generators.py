@@ -137,12 +137,21 @@ def gen_idle_time_buckets(xml):
 	
 	a, b = 0, 0
 	
-	sorted_scores = sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime"))
+	scores = []
+	for scoresat in xml.iter("ScoresAt"):
+		rate = float(scoresat.get("Rate"))
+		scores.extend(((score, rate) for score in scoresat.iter("Score")))
+	
+	# Sort scores by datetime, oldest first
+	scores.sort(key=lambda pair: pair[0].findtext("DateTime"))
+	
 	last_play_end = None
-	for score in sorted_scores:
+	for score, rate in scores:
 		a+=1
 		datetime = util.parsedate(score.findtext("DateTime"))
-		length = timedelta(seconds=float(score.findtext("SurviveSeconds")))
+		survive_seconds = float(score.findtext("SurviveSeconds"))
+		print(survive_seconds, rate)
+		length = timedelta(seconds=survive_seconds*rate)
 		
 		print("Datetime:", datetime)
 		print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")

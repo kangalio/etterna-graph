@@ -155,11 +155,11 @@ class Application:
 					return
 				self.etterna_xml = path
 		
-		# Now, after the correct paths were established, save them
-		self.write_settings()
-		
 		# Generate plots
 		self.refresh_graphs()
+		
+		# Now, after the correct paths were established, save them
+		self.write_settings()
 		
 		# Pass on control to Qt
 		self.ui.exec_()
@@ -189,7 +189,7 @@ class Application:
 		if reply == QMessageBox.No: return
 		
 		# Apply the paths. Also, do a check if files exist. I mean, they
-		# _should_ exist, but you can never be too sure
+		# _should_ exist at this point, but you can never be too sure
 		etterna_xml, replays_dir = largest_pair
 		if os.path.exists(etterna_xml): self.etterna_xml = etterna_xml
 		if os.path.exists(replays_dir): self.replays_dir = replays_dir

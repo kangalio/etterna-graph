@@ -1,4 +1,3 @@
-import pyqtgraph as pg
 from datetime import datetime
 import math, os
 from numba import jit
