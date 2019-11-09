@@ -168,8 +168,11 @@ class Application:
 	# replays_dir to the paths in it
 	def detect_etterna(self):
 		globs = [
-			"C:\Games\Etterna*",
+			"C:\\Games\\Etterna*",
+			"C:\\Users\\*\\AppData\\*\\etterna*",
 			os.path.expanduser("~") + "/.etterna*",
+			os.path.expanduser("~") + "/.stepmania*",
+			"/opt/etterna*",
 		]
 		# Assemble all possible save game locations. path_pairs is a
 		# list of tuples `(xml_path, replays_dir_path)`
@@ -190,7 +193,7 @@ class Application:
 			# Select the savegame pair with the largest XML, ask user if that one is right
 			path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
 			mibs = os.path.getsize(path_pair[0]) / 1024**2 # MiB's
-			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one is {mibs:.2f} MiB; should the program use that?"
+			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one \n({path_pair[0]})\nis {mibs:.2f} MiB; should the program use that?"
 			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
 					QMessageBox.Yes, QMessageBox.No)
 			if reply == QMessageBox.No: return
