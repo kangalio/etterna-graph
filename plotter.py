@@ -121,6 +121,7 @@ class Plotter:
 			util.logger.exception("XML parsing with UTF-8 failed")
 			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
 		xml = xmltree.getroot()
+		self.xml = xml # This is required for the `score_info` callback
 		
 		# Let the window draw itself once before becoming unresponsive
 		# for a while furing replays analysis
