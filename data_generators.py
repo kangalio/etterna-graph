@@ -20,7 +20,7 @@ def gen_manip(xml, analysis):
 # This is only an approximation of the actual game mechanics
 def score_to_msd(score):
 	overall = float(score.findtext(".//Overall"))
-	percentage = float(score.findtext("WifeScore"))
+	percentage = float(score.findtext("SSRNormPercent"))
 	percentage = min(0.965, percentage) # Cap to 96.5%, like in the real game
 	return overall * (0.93 / percentage)
 
@@ -29,7 +29,7 @@ def score_to_wifescore(score):
 	return overall
 
 def score_to_accuracy(score):
-	percent = float(score.find("WifeScore").text)*100
+	percent = float(score.find("SSRNormPercent").text)*100
 	if percent <= -400: return None # Those are weird
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
@@ -176,7 +176,7 @@ def gen_idle_time_buckets(xml):
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
 	for chart in xml.iter("Chart"):
-		score_filter = lambda s: float(s.findtext("WifeScore")) > 0.5
+		score_filter = lambda s: float(s.findtext("SSRNormPercent")) > 0.5
 		num_plays = len([s for s in chart.iter("Score") if score_filter(s)])
 		if num_plays > 0: charts_num_plays.append((chart, num_plays))
 	
@@ -447,8 +447,8 @@ def calc_median_score_increase(xml):
 			
 			# If the same chart is played twice within 60 seconds
 			if idle_time < 60:
-				score_1 = float(scores[i].findtext("WifeScore"))
-				score_2 = float(scores[i+1].findtext("WifeScore"))
+				score_1 = float(scores[i].findtext("SSRNormPercent"))
+				score_2 = float(scores[i+1].findtext("SSRNormPercent"))
 				score_increase = 100 * (score_2 - score_1)
 				score_increases.append(score_increase)
 	

@@ -7,7 +7,7 @@ import util, replays_analysis
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
-	percent = float(score.findtext("WifeScore"))*100
+	percent = float(score.findtext("SSRNormPercent"))*100
 	percent = round(percent * 100) / 100 # Round to 2 places
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
