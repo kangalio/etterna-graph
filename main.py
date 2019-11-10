@@ -76,6 +76,7 @@ class UI:
 		
 		# Start
 		w, h = 1600, 2500
+		if state.enable_all_plots: h = 3800 # More plots -> more room
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		self.window.show()
@@ -113,7 +114,7 @@ class UI:
 			lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 		
 		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar)
+		self.plotter = Plotter(infobar, self.state.enable_all_plots)
 		layout.addWidget(self.plotter.frame)
 	
 	# Returns path to Etterna.xml
@@ -136,13 +137,15 @@ class UI:
 class Application:
 	etterna_xml = None
 	replays_dir = None
+	enable_all_plots = None
 	ui = None
 	plotter = None
 	
 	def __init__(self):
+		self.enable_all_plots = False # Default value
+		self.load_settings() # Apply settings
 		self.ui = UI(self) # Init UI
 		self.plotter = self.ui.plotter
-		self.load_settings() # Apply settings
 		
 		# If Etterna.xml isn't already defined, search it
 		if self.etterna_xml is None:
@@ -225,8 +228,10 @@ class Application:
 		
 		try:
 			settings = json.load(open(SETTINGS_PATH))
+			if settings.get("enable-all-plots"):
+				self.enable_all_plots = settings["enable-all-plots"]
 			self.etterna_xml = settings["etterna-xml"]
-			if settings["replays-dir"]:
+			if not settings.get("replays-dir") is None:
 				self.set_replays(settings["replays-dir"])
 		except Exception as e:
 			util.logger.exception("Loading settings")
@@ -239,9 +244,10 @@ class Application:
 		try:
 			settings = {
 				"etterna-xml": self.etterna_xml,
-				"replays-dir": self.replays_dir
+				"replays-dir": self.replays_dir,
+				"enable-all-plots": self.enable_all_plots,
 			}
-			json.dump(settings, open(SETTINGS_PATH, "w"))
+			json.dump(settings, open(SETTINGS_PATH, "w"), indent=4)
 		except Exception as e:
 			util.logger.exception("Writing settings")
 			msgbox = QMessageBox.warning(None, "Warning",

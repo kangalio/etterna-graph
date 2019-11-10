@@ -39,7 +39,7 @@ class PlotEntry:
 		self.analysis_requirement = analysis_requirement
 
 class Plotter:
-	def __init__(self, infobar):
+	def __init__(self, infobar, enable_all_plots):
 		frame = PlotFrame(infobar)
 		self.frame = frame
 		
@@ -93,15 +93,33 @@ class Plotter:
 		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
 		self.frame.next_row()
 		
-		# ~ _ = Plot(self, frame, 30, title="Distribution of hit offset")
-		# ~ _.set_args(cmap[6], type_="bar")
-		# ~ plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
-		# ~ self.frame.next_row()
-		
-		# ~ _ = Plot(self, frame, 30, title="Idle time between plays")
-		# ~ _.set_args(cmap[6], type_="bar")
-		# ~ plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
-		# ~ self.frame.next_row()
+		if enable_all_plots:
+			_ = Plot(self, frame, 30, title="Distribution of hit offset")
+			_.set_args(cmap[6], type_="bar")
+			plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
+			
+			_ = Plot(self, frame, 30, title="Idle time between plays (a bit broken)")
+			_.set_args(cmap[6], type_="bar")
+			plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
+			self.frame.next_row()
+			
+			_ = Plot(self, frame, 30, title="CB probability based on combo length")
+			_.set_args(cmap[6], type_="bar")
+			plots.append(PlotEntry(_, g.gen_cb_probability, "yes"))
+			
+			_ = Plot(self, frame, 30, title="Number of sessions with specific score amount")
+			_.set_args(cmap[6], type_="bar")
+			plots.append(PlotEntry(_, g.gen_session_plays, "no"))
+			self.frame.next_row()
+			
+			_ = Plot(self, frame, 30, flags="time_xaxis", title="Session length over time")
+			_.set_args(cmap[6])
+			plots.append(PlotEntry(_, g.gen_session_length, "no"))
+			
+			_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of scores each week")
+			_.set_args(cmap[6], type_="bar", width=604800*0.8)
+			plots.append(PlotEntry(_, g.gen_plays_per_week, "no"))
+			self.frame.next_row()
 		
 		_ = Plot(self, frame, 30, title="Number of plays per hour of day")
 		_.set_args(cmap[4], type_="bar")

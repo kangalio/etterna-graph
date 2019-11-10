@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-import numpy as np
+from collections import Counter
 import math
+import numpy as np
 
 import util
 from util import parsedate, cache
@@ -140,48 +141,6 @@ def gen_plays_by_hour(xml):
 	#return {time(hour=i): num_plays[i] for i in range(24)}
 	return zip(*[(i, num_plays[i]) for i in range(24)])
 
-def gen_idle_time_buckets(xml):
-	# Each bucket is 5 seconds. Total 10 minutes is tracked
-	buckets = [0] * 600
-	
-	a, b = 0, 0
-	
-	scores = []
-	for scoresat in xml.iter("ScoresAt"):
-		rate = float(scoresat.get("Rate"))
-		scores.extend(((score, rate) for score in scoresat.iter("Score")))
-	
-	# Sort scores by datetime, oldest first
-	scores.sort(key=lambda pair: pair[0].findtext("DateTime"))
-	
-	last_play_end = None
-	for score, rate in scores:
-		a+=1
-		datetime = util.parsedate(score.findtext("DateTime"))
-		survive_seconds = float(score.findtext("SurviveSeconds"))
-		#print(survive_seconds, rate)
-		length = timedelta(seconds=survive_seconds*rate)
-		
-		#print("Datetime:", datetime)
-		#print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")
-		if last_play_end is not None:
-			idle_time = datetime - last_play_end
-			if idle_time >= timedelta():
-				bucket_index = int(idle_time.total_seconds() // 5)
-				if bucket_index < len(buckets):
-					buckets[bucket_index] += 1
-			else:
-				#print("Negative idle time!")
-				b+=1
-		
-		last_play_end = datetime + length
-		#print("Finished", last_play_end)
-		#print()
-	
-	# ~ keys = [i * 5 for i in range(len(buckets))]
-	keys = range(len(buckets))
-	return (keys, buckets)
-
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
 	for chart in xml.iter("Chart"):
@@ -237,9 +196,100 @@ def calc_average_hours_per_day(xml, timespan=timedelta(days=365/2)):
 	
 	return total_hours / timespan.days
 
+# OPTIONAL PLOTS BEGINNING
+
 def gen_hit_distribution(xml, analysis):
 	buckets = analysis.offset_buckets
 	return (list(buckets.keys()), list(buckets.values()))
+
+def gen_idle_time_buckets(xml):
+	# Each bucket is 5 seconds. Total 10 minutes is tracked
+	buckets = [0] * 600
+	
+	a, b = 0, 0
+	
+	scores = []
+	for scoresat in xml.iter("ScoresAt"):
+		rate = float(scoresat.get("Rate"))
+		scores.extend(((score, rate) for score in scoresat.iter("Score")))
+	
+	# Sort scores by datetime, oldest first
+	scores.sort(key=lambda pair: pair[0].findtext("DateTime"))
+	
+	last_play_end = None
+	for score, rate in scores:
+		a+=1
+		datetime = util.parsedate(score.findtext("DateTime"))
+		survive_seconds = float(score.findtext("SurviveSeconds"))
+		#print(survive_seconds, rate)
+		length = timedelta(seconds=survive_seconds*rate)
+		
+		#print("Datetime:", datetime)
+		#print("Play length:", str(length)[:-7], "(according to SurviveSeconds)")
+		if last_play_end is not None:
+			idle_time = datetime - last_play_end
+			if idle_time >= timedelta():
+				bucket_index = int(idle_time.total_seconds() // 5)
+				if bucket_index < len(buckets):
+					buckets[bucket_index] += 1
+			else:
+				#print("Negative idle time!")
+				b+=1
+		
+		last_play_end = datetime + length
+		#print("Finished", last_play_end)
+		#print()
+	
+	# ~ keys = [i * 5 for i in range(len(buckets))]
+	keys = range(len(buckets))
+	return (keys, buckets)
+
+def gen_session_length(xml):
+	sessions = divide_into_sessions(xml)
+	x, y = [], []
+	for s in sessions:
+		x.append(s[0][1]) # Datetime [1] of first play [0] in session
+		y.append((s[-1][1]-s[0][1]).total_seconds() / 60) # Length in minutes
+	
+	return (x, y)
+
+def gen_session_plays(xml):
+	sessions = divide_into_sessions(xml)
+	nums_plays = [len(session) for session in sessions]
+	nums_sessions_with_x_plays = Counter(nums_plays)
+	return (list(nums_sessions_with_x_plays.keys()),
+			list(nums_sessions_with_x_plays.values()))
+
+def gen_cb_probability(xml, analysis):
+	# {combo length: (base number, cb number)
+	base, cbs = analysis.combo_occurences, analysis.cbs_on_combo_len
+	
+	# Find first combo that was never reached (0), starting with combo 1
+	max_combo = base.index(0, 1)
+	result = {i: int(cbs[i]/base[i]) for i in range(max_combo)[:10] if base[i] >= 0}
+	x_list = range(max_combo)
+	return (x_list, [cbs[i]/base[i] for i in x_list])
+
+def gen_plays_per_week(xml):
+	datetimes = [parsedate(s.findtext("DateTime")) for s in xml.iter("Score")]
+	datetimes.sort()
+	
+	weeks = {}
+	week_end = datetimes[0]
+	week_start = week_end - timedelta(weeks=1)
+	i = 0
+	while i < len(datetimes):
+		if datetimes[i] < week_end:
+			weeks[week_start] += 1
+			i += 1
+		else:
+			week_start += timedelta(weeks=1)
+			week_end += timedelta(weeks=1)
+			weeks[week_start] = 0
+	
+	return (list(weeks.keys()), list(weeks.values()))
+
+# OPTIONAL PLOTS END
 
 def calc_ratings_for_sessions(xml):
 	if cache("calc_ratings_for_sessions"):
