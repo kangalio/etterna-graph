@@ -4,6 +4,8 @@ This is a Python program that visualizes various Etterna playing statistics. Wri
 ## Usage
 Download the [portable exe file](https://github.com/kangalioo/etterna-graph/releases/download/latest/EtternaGraph.exe) and execute it.
 
+*I sometimes upload beta releases, check out the [releases page](https://github.com/kangalioo/etterna-graph/releases) if you want a newer version of the program with more features*
+
 You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen. (The infobar is not visible in the screenshots currently)
 
 ## Running from source
