@@ -2,9 +2,9 @@
 This is a Python program that visualizes various Etterna playing statistics. Written with PyQt5 and PyQtGraph.
 
 ## Usage
-Download the [portable exe file](https://github.com/kangalioo/etterna-graph/releases/download/v0.2/EtternaGraph.exe) and execute it.
+Download the [portable exe file](https://github.com/kangalioo/etterna-graph/releases/download/latest/EtternaGraph.exe) and execute it.
 
-You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen. The infobar is visible in the screenshots.
+You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen. (The infobar is not visible in the screenshots currently)
 
 ## Running from source
 Alternatively you can run the program from source directly:
@@ -14,4 +14,4 @@ Alternatively you can run the program from source directly:
 3. Now execute the main.py file and the statistics _should_ pop up
 
 # Screenshot
-![](https://imgur.com/gRG1uKM.jpg)
+![](https://imgur.com/h5GZRha.jpg)
