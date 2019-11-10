@@ -168,11 +168,12 @@ class Application:
 	# replays_dir to the paths in it
 	def detect_etterna(self):
 		globs = [
-			"C:\\Games\\Etterna*",
-			"C:\\Users\\*\\AppData\\*\\etterna*",
-			os.path.expanduser("~") + "/.etterna*",
-			os.path.expanduser("~") + "/.stepmania*",
-			"/opt/etterna*",
+			"C:\\Games\\Etterna*", # Windows
+			"C:\\Users\\*\\AppData\\*\\etterna*", # Windows
+			os.path.expanduser("~") + "/.etterna*", # Linux
+			os.path.expanduser("~") + "/.stepmania*", # Linux
+			"/opt/etterna*", # Linux
+			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
 		]
 		# Assemble all possible save game locations. path_pairs is a
 		# list of tuples `(xml_path, replays_dir_path)`
