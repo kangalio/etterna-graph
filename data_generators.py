@@ -413,12 +413,17 @@ def gen_text_general_analysis_info(xml, a):
 	average_hours = calc_average_hours_per_day(xml)
 	average_hours_str = util.timespan_str(average_hours)
 	
+	session_date_threshold = datetime.now() - timedelta(days=7)
+	sessions = divide_into_sessions(xml)
+	num_sessions = len([s for s in sessions if s[0][1] > session_date_threshold])
+	
 	return "<br>".join([
 		f"You spend {play_percentage}% of your sessions in gameplay",
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
-		f"Average hours per day (last 6 months): {average_hours_str}"
+		f"Average hours per day (last 6 months): {average_hours_str}",
+		f"Number of sessions, last 7 days: {num_sessions}",
 	])
 
 def gen_text_most_played_packs(xml):
