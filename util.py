@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import math, os
 from numba import jit
 import numpy as np
@@ -23,6 +23,13 @@ skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
+# Used for `is_relevant(score)`
+SCORE_DATE_THRESHOLD = datetime.now() - timedelta(days=183)
+# Returns True or False depending on whether the score is relevant
+# If it't not relevant, it won't be included in some statistics
+def is_relevant(score):
+	return parsedate(score.findtext("DateTime")) > SCORE_DATE_THRESHOLD
+def get_relevance_string(): return "last 6 months"
 
 # Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
 # Returns list of the files' lines

@@ -342,25 +342,28 @@ def gen_session_rating_improvement(xml):
 # Returns dict with pack names as keys and the respective "pack liking"
 # as value. The liking value is currently simply the amount of recent
 # plays in the pack. Recent = in the last `timespan_months` months
-def generate_pack_likings(xml, timespan_months):
-	SCORE_DATE_THRESHOLD = datetime.now() - timedelta(days=timespan_months*365//12)
-	
-	def condition(score):
-		date_str = score.findtext("DateTime")
-		if date_str is None: return False
-		
-		date = datetime.fromisoformat(date_str)
-		return date > SCORE_DATE_THRESHOLD
-	
+def generate_pack_likings(xml):
 	likings = {}
 	for chart in xml.iter("Chart"):
-		valid_plays = sum(1 for s in chart.iter("Score") if (condition)(s))
+		num_relevant_plays = sum(map(util.is_relevant, chart.iter("Score")))
 		pack = chart.get("Pack")
 		
 		if not pack in likings: likings[pack] = 0
-		likings[pack] += valid_plays
+		likings[pack] += num_relevant_plays
 	
 	return likings
+
+def calculate_total_wifescore(xml):
+	weighted_sum = 0
+	num_notes_sum = 0
+	for score in filter(util.is_relevant, xml.iter("Score")):
+		num_notes = sum([int(e.text) for e in score.find("TapNoteScores")])
+		num_notes_sum += num_notes
+		
+		wifescore = float(score.findtext("SSRNormPercent"))
+		weighted_sum += wifescore * num_notes
+	return weighted_sum / num_notes_sum
+	
 
 def gen_skillset_development(xml):
 	datetimes, all_ratings = [], []
@@ -467,6 +470,9 @@ def gen_text_general_analysis_info(xml, a):
 	sessions = divide_into_sessions(xml)
 	num_sessions = len([s for s in sessions if s[0][1] > session_date_threshold])
 	
+	total_wifescore = calculate_total_wifescore(xml)
+	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
+	
 	return "<br>".join([
 		f"You spend {play_percentage}% of your sessions in gameplay",
 		f"Total CB percentage per column (left to right): {cbs_string}",
@@ -474,10 +480,11 @@ def gen_text_general_analysis_info(xml, a):
 		f"Mean hit offset: {mean_string}",
 		f"Average hours per day (last 6 months): {average_hours_str}",
 		f"Number of sessions, last 7 days: {num_sessions}",
+		f"Wifescore of all notes last 6 months (in total) is {total_wifescore_str}",
 	])
 
 def gen_text_most_played_packs(xml):
-	likings = generate_pack_likings(xml, 6)
+	likings = generate_pack_likings(xml)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)
 	best_packs = sorted_packs[:min(12, len(sorted_packs))]
