@@ -432,10 +432,6 @@ def gen_text_general_info(xml, r):
 	if r: # If ReplaysAnalysis is avilable
 		total_notes_string = util.abbreviate(r.total_notes, min_precision=3)
 		
-		chart, combo = find_longest_combo(xml)
-		long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_combo_str = f"{combo} on {long_combo_chart}"
-		
 		chart = r.longest_mcombo[1]
 		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
 		long_mcombo_str = f"{r.longest_mcombo[0]} on {long_mcombo_chart}"
@@ -447,6 +443,10 @@ def gen_text_general_info(xml, r):
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
+	
+	chart, combo = find_longest_combo(xml)
+	long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+	long_combo_str = f"{combo} on {long_combo_chart}"
 	
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
