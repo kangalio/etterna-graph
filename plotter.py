@@ -64,7 +64,7 @@ class Plotter:
 		plots.append(PlotEntry(_, g.gen_text_general_info, "optional"))
 		self.frame.next_row()
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Wife score over time")
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Score rating over time")
 		_.set_args(cmap[0], click_callback=score_info)
 		plots.append(PlotEntry(_, g.gen_wifescore, "no"))
 		
@@ -77,7 +77,7 @@ class Plotter:
 		_.set_args(cmap[1], click_callback=score_info)
 		plots.append(PlotEntry(_, g.gen_accuracy, "no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis ma_yaxis", title="MA over time (marvelouses÷perfects)")
+		_ = Plot(self, frame, 30, flags="time_xaxis ma_yaxis", title="MA over time (marvelouses÷perfects) (log scale)")
 		_.set_args(cmap[6], click_callback=score_info)
 		plots.append(PlotEntry(_, g.gen_ma, "no"))
 		self.frame.next_row()
