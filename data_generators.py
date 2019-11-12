@@ -260,7 +260,8 @@ def gen_session_plays(xml):
 	return (list(nums_sessions_with_x_plays.keys()),
 			list(nums_sessions_with_x_plays.values()))
 
-def gen_cb_probability(xml, analysis):
+# Currently broken
+"""def gen_cb_probability(xml, analysis):
 	# {combo length: (base number, cb number)
 	base, cbs = analysis.combo_occurences, analysis.cbs_on_combo_len
 	
@@ -268,7 +269,7 @@ def gen_cb_probability(xml, analysis):
 	max_combo = base.index(0, 1)
 	result = {i: int(cbs[i]/base[i]) for i in range(max_combo)[:10] if base[i] >= 0}
 	x_list = range(max_combo)
-	return (x_list, [cbs[i]/base[i] for i in x_list])
+	return (x_list, [cbs[i]/base[i] for i in x_list])"""
 
 def gen_plays_per_week(xml):
 	datetimes = [parsedate(s.findtext("DateTime")) for s in iter_scores(xml)]
@@ -338,6 +339,18 @@ def gen_session_rating_improvement(xml):
 		previous_overall = ratings[0]
 	
 	return ((datetimes, lengths, sizes), ids)
+
+# Returns tuple of `(max_combo_chart_element, max_combo_int)`
+def find_longest_combo(xml):
+	max_combo_chart = None
+	max_combo = 0
+	for chart in xml.iter("Chart"):
+		for score in iter_scores(chart):
+			combo = int(score.findtext("MaxCombo"))
+			if combo > max_combo:
+				max_combo = combo
+				max_combo_chart = chart
+	return max_combo_chart, max_combo
 
 # Returns dict with pack names as keys and the respective "pack liking"
 # as value. The liking value is currently simply the amount of recent
@@ -419,16 +432,15 @@ def gen_text_general_info(xml, r):
 	if r: # If ReplaysAnalysis is avilable
 		total_notes_string = util.abbreviate(r.total_notes, min_precision=3)
 		
-		chart = r.longest_combo[1]
+		chart, combo = find_longest_combo(xml)
 		long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_combo_str = f"{r.longest_combo[0]} on {long_combo_chart}"
+		long_combo_str = f"{combo} on {long_combo_chart}"
 		
 		chart = r.longest_mcombo[1]
 		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
 		long_mcombo_str = f"{r.longest_mcombo[0]} on {long_mcombo_chart}"
 	else:
 		total_notes_string = "[please load replay data]"
-		long_combo_str = "[please load replay data]"
 		long_mcombo_str = "[please load replay data]"
 	
 	scores = list(iter_scores(xml))

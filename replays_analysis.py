@@ -15,9 +15,6 @@ class ReplaysAnalysis:
 	longest_combo = [0, None] # Combo variables are lists of `[combo length, chart]`
 	longest_mcombo = [0, None]
 	num_near_hits = 0
-	
-	combo_occurences = [0] * 10000
-	cbs_on_combo_len = [0] * 10000
 
 # This function is responsible for replay analysis. Every chart that 
 # uses replay data uses the data generated from this function.
@@ -40,7 +37,6 @@ def analyze(xml, replays):
 			if replay is None:
 				continue
 			
-			r.combo_occurences[0] += 1 # I have no idea
 			previous_time = 0
 			num_total = 0
 			num_manipulated = 0
@@ -65,12 +61,10 @@ def analyze(xml, replays):
 				
 				if abs(offset) > 0.09:
 					do_combo_end(combo, r.longest_combo)
-					r.cbs_on_combo_len[combo] += 1
 					combo = 0
 					if column < 4: r.cbs_per_column[column] += 1
 				else:
 					combo += 1
-				r.combo_occurences[combo] += 1
 				
 				if abs(offset) > 0.0225:
 					do_combo_end(mcombo, r.longest_mcombo)
