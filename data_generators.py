@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 import util
-from util import parsedate, cache
+from util import parsedate, cache, iter_scores
 
 """
 This file holds all the so-called data generators. Those take save data
@@ -46,7 +46,7 @@ def score_to_ma(score):
 def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 	x, y = [], []
 	ids = []
-	for score in xml.iter("Score"):
+	for score in iter_scores(xml):
 		if discard_errors:
 			try: value = (mapper)(score, *mapper_args)
 			except: continue
@@ -72,7 +72,7 @@ def divide_into_sessions(xml):
 	
 	session_end_threshold = timedelta(minutes=20)
 	
-	scores = list(xml.iter("Score"))
+	scores = list(iter_scores(xml))
 	datetimes = [parsedate(s.find("DateTime").text) for s in scores]
 	zipped = zip(scores, datetimes)
 	zipped = sorted(zipped, key=lambda pair: pair[1])
@@ -96,7 +96,7 @@ def gen_week_skillsets(xml):
 	sessions = []
 	current_session = []
 	previous_week = -1
-	for score in sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime")):
+	for score in sorted(iter_scores(xml), key=lambda s: s.findtext("DateTime")):
 		datetime = parsedate(score.findtext("DateTime"))
 		week = datetime.isocalendar()[1]
 		if previous_week != week:
@@ -131,7 +131,7 @@ def gen_week_skillsets(xml):
 def gen_plays_by_hour(xml):
 	from datetime import time
 	num_plays = [0] * 24
-	for score in xml.iter("Score"):
+	for score in iter_scores(xml):
 		datetime = parsedate(score.find("DateTime").text)
 		num_plays[datetime.hour] += 1
 	
@@ -145,7 +145,7 @@ def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
 	for chart in xml.iter("Chart"):
 		score_filter = lambda s: float(s.findtext("SSRNormPercent")) > 0.5
-		num_plays = len([s for s in chart.iter("Score") if score_filter(s)])
+		num_plays = len([s for s in iter_scores(chart) if score_filter(s)])
 		if num_plays > 0: charts_num_plays.append((chart, num_plays))
 	
 	charts_num_plays.sort(key=lambda pair: pair[1], reverse=True)
@@ -154,7 +154,7 @@ def gen_most_played_charts(xml, num_charts):
 def gen_hours_per_skillset(xml):
 	hours = [0, 0, 0, 0, 0, 0, 0]
 	
-	for score in xml.iter("Score"):
+	for score in iter_scores(xml):
 		skillset_ssrs = score.find("SkillsetSSRs")
 		if skillset_ssrs == None: continue
 		diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
@@ -166,7 +166,7 @@ def gen_hours_per_skillset(xml):
 	return hours
 
 def gen_hours_per_week(xml):
-	scores = xml.iter("Score")
+	scores = iter_scores(xml)
 	pairs = [(s, parsedate(s.findtext("DateTime"))) for s in scores]
 	pairs.sort(key=lambda pair: pair[1]) # Sort by datetime
 	
@@ -188,7 +188,7 @@ def gen_hours_per_week(xml):
 	return (list(weeks.keys()), list(weeks.values()))
 
 def calc_average_hours_per_day(xml, timespan=timedelta(days=365/2)):
-	scores = sorted(xml.iter("Score"), key=lambda s: s.findtext("DateTime"))
+	scores = sorted(iter_scores(xml), key=lambda s: s.findtext("DateTime"))
 	
 	total_hours = 0
 	for score in scores:
@@ -211,7 +211,7 @@ def gen_idle_time_buckets(xml):
 	scores = []
 	for scoresat in xml.iter("ScoresAt"):
 		rate = float(scoresat.get("Rate"))
-		scores.extend(((score, rate) for score in scoresat.iter("Score")))
+		scores.extend(((score, rate) for score in iter_scores(scoresat)))
 	
 	# Sort scores by datetime, oldest first
 	scores.sort(key=lambda pair: pair[0].findtext("DateTime"))
@@ -271,7 +271,7 @@ def gen_cb_probability(xml, analysis):
 	return (x_list, [cbs[i]/base[i] for i in x_list])
 
 def gen_plays_per_week(xml):
-	datetimes = [parsedate(s.findtext("DateTime")) for s in xml.iter("Score")]
+	datetimes = [parsedate(s.findtext("DateTime")) for s in iter_scores(xml)]
 	datetimes.sort()
 	
 	weeks = {}
@@ -345,7 +345,7 @@ def gen_session_rating_improvement(xml):
 def generate_pack_likings(xml):
 	likings = {}
 	for chart in xml.iter("Chart"):
-		num_relevant_plays = sum(map(util.is_relevant, chart.iter("Score")))
+		num_relevant_plays = sum(map(util.is_relevant, iter_scores(chart)))
 		pack = chart.get("Pack")
 		
 		if not pack in likings: likings[pack] = 0
@@ -356,7 +356,7 @@ def generate_pack_likings(xml):
 def calculate_total_wifescore(xml):
 	weighted_sum = 0
 	num_notes_sum = 0
-	for score in filter(util.is_relevant, xml.iter("Score")):
+	for score in filter(util.is_relevant, iter_scores(xml)):
 		num_notes = sum([int(e.text) for e in score.find("TapNoteScores")])
 		num_notes_sum += num_notes
 		
@@ -431,7 +431,7 @@ def gen_text_general_info(xml, r):
 		long_combo_str = "[please load replay data]"
 		long_mcombo_str = "[please load replay data]"
 	
-	scores = list(xml.iter("Score"))
+	scores = list(iter_scores(xml))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
@@ -507,7 +507,7 @@ def calc_median_score_increase(xml):
 	
 	for chart in xml.iter("ScoresAt"):
 		# Chronologically sorted scores
-		scores = sorted(chart.iter("Score"), key=lambda s: s.findtext("DateTime"))
+		scores = sorted(iter_scores(chart), key=lambda s: s.findtext("DateTime"))
 		
 		for i in range(0, len(scores) - 1):
 			datetime_1 = parsedate(scores[i].findtext("DateTime"))

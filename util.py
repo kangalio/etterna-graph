@@ -31,6 +31,19 @@ def is_relevant(score):
 	return parsedate(score.findtext("DateTime")) > SCORE_DATE_THRESHOLD
 def get_relevance_string(): return "last 6 months"
 
+def is_score_valid(score):
+	skillset_ssrs = score.find("SkillsetSSRs")
+	if not skillset_ssrs is None:
+		overall_ssr = float(skillset_ssrs.findtext("Overall"))
+		if overall_ssr > 40: return False
+	
+	if score.findtext("EtternaValid") == "0": return False
+	
+	return True
+
+def iter_scores(xml_element):
+	return filter(is_score_valid, xml_element.iter("Score"))
+
 # Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
 # Returns list of the files' lines
 def read_replay(replays, key):
