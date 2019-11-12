@@ -440,6 +440,7 @@ def gen_text_general_info(xml, r):
 		long_mcombo_str = "[please load replay data]"
 	
 	scores = list(iter_scores(xml))
+	num_charts = len(list(xml.iter("Chart")))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
@@ -452,6 +453,7 @@ def gen_text_general_info(xml, r):
 		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
+		f"Number of unique files played: {num_charts}",
 		f"Total arrows hit: {total_notes_string}",
 		f"Longest combo: {long_combo_str}",
 		f"Longest marvelous combo: {long_mcombo_str}",
