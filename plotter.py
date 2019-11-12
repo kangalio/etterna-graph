@@ -103,9 +103,9 @@ class Plotter:
 			plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
 			self.frame.next_row()
 			
-			_ = Plot(self, frame, 30, title="CB probability based on combo length")
+			"""_ = Plot(self, frame, 30, title="CB probability based on combo length")
 			_.set_args(cmap[6], type_="bar")
-			plots.append(PlotEntry(_, g.gen_cb_probability, "yes"))
+			plots.append(PlotEntry(_, g.gen_cb_probability, "yes"))"""
 			
 			_ = Plot(self, frame, 30, title="Number of sessions with specific score amount")
 			_.set_args(cmap[6], type_="bar")
