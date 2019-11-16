@@ -471,9 +471,12 @@ def gen_text_general_analysis_info(xml, a):
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
 	
-	session_secs = xml.find("GeneralData").findtext("TotalSessionSeconds")
-	play_secs = xml.find("GeneralData").findtext("TotalGameplaySeconds")
-	play_percentage = round(100 * int(play_secs) / int(session_secs))
+	session_secs = int(xml.find("GeneralData").findtext("TotalSessionSeconds"))
+	play_secs = int(xml.find("GeneralData").findtext("TotalGameplaySeconds"))
+	if session_secs == 0: # Happened for BanglesOtter, for whatever reason
+		play_percentage = 0
+	else:
+		play_percentage = round(100 * play_secs / session_secs)
 	
 	median_score_increase = round(calc_median_score_increase(xml), 1)
 	
