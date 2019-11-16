@@ -65,12 +65,12 @@ def gen_accuracy(xml): return map_scores(xml, score_to_accuracy)
 def gen_ma(xml): return map_scores(xml, score_to_ma)
 
 # Returns list of sessions where a session is [(Score, datetime)]
-# A session is defined to end when there's no play in 20 minutes or more
+# A session is defined to end when there's no play in 60 minutes or more
 def divide_into_sessions(xml):
 	if cache("sessions_division_cache"):
 		return cache("sessions_division_cache")
 	
-	session_end_threshold = timedelta(minutes=20)
+	session_end_threshold = timedelta(minutes=60)
 	
 	scores = list(iter_scores(xml))
 	datetimes = [parsedate(s.find("DateTime").text) for s in scores]
