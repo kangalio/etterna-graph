@@ -36,7 +36,7 @@ program requires you to select the ReplaysV2 folder as a whole.
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
-IGNORE_REPLAYS = True # Development purposes
+IGNORE_REPLAYS = False # Development purposes
 if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
@@ -253,8 +253,13 @@ class Application:
 		if len(path_pairs) == 0:
 			return # No installation could be found
 		elif len(path_pairs) == 1:
-			# It's obvious which one to choose, when there's only one
-			# path pair to choose from
+			# Only one was found, but maybe this is the wrong one and
+			# the correct xml was not detected at all. Better ask
+			mibs = os.path.getsize(path_pairs[0][0]) / 1024**2 # MiB's
+			text = f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_pairs[0][0]}. Should the program use that?"
+			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
+					QMessageBox.Yes, QMessageBox.No)
+			if reply == QMessageBox.No: return
 			path_pair = path_pairs[0]
 		else: # With multiple possible installations, it's tricky
 			# Select the savegame pair with the largest XML, ask user if that one is right
