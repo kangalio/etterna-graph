@@ -112,6 +112,9 @@ class UI:
 		# Put the widgets in
 		self.setup_widgets(layout)
 		
+		#self.open_settings()
+		#exit()
+		
 		# Start
 		w, h = 1600, 2500
 		if state.prefs.enable_all_plots: h = 3800 # More plots -> more room
@@ -121,6 +124,26 @@ class UI:
 	
 	def exec_(self):
 		self.app.exec_()
+	
+	def open_settings(self):
+		dialog = QDialog()
+		vbox = QVBoxLayout(dialog)
+		layout_widget = QWidget(dialog)
+		vbox.addWidget(layout_widget)
+		layout = QGridLayout(layout_widget)
+		vbox.addWidget(QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel | QDialogButtonBox.Ok))
+		row_i = 0
+		
+		def add_setting(label, control):
+			nonlocal row_i
+			layout.addWidget(QLabel(label), row_i, 0)
+			layout.addWidget(control, row_i, 1)
+			row_i += 1
+		
+		add_setting("test", QPushButton("hihi"))
+		add_setting("test2\nnewline", QPushButton("realllllllly long text"))
+		
+		dialog.exec_()
 	
 	def setup_widgets(self, layout):
 		# Add infobox
@@ -150,6 +173,10 @@ class UI:
 		button_row.addWidget(button)
 		button.clicked.connect(
 			lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
+		
+		button = QPushButton("Settings")
+		button_row.addWidget(button)
+		button.clicked.connect(self.open_settings)
 		
 		# Add plot frame (that thing that contains all the plots)
 		self.plotter = Plotter(infobar, self.state.prefs.enable_all_plots)
