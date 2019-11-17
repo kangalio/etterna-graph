@@ -39,9 +39,12 @@ class PlotEntry:
 		self.analysis_requirement = analysis_requirement
 
 class Plotter:
-	def __init__(self, infobar, enable_all_plots):
+	xml = analysis = None
+	
+	def __init__(self, infobar, prefs):
 		frame = PlotFrame(infobar)
 		self.frame = frame
+		self.prefs = {} # The prefs that were last used. Empty in the beginning
 		
 		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
@@ -93,7 +96,7 @@ class Plotter:
 		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
 		self.frame.next_row()
 		
-		if enable_all_plots:
+		if prefs.enable_all_plots:
 			_ = Plot(self, frame, 30, title="Distribution of hit offset")
 			_.set_args(cmap[6], type_="bar")
 			plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
@@ -137,33 +140,47 @@ class Plotter:
 		
 		self.plots = plots
 	
-	def draw(self, xml_path, replays_path, qapp):
-		print("Opening xml..")
-		try: # First try UTF-8
-			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
-		except: # If that doesn't work, fall back to ISO-8859-1
-			util.logger.exception("XML parsing with UTF-8 failed")
-			xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
-		xml = xmltree.getroot()
-		self.xml = xml # This is required for the `score_info` callback
+	def draw(self, new_prefs, qapp):
+		# Find what changed from the last draw
+		changes = new_prefs.difference(self.prefs)
+		self.prefs = new_prefs.to_dict()
 		
-		# Let the window draw itself once before becoming unresponsive
-		# for a while furing replays analysis
+		# Let the window draw itself once before the block loading and
+		# analysis stuff
 		qapp.processEvents()
 		
-		analysis = None
-		if replays_path:
+		# Load XML if it changed
+		xml_path = changes.get("etterna-xml")
+		if xml_path:
+			print("Opening xml..")
+			try: # First try UTF-8
+				xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
+			except: # If that doesn't work, fall back to ISO-8859-1
+				util.logger.exception("XML parsing with UTF-8 failed")
+				xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
+			self.xml = xmltree.getroot()
+		
+		# Analyze replays if they changed
+		replays_dir = changes.get("replays-dir")
+		if replays_dir:
 			print("Analyzing replays (this takes a while)..")
-			analysis = replays_analysis.analyze(xml, replays_path)
+			self.analysis = replays_analysis.analyze(self.xml, replays_dir)
 			# Analysis might be None if the analysis failed
 		
+		if xml_path: print("XML changed")
+		if replays_dir: print("Replays changed")
+		
 		for i, plot in enumerate(self.plots):
+			# If nothing relevant changed
+			if not (xml_path or (plot.analysis_requirement != "no" and replays_dir)):
+				continue
+			
 			print(f"Generating plot {i+1}")
 			if plot.analysis_requirement == "no":
-				data = (plot.data_generator)(xml)
+				data = (plot.data_generator)(self.xml)
 			else:
-				if analysis or plot.analysis_requirement == "optional":
-					data = (plot.data_generator)(xml, analysis)
+				if self.analysis or plot.analysis_requirement == "optional":
+					data = (plot.data_generator)(self.xml, self.analysis)
 				else:
 					data = "[please load replay data]"
 				

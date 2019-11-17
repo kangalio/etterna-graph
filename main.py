@@ -61,28 +61,38 @@ class Settings:
 			return
 		
 		try:
-			settings = json.load(open(SETTINGS_PATH))
-			for json_key, attr in SETTINGS_FIELDS.items():
-				value = settings.get(json_key)
-				if not value is None:
-					setattr(self, attr, value)
+			self.from_dict(json.load(open(SETTINGS_PATH)))
 		except Exception as e:
 			util.logger.exception("Loading settings")
 			msgbox = QMessageBox.warning(None, "Warning",
 				"Could not load settings. Deleting them")
 			# Overwrite old (prbly corrupted) settings
-			self.write_settings()
+			self.write()
 	
 	def write(self):
 		try:
-			settings = {json_key: getattr(self, attr)
-					for json_key, attr in SETTINGS_FIELDS.items()}
-			json.dump(settings, open(SETTINGS_PATH, "w"), indent=4)
+			json.dump(self.to_dict(), open(SETTINGS_PATH, "w"), indent=4)
 		except Exception as e:
 			util.logger.exception("Writing settings")
 			msgbox = QMessageBox.warning(None, "Warning",
 				"Could not write settings")
-		
+	
+	def to_dict(self):
+		return {json_key: getattr(self, attr)
+				for json_key, attr in SETTINGS_FIELDS.items()}
+	
+	def from_dict(self, d):
+		for json_key, attr in SETTINGS_FIELDS.items():
+			value = d.get(json_key)
+			if not value is None:
+				setattr(self, attr, value)
+	
+	# Returns a dict, but with only the properties that are different
+	# in the `other` settings dict
+	def difference(self, other_dict):
+		a, b = self.to_dict(), other_dict
+		return {key: value for key, value in a.items()
+				if b.get(key) != value}
 
 # Handles UI
 class UI:
@@ -179,7 +189,7 @@ class UI:
 		button.clicked.connect(self.open_settings)
 		
 		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar, self.state.prefs.enable_all_plots)
+		self.plotter = Plotter(infobar, self.state.prefs)
 		layout.addWidget(self.plotter.frame)
 	
 	# Returns path to Etterna.xml
@@ -279,8 +289,8 @@ class Application:
 			self.prefs.replays_dir = replays_dir
 	
 	def refresh_graphs(self):
-		replays_dir = None if IGNORE_REPLAYS else self.prefs.replays_dir
-		self.plotter.draw(self.prefs.etterna_xml, replays_dir, self.ui.app)
+		if IGNORE_REPLAYS: self.prefs.replays_dir = None
+		self.plotter.draw(self.prefs, self.ui.app)
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
@@ -289,7 +299,7 @@ class Application:
 			self.refresh_graphs()
 	
 	def set_replays(self, path):
-		self.replays_dir = path
+		self.prefs.replays_dir = path
 		self.prefs.write()
 
 try:
