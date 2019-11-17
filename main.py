@@ -46,6 +46,44 @@ class ScrollArea(QScrollArea):
 	def wheelEvent(self, event):
 		pass
 
+SETTINGS_FIELDS = {
+	"etterna-xml": "etterna_xml",
+	"replays-dir": "replays_dir",
+	"enable-all-plots": "enable_all_plots",
+}
+class Settings:
+	etterna_xml = None
+	replays_dir = None
+	enable_all_plots = False
+	
+	def load(self):
+		if not os.path.exists(SETTINGS_PATH):
+			return
+		
+		try:
+			settings = json.load(open(SETTINGS_PATH))
+			for json_key, attr in SETTINGS_FIELDS.items():
+				value = settings.get(json_key)
+				if not value is None:
+					setattr(self, attr, value)
+		except Exception as e:
+			util.logger.exception("Loading settings")
+			msgbox = QMessageBox.warning(None, "Warning",
+				"Could not load settings. Deleting them")
+			# Overwrite old (prbly corrupted) settings
+			self.write_settings()
+	
+	def write(self):
+		try:
+			settings = {json_key: getattr(self, attr)
+					for json_key, attr in SETTINGS_FIELDS.items()}
+			json.dump(settings, open(SETTINGS_PATH, "w"), indent=4)
+		except Exception as e:
+			util.logger.exception("Writing settings")
+			msgbox = QMessageBox.warning(None, "Warning",
+				"Could not write settings")
+		
+
 # Handles UI
 class UI:
 	state = None # Reference to the enclosing Application object
@@ -76,7 +114,7 @@ class UI:
 		
 		# Start
 		w, h = 1600, 2500
-		if state.enable_all_plots: h = 3800 # More plots -> more room
+		if state.prefs.enable_all_plots: h = 3800 # More plots -> more room
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		self.window.show()
@@ -114,7 +152,7 @@ class UI:
 			lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 		
 		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar, self.state.enable_all_plots)
+		self.plotter = Plotter(infobar, self.state.prefs.enable_all_plots)
 		layout.addWidget(self.plotter.frame)
 	
 	# Returns path to Etterna.xml
@@ -135,34 +173,32 @@ class UI:
 	
 # Handles general application state
 class Application:
-	etterna_xml = None
-	replays_dir = None
-	enable_all_plots = None
+	prefs = None
 	ui = None
 	plotter = None
 	
 	def __init__(self):
-		self.enable_all_plots = False # Default value
-		self.load_settings() # Apply settings
+		self.prefs = Settings()
+		self.prefs.load() # Apply settings
 		self.ui = UI(self) # Init UI
 		self.plotter = self.ui.plotter
 		
 		# If Etterna.xml isn't already defined, search it
-		if self.etterna_xml is None:
+		if self.prefs.etterna_xml is None:
 			self.detect_etterna()
 			# If searching fails, ask user to choose Etterna.xml
-			if self.etterna_xml is None:
+			if self.prefs.etterna_xml is None:
 				path = self.ui.choose_etterna_xml()
 				if path is None: # Dialog was cancelled
 					QMessageBox.critical(None, "Error", XML_CANCEL_MSG)
 					return
-				self.etterna_xml = path
+				self.prefs.etterna_xml = path
 		
 		# Generate plots
 		self.refresh_graphs()
 		
 		# Now, after the correct paths were established, save them
-		self.write_settings()
+		self.prefs.write()
 		
 		# Pass on control to Qt
 		self.ui.exec_()
@@ -205,12 +241,14 @@ class Application:
 		# Apply the paths. Also, do a check if files exist. I mean, they
 		# _should_ exist at this point, but you can never be too sure
 		etterna_xml, replays_dir = path_pair
-		if os.path.exists(etterna_xml): self.etterna_xml = etterna_xml
-		if os.path.exists(replays_dir): self.replays_dir = replays_dir
+		if os.path.exists(etterna_xml):
+			self.prefs.etterna_xml = etterna_xml
+		if os.path.exists(replays_dir):
+			self.prefs.replays_dir = replays_dir
 	
 	def refresh_graphs(self):
-		replays_dir = None if IGNORE_REPLAYS else self.replays_dir
-		self.plotter.draw(self.etterna_xml, replays_dir, self.ui.app)
+		replays_dir = None if IGNORE_REPLAYS else self.prefs.replays_dir
+		self.plotter.draw(self.prefs.etterna_xml, replays_dir, self.ui.app)
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
@@ -220,38 +258,7 @@ class Application:
 	
 	def set_replays(self, path):
 		self.replays_dir = path
-		self.write_settings()
-	
-	def load_settings(self):
-		if not os.path.exists(SETTINGS_PATH):
-			return
-		
-		try:
-			settings = json.load(open(SETTINGS_PATH))
-			if settings.get("enable-all-plots"):
-				self.enable_all_plots = settings["enable-all-plots"]
-			self.etterna_xml = settings["etterna-xml"]
-			if not settings.get("replays-dir") is None:
-				self.set_replays(settings["replays-dir"])
-		except Exception as e:
-			util.logger.exception("Loading settings")
-			msgbox = QMessageBox.warning(None, "Warning",
-				"Could not load settings. Deleting them")
-			# Overwrite old (prbly corrupted) settings
-			self.write_settings()
-	
-	def write_settings(self):
-		try:
-			settings = {
-				"etterna-xml": self.etterna_xml,
-				"replays-dir": self.replays_dir,
-				"enable-all-plots": self.enable_all_plots,
-			}
-			json.dump(settings, open(SETTINGS_PATH, "w"), indent=4)
-		except Exception as e:
-			util.logger.exception("Writing settings")
-			msgbox = QMessageBox.warning(None, "Warning",
-				"Could not write settings")
+		self.prefs.write()
 
 try:
 	application = Application()
