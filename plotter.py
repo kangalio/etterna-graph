@@ -172,8 +172,10 @@ class Plotter:
 		
 		for i, plot in enumerate(self.plots):
 			# If nothing relevant changed
-			if not (xml_path or (plot.analysis_requirement != "no" and replays_dir)):
-				continue
+			if not any([
+				xml_path,
+				replays_dir and plot.analysis_requirement != "no",
+			]): continue
 			
 			print(f"Generating plot {i+1}")
 			if plot.analysis_requirement == "no":

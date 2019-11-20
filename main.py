@@ -94,19 +94,71 @@ class Settings:
 		return {key: value for key, value in a.items()
 				if b.get(key) != value}
 
+class SettingsDialog(QDialog):
+	xml_input = replays_input = None
+	settings = None
+	button_box = None
+	
+	def __init__(self):
+		super().__init__()
+		self.setWindowTitle("Settings")
+		
+		vbox = QVBoxLayout(self)
+		layout_widget = QWidget(self)
+		vbox.addWidget(layout_widget)
+		layout = QGridLayout(layout_widget)
+		
+		buttons = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+		self.button_box = buttons
+		buttons.clicked.connect(self.handle_button_click)
+		vbox.addWidget(buttons)
+		
+		self.xml_input = QLineEdit()
+		self.replays_input = QLineEdit()
+		
+		row_i = 0
+		def add_setting(label, control):
+			nonlocal row_i
+			layout.addWidget(QLabel(label), row_i, 0)
+			layout.addWidget(control, row_i, 1)
+			row_i += 1
+		
+		add_setting("Etterna XML path", self.xml_input)
+		add_setting("ReplaysV2 directory path", self.replays_input)
+	
+	def handle_button_click(self, button):
+		button = self.button_box.standardButton(button)
+		if button == QDialogButtonBox.Apply:
+			self.apply()
+		elif button == QDialogButtonBox.Cancel:
+			self.close()
+		elif button == QDialogButtonBox.Ok:
+			self.apply()
+			self.close()
+	
+	def apply(self):
+		app.prefs.etterna_xml = self.xml_input.text()
+		app.prefs.replays_dir = self.replays_input.text()
+		app.refresh_graphs()
+	
+	def run(self):
+		self.xml_input.insert(app.prefs.etterna_xml)
+		self.replays_input.insert(app.prefs.replays_dir)
+		self.exec_()
+
 # Handles UI
 class UI:
-	state = None # Reference to the enclosing Application object
-	app = window = layout = None
+	qapp = window = layout = None
 	replays_button = None
+	settings_dialog = None
 	
-	def __init__(self, state):
-		self.state = state
-		
+	def __init__(self):
 		# Construct app, root widget and layout 
-		app = QApplication(["Kangalioo's Etterna stats analyzer"])
-		self.app = app
-		app.setStyle("Fusion")
+		qapp = QApplication(["Kangalioo's Etterna stats analyzer"])
+		self.qapp = qapp
+		qapp.setStyle("Fusion")
+		
+		self.settings_dialog = SettingsDialog()
 		
 		# Prepare area for the widgets
 		window = QMainWindow()
@@ -127,33 +179,16 @@ class UI:
 		
 		# Start
 		w, h = 1600, 2500
-		if state.prefs.enable_all_plots: h = 3800 # More plots -> more room
+		if app.prefs.enable_all_plots: h = 3800 # More plots -> more room
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		self.window.show()
 	
 	def exec_(self):
-		self.app.exec_()
+		self.qapp.exec_()
 	
 	def open_settings(self):
-		dialog = QDialog()
-		vbox = QVBoxLayout(dialog)
-		layout_widget = QWidget(dialog)
-		vbox.addWidget(layout_widget)
-		layout = QGridLayout(layout_widget)
-		vbox.addWidget(QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel | QDialogButtonBox.Ok))
-		row_i = 0
-		
-		def add_setting(label, control):
-			nonlocal row_i
-			layout.addWidget(QLabel(label), row_i, 0)
-			layout.addWidget(control, row_i, 1)
-			row_i += 1
-		
-		add_setting("test", QPushButton("hihi"))
-		add_setting("test2\nnewline", QPushButton("realllllllly long text"))
-		
-		dialog.exec_()
+		self.settings_dialog.run()
 	
 	def setup_widgets(self, layout):
 		# Add infobox
@@ -176,7 +211,7 @@ class UI:
 		button.setToolTip("Replay data is required for various statistics")
 		self.button_load_replays = button
 		button_row.addWidget(button)
-		button.clicked.connect(self.state.try_choose_replays)
+		button.clicked.connect(app.try_choose_replays)
 		
 		# About button
 		button = QPushButton("About this program")
@@ -189,7 +224,7 @@ class UI:
 		button.clicked.connect(self.open_settings)
 		
 		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar, self.state.prefs)
+		self.plotter = Plotter(infobar, app.prefs)
 		layout.addWidget(self.plotter.frame)
 	
 	# Returns path to Etterna.xml
@@ -214,10 +249,10 @@ class Application:
 	ui = None
 	plotter = None
 	
-	def __init__(self):
+	def run(self):
 		self.prefs = Settings()
 		self.prefs.load() # Apply settings
-		self.ui = UI(self) # Init UI
+		self.ui = UI() # Init UI
 		self.plotter = self.ui.plotter
 		
 		# If Etterna.xml isn't already defined, search it
@@ -290,7 +325,7 @@ class Application:
 	
 	def refresh_graphs(self):
 		if IGNORE_REPLAYS: self.prefs.replays_dir = None
-		self.plotter.draw(self.prefs, self.ui.app)
+		self.plotter.draw(self.prefs, self.ui.qapp)
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
@@ -303,7 +338,8 @@ class Application:
 		self.prefs.write()
 
 try:
-	application = Application()
+	app = Application()
+	app.run()
 except Exception:
 	# Maybe send an automated E-Mail to me on Exception in the future?
 	util.logger.exception("Main")
