@@ -22,76 +22,74 @@ def analyze(xml, replays):
 	r = ReplaysAnalysis()
 	
 	def do_combo_end(combo, longest):
-		global longest_combo, longest_combo_chart
-		
 		if combo > longest[0]:
 			longest[0] = combo
-			longest[1] = util.find_parent_chart(xml, score)
+			longest[1] = chart
 	
 	# Remember if an exception was already logged to prevent spam logging
 	exception_happened = False
 	
-	for score in xml.iter("Score"):
-		try:
-			replay = util.read_replay(replays, score.get("Key"))
-			if replay is None:
-				continue
-			
-			previous_time = 0
-			num_total = 0
-			num_manipulated = 0
-			near_offsets = []
-			combo = 0 # Counter for combo
-			mcombo = 0 # Counter for marvelous combo
-			for line in replay:
-				try:
-					tokens = line.split(" ")
-					time, column = int(tokens[0]), int(tokens[2])
-					offset = float(tokens[1])
-				except ValueError:
-					continue
+	for chart in xml.iter("Chart"):
+		for score in chart.iter("Score"):
+			try:
+				replay = util.read_replay(replays, score.get("Key"))
+				if replay is None: continue
 				
-				if time < previous_time: num_manipulated += 1
-				previous_time = time
+				previous_time = 0
+				num_total = 0
+				num_manipulated = 0
+				near_offsets = []
+				combo = 0 # Counter for combo
+				mcombo = 0 # Counter for marvelous combo
+				for line in replay:
+					try:
+						tokens = line.split(" ")
+						time, column = int(tokens[0]), int(tokens[2])
+						offset = float(tokens[1])
+					except ValueError:
+						continue
+					
+					if time < previous_time: num_manipulated += 1
+					previous_time = time
+					
+					if abs(offset) < 0.1:
+						near_offsets.append(offset)
+						bucket_key = round(offset * 1000)
+						r.offset_buckets[bucket_key] = r.offset_buckets.get(bucket_key, 0) + 1
+					
+					if abs(offset) > 0.09:
+						do_combo_end(combo, r.longest_combo)
+						combo = 0
+						if column < 4: r.cbs_per_column[column] += 1
+					else:
+						combo += 1
+					
+					if abs(offset) > 0.0225:
+						do_combo_end(mcombo, r.longest_mcombo)
+						mcombo = 0
+					else:
+						mcombo += 1
+					
+					if column < 4: r.notes_per_column[column] += 1
+					
+					num_total += 1
+				do_combo_end(combo, r.longest_combo)
+				do_combo_end(mcombo, r.longest_mcombo)
 				
-				if abs(offset) < 0.1:
-					near_offsets.append(offset)
-					bucket_key = round(offset * 1000)
-					r.offset_buckets[bucket_key] = r.offset_buckets.get(bucket_key, 0) + 1
+				r.manipulations.append(num_manipulated / num_total)
 				
-				if abs(offset) > 0.09:
-					do_combo_end(combo, r.longest_combo)
-					combo = 0
-					if column < 4: r.cbs_per_column[column] += 1
-				else:
-					combo += 1
+				r.num_near_hits += len(near_offsets)
+				r.offset_mean += sum(near_offsets)
 				
-				if abs(offset) > 0.0225:
-					do_combo_end(mcombo, r.longest_mcombo)
-					mcombo = 0
-				else:
-					mcombo += 1
+				r.scores.append(score)
+				r.datetimes.append(parsedate(score.findtext("DateTime")))
 				
-				if column < 4: r.notes_per_column[column] += 1
-				
-				num_total += 1
-			do_combo_end(combo, r.longest_combo)
-			do_combo_end(mcombo, r.longest_mcombo)
-			
-			r.manipulations.append(num_manipulated / num_total)
-			
-			r.num_near_hits += len(near_offsets)
-			r.offset_mean += sum(near_offsets)
-			
-			r.scores.append(score)
-			r.datetimes.append(parsedate(score.findtext("DateTime")))
-			
-			r.total_notes += num_total
-		except:
-			# Only log once, to avoid spam
-			if not exception_happened:
-				util.logger.exception("replay analysis")
-			exception_happened = True
+				r.total_notes += num_total
+			except:
+				# Only log once, to avoid spam
+				if not exception_happened:
+					util.logger.exception("replay analysis")
+				exception_happened = True
 	
 	if r.total_notes == 0:
 		# When no replay could be parsed correctly. For cases when
