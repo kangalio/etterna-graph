@@ -5,6 +5,7 @@ import os, json, socket, glob
 
 from plotter import Plotter
 import util
+from app import app
 
 """
 This file mainly handles the UI and overall program state
@@ -337,9 +338,11 @@ class Application:
 		self.prefs.replays_dir = path
 		self.prefs.write()
 
-try:
-	app = Application()
-	app.run()
-except Exception:
-	# Maybe send an automated E-Mail to me on Exception in the future?
-	util.logger.exception("Main")
+if __name__ == "__main__":
+	try:
+		global app
+		app = Application()
+		app.run()
+	except Exception:
+		# Maybe send an automated E-Mail to me on Exception in the future?
+		util.logger.exception("Main")

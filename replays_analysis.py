@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QProgressBar
 import util
 from util import parsedate
-from main import app
 
 class ReplaysAnalysis:
 	scores = []
@@ -23,7 +22,7 @@ class ReplaysAnalysis:
 def analyze(xml, replays):
 	r = ReplaysAnalysis()
 	
-	progress_bar = setup_progress_bar()
+	#progress_bar = setup_progress_bar()
 	
 	def do_combo_end(combo, longest):
 		global longest_combo, longest_combo_chart
@@ -39,9 +38,9 @@ def analyze(xml, replays):
 	scores = list(xml.iter("Score"))
 	print("done")
 	
-	progress_bar = QProgressBar()
-	progress_bar.setMaximum(len(scores))
-	progress_bar.show()
+	#progress_bar = QProgressBar()
+	#progress_bar.setMaximum(len(scores))
+	#progress_bar.show()
 	
 	print("los gehts")
 	for i, score in enumerate(scores):
@@ -105,7 +104,7 @@ def analyze(xml, replays):
 			if not exception_happened:
 				util.logger.exception("replay analysis")
 			exception_happened = True
-		progress_bar.setValue(i)
+		#progress_bar.setValue(i)
 	
 	if r.total_notes == 0:
 		# When no replay could be parsed correctly. For cases when
