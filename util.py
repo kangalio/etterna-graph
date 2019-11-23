@@ -47,9 +47,9 @@ def iter_scores(xml_element):
 # Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
 # Returns list of the files' lines
 def read_replay(replays, key):
-	path = replays + "/" + key
+	path = os.path.join(replays, key)
 	if os.path.exists(path):
-		return open(path).readlines()
+		with open(path) as f: return f.readlines()
 	else:
 		return None
 

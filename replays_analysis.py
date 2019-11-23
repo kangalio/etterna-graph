@@ -1,112 +1,66 @@
-from PyQt5.QtWidgets import QWidget, QProgressBar
+from itertools import groupby
+import numpy as np
 import util
 from util import parsedate
 
 class ReplaysAnalysis:
-	scores = []
-	datetimes = []
-	manipulations = []
-	offset_mean = 0
-	notes_per_column = [0, 0, 0, 0]
-	cbs_per_column = [0, 0, 0, 0]
-	offset_buckets = {}
-	# This could also be implemented by counting the various note scores in 
-	# the Etterna.xml, but it's easier to count in the replays.
-	total_notes = 0
-	longest_combo = [0, None] # Combo variables are lists of `[combo length, chart]`
-	longest_mcombo = [0, None]
-	num_near_hits = 0
+	def __init__(self):
+		self.scores = [] # done
+		self.datetimes = [] # done
+		self.manipulations = [] # done
+		self.offset_mean = 0 # done
+		self.notes_per_column = [0, 0, 0, 0] # done
+		self.cbs_per_column = [0, 0, 0, 0] # done
+		self.offset_buckets = {}
+		# This could also be implemented by counting the various note scores in 
+		# the Etterna.xml, but it's easier to count in the replays.
+		self.total_notes = 0 # done
+		self.longest_mcombo = [0, None] # done
+		self.num_near_hits = 0 # done
 
 # This function is responsible for replay analysis. Every chart that 
 # uses replay data uses the data generated from this function.
+# It works in two phases; first all the data is read from the replay
+# files and collected into three long NumPy arrays.
+# In the second phase those arrays are analyzed.
 def analyze(xml, replays):
 	r = ReplaysAnalysis()
-	
-	#progress_bar = setup_progress_bar()
-	
-	def do_combo_end(combo, longest):
-		global longest_combo, longest_combo_chart
-		
-		if combo > longest[0]:
-			longest[0] = combo
-			longest[1] = util.find_parent_chart(xml, score)
 	
 	# Remember if an exception was already logged to prevent spam logging
 	exception_happened = False
 	
-	print("Collecting scores..")
-	scores = list(xml.iter("Score"))
-	print("done")
+	all_rows, all_offsets, all_columns = [], [], []
 	
-	#progress_bar = QProgressBar()
-	#progress_bar.setMaximum(len(scores))
-	#progress_bar.show()
+	boundaries = [] # Nested list [[0, 400, 850], [850, 1060], [1060...]...]
 	
-	print("los gehts")
-	for i, score in enumerate(scores):
-		try:
-			replay = util.read_replay(replays, score.get("Key"))
-			if replay is None:
-				continue
-			
-			previous_time = 0
-			num_total = 0
-			num_manipulated = 0
-			near_offsets = []
-			combo = 0 # Counter for combo
-			mcombo = 0 # Counter for marvelous combo
-			for line in replay:
-				try:
+	# Collect notes into NumPy arrays
+	for chart in xml.iter("Chart"):
+		score_boundaries = []
+		for score in chart.iter("Score"):
+			try:
+				replay = util.read_replay(replays, score.get("Key"))
+				if replay is None: continue
+				
+				score_boundaries.append(len(all_rows))
+				
+				r.scores.append(score)
+				r.datetimes.append(parsedate(score.findtext("DateTime")))
+				
+				for line in replay:
+					if not line[0].isdigit(): continue
 					tokens = line.split(" ")
-					time, column = int(tokens[0]), int(tokens[2])
-					offset = float(tokens[1])
-				except ValueError:
-					continue
-				
-				if time < previous_time: num_manipulated += 1
-				previous_time = time
-				
-				if abs(offset) < 0.1:
-					near_offsets.append(offset)
-					bucket_key = round(offset * 1000)
-					r.offset_buckets[bucket_key] = r.offset_buckets.get(bucket_key, 0) + 1
-				
-				if abs(offset) > 0.09:
-					do_combo_end(combo, r.longest_combo)
-					combo = 0
-					if column < 4: r.cbs_per_column[column] += 1
-				else:
-					combo += 1
-				
-				if abs(offset) > 0.0225:
-					do_combo_end(mcombo, r.longest_mcombo)
-					mcombo = 0
-				else:
-					mcombo += 1
-				
-				if column < 4: r.notes_per_column[column] += 1
-				
-				num_total += 1
-			do_combo_end(combo, r.longest_combo)
-			do_combo_end(mcombo, r.longest_mcombo)
-			
-			r.manipulations.append(num_manipulated / num_total)
-			
-			r.num_near_hits += len(near_offsets)
-			r.offset_mean += sum(near_offsets)
-			
-			r.scores.append(score)
-			r.datetimes.append(parsedate(score.findtext("DateTime")))
-			
-			r.total_notes += num_total
-		except:
-			# Only log once, to avoid spam
-			if not exception_happened:
-				util.logger.exception("replay analysis")
-			exception_happened = True
-		#progress_bar.setValue(i)
+					all_rows.append(int(tokens[0]))
+					all_offsets.append(float(tokens[1]))
+					all_columns.append(int(tokens[2]))
+			except Exception:
+				# Only log once, to avoid spam
+				if not exception_happened:
+					util.logger.exception("replay analysis")
+				exception_happened = True
+		score_boundaries.append(len(all_rows))
+		boundaries.append((chart, score_boundaries))
 	
-	if r.total_notes == 0:
+	if len(all_rows) == 0:
 		# When no replay could be parsed correctly. For cases when
 		# someone selects a legacy folder with 'correct' file names,
 		# but unexcepted (legacy) content. Happened to Providence
@@ -114,6 +68,54 @@ def analyze(xml, replays):
 		util.logger.warning("No valid replays found at all in the directory")
 		return None
 	
-	r.offset_mean /= r.num_near_hits
+	all_rows = np.array(all_rows)
+	all_offsets = np.array(all_offsets)
+	all_columns = np.array(all_columns)
+	
+	# Find the number of notes per column matching the condition
+	def get_num_notes_condition(condition=None):
+		if condition:
+			# Replace non-matches with column 99. Because this is 4-key
+			# only, the 99th column will be sorted out later
+			columns = np.where((condition(all_offsets)), all_columns, 99)
+		else:
+			columns = all_columns
+		keys, values = np.unique(columns, return_counts=True)
+		return values[:4]
+	
+	r.notes_per_column = get_num_notes_condition()
+	r.cbs_per_column = get_num_notes_condition(lambda x: abs(x) > 0.09)
+	
+	r.total_notes = all_rows.size
+	
+	great_or_better = abs(all_offsets < 0.09)
+	r.num_near_hits = np.count_nonzero(great_or_better)
+	r.offset_mean = np.average(all_offsets, weights=great_or_better)
+	
+	j = 0
+	# Per score analysis
+	for chart, score_boundaries in boundaries:
+		for i in range(0, len(score_boundaries) - 1):
+			score = r.scores[j]
+			j += 1
+			
+			# Get the score-relavant data slice from the arrays
+			start_index = score_boundaries[i]
+			end_index = score_boundaries[i + 1]
+			rows = all_rows[start_index:end_index]
+			offsets = all_offsets[start_index:end_index]
+			columns = all_columns[start_index:end_index]
+			
+			# Add manipulation value
+			manip_proportion = (rows[1:] < rows[:-1]).sum() / rows.size
+			r.manipulations.append(manip_proportion)
+			
+			# Check longest marvelous combo
+			mcombos = [len(list(group)) for bit, group in groupby(abs(offsets) < 0.0225) if bit]
+			longest_mcombo = max(mcombos) if len(mcombos) else 0
+			if longest_mcombo > r.longest_mcombo[0]:
+				r.longest_mcombo = [longest_mcombo, chart]
+	
+	# TODO: implement offset buckets
 	
 	return r
