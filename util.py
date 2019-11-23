@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import math, os
-from numba import jit
 import numpy as np
 import logging
 
@@ -90,15 +89,13 @@ def abbreviate(n, min_precision=2):
 # Takes a potential rating, and a list of skillset ratings (one for each
 # score). Returns a boolean, whether the given potential rating is
 # 'okay', as I call it.
-# 'values' must be given as numpy array (for numba compatibility)
-@jit(nopython=True)
+# 'values' must be given as numpy array
 def is_rating_okay(rating, values):
+	from scipy.special import erfc
+	
 	max_power_sum = 2 ** (0.1 * rating)
-	power_sum = 0
-	for value in values:
-		power_sum += max(0, 2 / math.erfc(0.1 * (value - rating)) - 2)
+	power_sum = (2 / erfc(0.1 * (values - rating)) - 2).clip(0).sum()
 	return power_sum < max_power_sum
-
 
 """
 The idea is the following: we try out potential skillset rating values
