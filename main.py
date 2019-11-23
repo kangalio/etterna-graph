@@ -114,9 +114,6 @@ class SettingsDialog(QDialog):
 		buttons.clicked.connect(self.handle_button_click)
 		vbox.addWidget(buttons)
 		
-		self.xml_input = QLineEdit()
-		self.replays_input = QLineEdit()
-		
 		row_i = 0
 		def add_setting(label, control):
 			nonlocal row_i
@@ -124,8 +121,20 @@ class SettingsDialog(QDialog):
 			layout.addWidget(control, row_i, 1)
 			row_i += 1
 		
+		self.xml_input = QLineEdit()
 		add_setting("Etterna XML path", self.xml_input)
+		
+		self.replays_input = QLineEdit()
 		add_setting("ReplaysV2 directory path", self.replays_input)
+		
+		self.enable_all = QCheckBox()
+		add_setting("Enable legacy plots (restart to apply)", self.enable_all)
+	
+	def apply(self):
+		app.prefs.etterna_xml = self.xml_input.text()
+		app.prefs.replays_dir = self.replays_input.text()
+		app.prefs.enable_all_plots = self.enable_all.isChecked()
+		app.refresh_graphs()
 	
 	def handle_button_click(self, button):
 		button = self.button_box.standardButton(button)
@@ -136,11 +145,6 @@ class SettingsDialog(QDialog):
 		elif button == QDialogButtonBox.Ok:
 			self.apply()
 			self.close()
-	
-	def apply(self):
-		app.prefs.etterna_xml = self.xml_input.text()
-		app.prefs.replays_dir = self.replays_input.text()
-		app.refresh_graphs()
 	
 	def run(self):
 		self.xml_input.insert(app.prefs.etterna_xml)
