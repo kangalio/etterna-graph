@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import util
-import data_generators as g
 
 try: # Try loading pyqtgraph from a folder named "pyqtgraph_git"
 	import pyqtgraph_git as pg
@@ -25,7 +24,8 @@ class Plot:
 		def tickStrings(self, values, scale, spacing):
 			# Cap timestamp to 32 bit to prevent crash on Windows from
 			# out-of-bounds dates
-			capmin, capmax = 0, (2**31)-1
+			capmin = 0
+			capmax = (2 ** 31) - 1
 			
 			strings = []
 			for value in values:
@@ -34,7 +34,7 @@ class Plot:
 			return strings
 
 	class DIYLogAxisItem(pg.AxisItem):
-		def __init__(self, accuracy, decimal_places, postfix = "", *args, **kwargs):
+		def __init__(self, accuracy, decimal_places, postfix="", *args, **kwargs):
 			super().__init__(*args, **kwargs)
 			self.setLabel(units=None)
 			self.enableAutoSIPrefix(False)
@@ -116,7 +116,7 @@ class Plot:
 		ids = None
 		
 		# We may have ids given which we need to separate
-		if click_callback != None: (data, ids) = data
+		if click_callback is not None: (data, ids) = data
 		if type_ == "bubble": (x, y, sizes) = data
 		else: (x, y) = data
 		
@@ -128,7 +128,7 @@ class Plot:
 			x = [*x, x[-1]] # Duplicate last elemenet to satisfy pyqtgraph with stepMode
 			# Out-of-place to avoid modifying the passed-in list
 		
-		if legend != None: self.plot.addLegend()
+		if legend is not None: self.plot.addLegend()
 		
 		if type_ == "stacked bar":
 			num_cols = len(y)
@@ -137,8 +137,9 @@ class Plot:
 			for (row_i, row) in enumerate(y):
 				#item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=(0,0,0,255), brush=color[row_i])
 				item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=0.82, pen=color[row_i], brush=color[row_i])
-				bottom = [a+b for (a,b) in zip(bottom, row)] # We need out-of-place here
-				if legend != None: self.plot.legend.addItem(item, legend[row_i])
+				bottom = [a + b for (a, b) in zip(bottom, row)] # We need out-of-place here
+				if legend is not None:
+					self.plot.legend.addItem(item, legend[row_i])
 				self.plot.addItem(item)
 		elif type_ == "stacked line":
 			num_cols = len(y)
@@ -150,7 +151,8 @@ class Plot:
 				width = 3 if row_i == 0 else 1
 				pen = pg.mkPen(color[row_i], width=width)
 				item = pg.PlotCurveItem(x=x, y=list(row), pen=pen, stepMode=step_mode)
-				if legend != None: self.plot.legend.addItem(item, legend[row_i])
+				if legend is not None:
+					self.plot.legend.addItem(item, legend[row_i])
 				self.plot.addItem(item)
 		else:
 			color = pg.mkColor(color)
@@ -158,11 +160,11 @@ class Plot:
 			if type_ == "scatter":
 				item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
 			elif type_ == "bar":
-				item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200,200,200), brush=color)
+				item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200, 200, 200), brush=color)
 			elif type_ == "bubble":
 				item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
 			
-			if click_callback != None:
+			if click_callback is not None:
 				lowlevel_callback = lambda *args: click_handler(self.plotter, click_callback, *args)
 				item.sigClicked.connect(lowlevel_callback)
 			self.plot.addItem(item)
@@ -179,7 +181,7 @@ class TextBox:
 
 class PlotFrame(pg.GraphicsLayoutWidget):
 	def __init__(self, infobar):
-		super().__init__(border=(100,100,100))
+		super().__init__(border=(100, 100, 100))
 		
 		self.infobar = infobar
 	

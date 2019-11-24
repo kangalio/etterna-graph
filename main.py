@@ -5,7 +5,7 @@ import os, json, socket, glob
 
 from plotter import Plotter
 import util
-from app import app
+import app as app
 
 """
 This file mainly handles the UI and overall program state
@@ -41,7 +41,7 @@ IGNORE_REPLAYS = False # Development purposes
 if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
-# I did this to prevent simultaneous scrolling and panning 
+# I did this to prevent simultaneous scrolling and panning
 # when hovering a plot while scrolling
 class ScrollArea(QScrollArea):
 	def wheelEvent(self, event):
@@ -63,20 +63,20 @@ class Settings:
 		
 		try:
 			self.from_dict(json.load(open(SETTINGS_PATH)))
-		except Exception as e:
+		except Exception:
 			util.logger.exception("Loading settings")
-			msgbox = QMessageBox.warning(None, "Warning",
-				"Could not load settings. Deleting them")
+			QMessageBox.warning(None, "Warning",
+					"Could not load settings. Deleting them")
 			# Overwrite old (prbly corrupted) settings
 			self.write()
 	
 	def write(self):
 		try:
 			json.dump(self.to_dict(), open(SETTINGS_PATH, "w"), indent=4)
-		except Exception as e:
+		except Exception:
 			util.logger.exception("Writing settings")
-			msgbox = QMessageBox.warning(None, "Warning",
-				"Could not write settings")
+			QMessageBox.warning(None, "Warning",
+					"Could not write settings")
 	
 	def to_dict(self):
 		return {json_key: getattr(self, attr)
@@ -85,7 +85,7 @@ class Settings:
 	def from_dict(self, d):
 		for json_key, attr in SETTINGS_FIELDS.items():
 			value = d.get(json_key)
-			if not value is None:
+			if value is not None:
 				setattr(self, attr, value)
 	
 	# Returns a dict, but with only the properties that are different
@@ -131,10 +131,10 @@ class SettingsDialog(QDialog):
 		add_setting("Enable legacy plots (restart to apply)", self.enable_all)
 	
 	def apply(self):
-		app.prefs.etterna_xml = self.xml_input.text()
-		app.prefs.replays_dir = self.replays_input.text()
-		app.prefs.enable_all_plots = self.enable_all.isChecked()
-		app.refresh_graphs()
+		app.app.prefs.etterna_xml = self.xml_input.text()
+		app.app.prefs.replays_dir = self.replays_input.text()
+		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
+		app.app.refresh_graphs()
 	
 	def handle_button_click(self, button):
 		button = self.button_box.standardButton(button)
@@ -147,8 +147,8 @@ class SettingsDialog(QDialog):
 			self.close()
 	
 	def run(self):
-		self.xml_input.insert(app.prefs.etterna_xml)
-		self.replays_input.insert(app.prefs.replays_dir)
+		self.xml_input.insert(app.app.prefs.etterna_xml)
+		self.replays_input.insert(app.app.prefs.replays_dir)
 		self.exec_()
 
 # Handles UI
@@ -158,7 +158,7 @@ class UI:
 	settings_dialog = None
 	
 	def __init__(self):
-		# Construct app, root widget and layout 
+		# Construct app, root widget and layout
 		qapp = QApplication(["Kangalioo's Etterna stats analyzer"])
 		self.qapp = qapp
 		qapp.setStyle("Fusion")
@@ -184,7 +184,7 @@ class UI:
 		
 		# Start
 		w, h = 1600, 2500
-		if app.prefs.enable_all_plots: h = 3800 # More plots -> more room
+		if app.app.prefs.enable_all_plots: h = 3800 # More plots -> more room
 		root.setMinimumSize(1000, h)
 		window.resize(w, h)
 		self.window.show()
@@ -216,7 +216,7 @@ class UI:
 		button.setToolTip("Replay data is required for various statistics")
 		self.button_load_replays = button
 		button_row.addWidget(button)
-		button.clicked.connect(app.try_choose_replays)
+		button.clicked.connect(app.app.try_choose_replays)
 		
 		# About button
 		button = QPushButton("About this program")
@@ -229,7 +229,7 @@ class UI:
 		button.clicked.connect(self.open_settings)
 		
 		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar, app.prefs)
+		self.plotter = Plotter(infobar, app.app.prefs)
 		layout.addWidget(self.plotter.frame)
 	
 	# Returns path to Etterna.xml
@@ -297,7 +297,8 @@ class Application:
 		for glob_str in globs:
 			for path in glob.iglob(glob_str):
 				replays_dir = path + "/Save/ReplaysV2"
-				for xml_path in glob.iglob(path+"/Save/LocalProfiles/*/Etterna.xml"):
+				possible_xml_paths = glob.iglob(path + "/Save/LocalProfiles/*/Etterna.xml")
+				for xml_path in possible_xml_paths:
 					path_pairs.append((xml_path, replays_dir))
 		
 		if len(path_pairs) == 0:
@@ -334,7 +335,7 @@ class Application:
 	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
-		if not path is None:
+		if path is not None:
 			self.set_replays(path)
 			self.refresh_graphs()
 	
@@ -344,9 +345,8 @@ class Application:
 
 if __name__ == "__main__":
 	try:
-		global app
-		app = Application()
-		app.run()
+		app.app = Application()
+		app.app.run()
 	except Exception:
 		# Maybe send an automated E-Mail to me on Exception in the future?
 		util.logger.exception("Main")

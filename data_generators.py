@@ -1,7 +1,6 @@
+import math
 from datetime import datetime, timedelta
 from collections import Counter
-import math
-import numpy as np
 
 import util
 from util import parsedate, cache, iter_scores
@@ -14,7 +13,7 @@ functions here, one for each plot
 
 def gen_manip(xml, analysis):
 	x = analysis.datetimes
-	y = [math.log(max(m*100, 0.01)) / math.log(10) for m in analysis.manipulations]
+	y = [math.log(max(m * 100, 0.01)) / math.log(10) for m in analysis.manipulations]
 	ids = analysis.scores
 	return ((x, y), ids)
 
@@ -30,7 +29,7 @@ def score_to_wifescore(score):
 	return overall
 
 def score_to_accuracy(score):
-	percent = float(score.findtext("SSRNormPercent"))*100
+	percent = float(score.findtext("SSRNormPercent")) * 100
 	if percent <= -400: return None # Those are weird
 	if percent > 100: return None
 	return -(math.log(100 - percent) / math.log(10))
@@ -49,7 +48,7 @@ def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 	for score in iter_scores(xml):
 		if discard_errors:
 			try: value = (mapper)(score, *mapper_args)
-			except: continue
+			except Exception: continue
 		else:
 			value = (mapper)(score, *mapper_args)
 		if value is None: continue
@@ -90,7 +89,7 @@ def divide_into_sessions(xml):
 	sessions = []
 	for i in range(1, len(zipped)):
 		datetime = zipped[i][1]
-		idle_time = zipped[i][1] - zipped[i-1][1]
+		idle_time = zipped[i][1] - zipped[i - 1][1]
 		if idle_time > session_end_threshold(datetime - s_start):
 			sessions.append(current_session)
 			current_session = []
@@ -123,22 +122,21 @@ def gen_week_skillsets(xml):
 			#i += 1
 			previous_week = week
 		
-		diffset = [0,0,0,0,0,0,0]
+		diffset = [0, 0, 0, 0, 0, 0, 0]
 		for score in session:
 			skillset_ssrs = score[0].find("SkillsetSSRs")
-			if skillset_ssrs == None: continue
+			if skillset_ssrs is None: continue
 			diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
 			main_diff = diffs.index(max(diffs))
 			diffset[main_diff] += 1
 		total = sum(diffset)
 		if total == 0: continue
-		diffset = [diff/total*100 for diff in diffset]
+		diffset = [diff / total * 100 for diff in diffset]
 		diffsets.append(diffset)
 	
 	return (range(len(diffsets)), diffsets)
 
 def gen_plays_by_hour(xml):
-	from datetime import time
 	num_plays = [0] * 24
 	for score in iter_scores(xml):
 		datetime = parsedate(score.find("DateTime").text)
@@ -165,7 +163,7 @@ def gen_hours_per_skillset(xml):
 	
 	for score in iter_scores(xml):
 		skillset_ssrs = score.find("SkillsetSSRs")
-		if skillset_ssrs == None: continue
+		if skillset_ssrs is None: continue
 		diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
 		main_diff = diffs.index(max(diffs))
 		
@@ -227,7 +225,7 @@ def gen_idle_time_buckets(xml):
 	
 	last_play_end = None
 	for score, rate in scores:
-		a+=1
+		a += 1
 		datetime = util.parsedate(score.findtext("DateTime"))
 		survive_seconds = float(score.findtext("SurviveSeconds"))
 		#print(survive_seconds, rate)
@@ -243,7 +241,7 @@ def gen_idle_time_buckets(xml):
 					buckets[bucket_index] += 1
 			else:
 				#print("Negative idle time!")
-				b+=1
+				b += 1
 		
 		last_play_end = datetime + length
 		#print("Finished", last_play_end)
@@ -258,7 +256,7 @@ def gen_session_length(xml):
 	x, y = [], []
 	for s in sessions:
 		x.append(s[0][1]) # Datetime [1] of first play [0] in session
-		y.append((s[-1][1]-s[0][1]).total_seconds() / 60) # Length in minutes
+		y.append((s[-1][1] - s[0][1]).total_seconds() / 60) # Length in minutes
 	
 	return (x, y)
 
@@ -311,13 +309,13 @@ def calc_ratings_for_sessions(xml):
 	# For each session
 	for (session_i, session) in enumerate(sessions):
 		# For each score in the session
-		for (score, datetime) in session:
+		for (score, _score_datetime) in session:
 			# For every skillset trained with the score
 			for i in range(7):
 				# Append it to the list of skillset training values
 				player_skillsets = score.find("SkillsetSSRs")
-				if player_skillsets == None: continue
-				value = float(player_skillsets[i+1].text)
+				if player_skillsets is None: continue
+				value = float(player_skillsets[i + 1].text)
 				skillsets_values[i].append(value)
 		
 		# Overall-rating delta
@@ -370,7 +368,7 @@ def generate_pack_likings(xml):
 		num_relevant_plays = sum(map(util.is_relevant, iter_scores(chart)))
 		pack = chart.get("Pack")
 		
-		if not pack in likings: likings[pack] = 0
+		if pack not in likings: likings[pack] = 0
 		likings[pack] += num_relevant_plays
 	
 	return likings
@@ -407,7 +405,7 @@ def gen_text_most_played_charts(xml):
 
 def gen_text_longest_sessions(xml):
 	sessions = divide_into_sessions(xml)
-	sessions = [(s, (s[-1][1]-s[0][1]).total_seconds()/60) for s in sessions]
+	sessions = [(s, (s[-1][1] - s[0][1]).total_seconds() / 60) for s in sessions]
 	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
 	sessions = sessions[:5]
 	
@@ -427,9 +425,6 @@ def gen_text_skillset_hours(xml):
 	text = ["Hours spent training each skillset:"]
 	for i in range(7):
 		skillset = util.skillsets[i]
-		m_total = int(hours[i] * 60)
-		h = int(m_total / 60)
-		m = m_total - 60 * h
 		text.append(f"- {skillset}: {util.timespan_str(hours[i])}")
 	
 	return "<br>".join(text)
@@ -471,9 +466,9 @@ def gen_text_general_info(xml, r):
 # a stands for ReplaysAnalysis
 def gen_text_general_analysis_info(xml, a):
 	if a:
-		cb_ratio_per_column = [cbs/total for (cbs, total)
+		cb_ratio_per_column = [cbs / total for (cbs, total)
 				in zip(a.cbs_per_column, a.notes_per_column)]
-		cbs_string = ', '.join([f"{round(100*r, 2)}%" for r in cb_ratio_per_column])
+		cbs_string = ', '.join([f"{round(100 * r, 2)}%" for r in cb_ratio_per_column])
 		
 		mean_string = f"{round(a.offset_mean * 1000, 1)}ms"
 	else:
@@ -537,15 +532,15 @@ def calc_median_score_increase(xml):
 		
 		for i in range(0, len(scores) - 1):
 			datetime_1 = parsedate(scores[i].findtext("DateTime"))
-			datetime_2 = parsedate(scores[i+1].findtext("DateTime"))
-			time_delta =  datetime_2 - datetime_1
+			datetime_2 = parsedate(scores[i + 1].findtext("DateTime"))
+			time_delta = datetime_2 - datetime_1
 			play_time = float(scores[i].findtext("SurviveSeconds"))
 			idle_time = time_delta.total_seconds() - play_time
 			
 			# If the same chart is played twice within 60 seconds
 			if idle_time < 60:
 				score_1 = float(scores[i].findtext("SSRNormPercent"))
-				score_2 = float(scores[i+1].findtext("SSRNormPercent"))
+				score_2 = float(scores[i + 1].findtext("SSRNormPercent"))
 				score_increase = 100 * (score_2 - score_1)
 				score_increases.append(score_increase)
 	

@@ -2,23 +2,24 @@ from itertools import groupby
 import numpy as np
 import util
 from util import parsedate
+import app
 
 class ReplaysAnalysis:
 	def __init__(self):
-		self.scores = [] # done
-		self.datetimes = [] # done
-		self.manipulations = [] # done
-		self.offset_mean = 0 # done
-		self.notes_per_column = [0, 0, 0, 0] # done
-		self.cbs_per_column = [0, 0, 0, 0] # done
-		self.offset_buckets = {}
-		# This could also be implemented by counting the various note scores in 
+		self.scores = []
+		self.datetimes = []
+		self.manipulations = []
+		self.offset_mean = 0
+		self.notes_per_column = [0, 0, 0, 0]
+		self.cbs_per_column = [0, 0, 0, 0]
+		self.offset_buckets = {} # TODO: implement this
+		# This could also be implemented by counting the notes of
 		# the Etterna.xml, but it's easier to count in the replays.
-		self.total_notes = 0 # done
-		self.longest_mcombo = [0, None] # done
-		self.num_near_hits = 0 # done
+		self.total_notes = 0
+		self.longest_mcombo = [0, None]
+		self.num_near_hits = 0
 
-# This function is responsible for replay analysis. Every chart that 
+# This function is responsible for replay analysis. Every chart that
 # uses replay data uses the data generated from this function.
 # It works in two phases; first all the data is read from the replay
 # files and collected into three long NumPy arrays.
@@ -104,7 +105,7 @@ def analyze(xml, replays):
 			end_index = score_boundaries[i + 1]
 			rows = all_rows[start_index:end_index]
 			offsets = all_offsets[start_index:end_index]
-			columns = all_columns[start_index:end_index]
+			#columns = all_columns[start_index:end_index]
 			
 			# Add manipulation value
 			manip_proportion = (rows[1:] < rows[:-1]).sum() / rows.size

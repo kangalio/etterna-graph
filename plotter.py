@@ -1,5 +1,4 @@
 from lxml import etree
-from multiprocessing import Process
 
 from plot_frame import PlotFrame, Plot, TextBox
 import data_generators as g
@@ -7,7 +6,7 @@ import util, replays_analysis
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
-	percent = float(score.findtext("SSRNormPercent"))*100
+	percent = float(score.findtext("SSRNormPercent")) * 100
 	percent = round(percent * 100) / 100 # Round to 2 places
 	chart = util.find_parent_chart(plotter.xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
@@ -46,7 +45,7 @@ class Plotter:
 		self.frame = frame
 		self.prefs = {} # The prefs that were last used. Empty in the beginning
 		
-		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',	'#9467bd',
+		cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 				'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 		
 		plots = []
@@ -91,7 +90,9 @@ class Plotter:
 		_.set_args(colors, legend=legend, type_="stacked line")
 		plots.append(PlotEntry(_, g.gen_skillset_development, "no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
+		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating "
+				+ "improvement per session (x=date, y=session length, "
+				+ "bubble size=rating improvement)")
 		_.set_args(cmap[2], type_="bubble", click_callback=session_info)
 		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
 		self.frame.next_row()

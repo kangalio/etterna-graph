@@ -1,17 +1,11 @@
+import os, logging
 from datetime import datetime, timedelta
-import math, os
 import numpy as np
-import logging
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
 
 logger = logging.getLogger()
-"""logger.addHandler(logging.handlers.SMTPHandler(
-		mailhost=("smtp.example.com", 25),
-		fromaddr="from@example.com", 
-		toaddrs="to@example.com",
-		subject=u"AppName error!")"""
 
 # Official EO colors
 #skillset_colors = ["7d6b91", "8481db", "995fa3", "f2b5fa", "6c969d", "a5f8d3", "b0cec2"]
@@ -32,9 +26,10 @@ def get_relevance_string(): return "last 6 months"
 
 def is_score_valid(score):
 	skillset_ssrs = score.find("SkillsetSSRs")
-	if not skillset_ssrs is None:
+	if skillset_ssrs is not None:
 		overall_ssr = float(skillset_ssrs.findtext("Overall"))
-		if overall_ssr > 40: return False
+		if overall_ssr > 40:
+			return False
 	
 	if score.findtext("EtternaValid") == "0": return False
 	
@@ -63,7 +58,7 @@ cache_data = {}
 def cache(key, data=None):
 	global cache_data
 	
-	if not data is None: # If data was given, update cache
+	if data is not None: # If data was given, update cache
 		cache_data[key] = data
 	return cache_data.get(key) # Return cached data
 
@@ -103,7 +98,7 @@ until we've found the lowest rating that still fits (I've called that
 property 'okay'-ness in the code).
 How do we know whether a potential skillset rating fits? We give each
 score a "power level", which is larger when the skillset rating of the
-specific score is high. Therefore, the user's best scores get the 
+specific score is high. Therefore, the user's best scores get the
 highest power levels.
 Now, we sum the power levels of each score and check whether that sum
 is below a certain limit. If it is still under the limit, the rating
