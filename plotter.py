@@ -1,4 +1,4 @@
-from lxml import etree
+import xml.etree.ElementTree as ET
 
 from plot_frame import PlotFrame, Plot, TextBox
 import data_generators as g
@@ -155,10 +155,10 @@ class Plotter:
 		if xml_path:
 			print("Opening xml..")
 			try: # First try UTF-8
-				xmltree = etree.parse(xml_path, etree.XMLParser(encoding='UTF-8'))
+				xmltree = ET.parse(xml_path, ET.XMLParser(encoding='UTF-8'))
 			except: # If that doesn't work, fall back to ISO-8859-1
 				util.logger.exception("XML parsing with UTF-8 failed")
-				xmltree = etree.parse(xml_path, etree.XMLParser(encoding='ISO-8859-1'))
+				xmltree = ET.parse(xml_path, ET.XMLParser(encoding='ISO-8859-1'))
 			self.xml = xmltree.getroot()
 		
 		# Analyze replays if they changed
