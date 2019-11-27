@@ -1,5 +1,6 @@
-import os, logging
+import os, logging, json
 from datetime import datetime, timedelta
+from urllib.request import urlopen
 import numpy as np
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
@@ -37,6 +38,11 @@ def is_score_valid(score):
 
 def iter_scores(xml_element):
 	return filter(is_score_valid, xml_element.iter("Score"))
+
+def get_latest_release():
+	with urlopen("https://api.github.com/repos/kangalioo/etterna-graph/releases") as response:
+		return json.loads(response.read())[0]
+		
 
 # Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
 # Returns list of the files' lines

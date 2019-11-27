@@ -11,6 +11,8 @@ import app as app
 This file mainly handles the UI and overall program state
 """
 
+VERSION_NUMBER = "v0.4"
+
 ABOUT_TEXT = """
 This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
 
@@ -35,6 +37,11 @@ individual files within and don't choose another directory. This
 program requires you to select the ReplaysV2 folder as a whole.
 """.strip()
 
+NEW_VERSION_MSG = f"""
+Version {{0}} is available on the GitHub releases page.
+This is version {VERSION_NUMBER}
+""".strip()
+
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
 IGNORE_REPLAYS = True # Development purposes
@@ -51,11 +58,13 @@ SETTINGS_FIELDS = {
 	"etterna-xml": "etterna_xml",
 	"replays-dir": "replays_dir",
 	"enable-all-plots": "enable_all_plots",
+	"latest-known-release": "latest_known_release",
 }
 class Settings:
 	etterna_xml = None
 	replays_dir = None
 	enable_all_plots = False
+	latest_known_release = VERSION_NUMBER
 	
 	def load(self):
 		if not os.path.exists(SETTINGS_PATH):
@@ -253,6 +262,11 @@ class UI:
 		if path == "": return None # User cancelled the chooser
 		return path
 	
+	def alert_new_release(self, name, is_prerelease):
+		QMessageBox.information(None,
+			"New version was released",
+			NEW_VERSION_MSG.format(name))
+	
 # Handles general application state
 class Application:
 	prefs = None
@@ -261,9 +275,11 @@ class Application:
 	
 	def run(self):
 		self.prefs = Settings()
-		self.prefs.load() # Apply settings
+		self.prefs.load() # Load settings
 		self.ui = UI() # Init UI
 		self.plotter = self.ui.plotter
+		
+		self.check_new_release()
 		
 		# If Etterna.xml isn't already defined, search it
 		if self.prefs.etterna_xml is None:
@@ -347,11 +363,21 @@ class Application:
 	def set_replays(self, path):
 		self.prefs.replays_dir = path
 		self.prefs.write()
+	
+	def check_new_release(self):
+		release = util.get_latest_release()
+		tag_name = release["tag_name"]
+		is_prerelease = release["prerelease"]
+		if tag_name != self.prefs.latest_known_release:
+			self.prefs.latest_known_release = tag_name
+			self.prefs.write()
+			self.ui.alert_new_release(tag_name, is_prerelease)
 
 if __name__ == "__main__":
 	try:
 		app.app = Application()
 		app.app.run()
 	except Exception:
-		# Maybe send an automated E-Mail to me on Exception in the future?
+		# Maybe send an automated e-mail to me on Exception in the future?
 		util.logger.exception("Main")
+		input("Press enter to quit")
