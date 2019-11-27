@@ -14,48 +14,50 @@ PlotFrame, Plot and TextBox (and the internal utility classes
 TimeAxisItem and DIYLogAxisItem)
 """
 
+class TimeAxisItem(pg.AxisItem):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.setLabel(units=None)
+		self.enableAutoSIPrefix(False)
+
+	def tickStrings(self, values, scale, spacing):
+		# Cap timestamp to 32 bit to prevent crash on Windows from
+		# out-of-bounds dates
+		capmin = 0
+		capmax = (2 ** 31) - 1
+		
+		strings = []
+		for value in values:
+			value = min(capmax, max(capmin, value))
+			strings.append(datetime.fromtimestamp(value).strftime("%Y-%m-%d"))
+		return strings
+
+class DIYLogAxisItem(pg.AxisItem):
+	def __init__(self, accuracy, decimal_places, postfix="", *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.setLabel(units=None)
+		self.enableAutoSIPrefix(False)
+		
+		self.accuracy = accuracy
+		self.decimal_places = decimal_places
+		self.postfix = postfix
+
+	def tickStrings(self, values, scale, spacing):
+		result = []
+		for value in values:
+			if self.accuracy:
+				value = 100 - 10 ** -value
+			else:
+				value = 10 ** value
+			value = round(value, self.decimal_places)
+			result.append(str(value) + self.postfix)
+		return result
+
 class Plot:
-	class TimeAxisItem(pg.AxisItem):
-		def __init__(self, *args, **kwargs):
-			super().__init__(*args, **kwargs)
-			self.setLabel(units=None)
-			self.enableAutoSIPrefix(False)
-
-		def tickStrings(self, values, scale, spacing):
-			# Cap timestamp to 32 bit to prevent crash on Windows from
-			# out-of-bounds dates
-			capmin = 0
-			capmax = (2 ** 31) - 1
-			
-			strings = []
-			for value in values:
-				value = min(capmax, max(capmin, value))
-				strings.append(datetime.fromtimestamp(value).strftime("%Y-%m-%d"))
-			return strings
-
-	class DIYLogAxisItem(pg.AxisItem):
-		def __init__(self, accuracy, decimal_places, postfix="", *args, **kwargs):
-			super().__init__(*args, **kwargs)
-			self.setLabel(units=None)
-			self.enableAutoSIPrefix(False)
-			
-			self.accuracy = accuracy
-			self.decimal_places = decimal_places
-			self.postfix = postfix
-
-		def tickStrings(self, values, scale, spacing):
-			result = []
-			for value in values:
-				if self.accuracy:
-					value = 100 - 10 ** -value
-				else:
-					value = 10 ** value
-				value = round(value, self.decimal_places)
-				result.append(str(value) + self.postfix)
-			return result
-	
-	def __init__(self, plotter, frame, colspan=1, rowspan=1, flags="", title=None):
-		global column
+	def __init__(self, plotter, frame,
+			colspan=1, rowspan=1, flags="", title=None,
+			**kwargs):
+		self.set_draw_args(**kwargs)
 		
 		self.flags = flags
 		self.title = title
@@ -63,26 +65,26 @@ class Plot:
 		
 		axisItems = {}
 		if "time_xaxis" in flags:
-			axisItems["bottom"] = self.TimeAxisItem(orientation="bottom")
+			axisItems["bottom"] = TimeAxisItem(orientation="bottom")
 		if "accuracy_yaxis" in flags:
-			axisItems["left"] = self.DIYLogAxisItem(accuracy=True, decimal_places=3, postfix="%", orientation="left")
+			axisItems["left"] = DIYLogAxisItem(accuracy=True, decimal_places=3, postfix="%", orientation="left")
 		elif "manip_yaxis" in flags:
-			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, postfix="%", orientation="left")
+			axisItems["left"] = DIYLogAxisItem(accuracy=False, decimal_places=1, postfix="%", orientation="left")
 		elif "ma_yaxis" in flags:
-			axisItems["left"] = self.DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
+			axisItems["left"] = DIYLogAxisItem(accuracy=False, decimal_places=1, orientation="left")
 		
 		plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
 		self.plot = plot
 		plot.setTitle(title)
 		if "log" in flags: plot.setLogMode(x=False, y=True)
 	
-	def set_args(self, *args, **kw_args):
+	def set_draw_args(self, *args, **kw_args):
 		self.args = args
 		self.kw_args = kw_args
 	
-	# Wrapper function to supply the predefined args from set_args()
-	def draw_with_given_args(self, data):
-		self.draw(data, *self.args, **self.kw_args)
+	# Wrapper function to supply the predefined args from set_draw_args()
+	def draw(self, data):
+		self._draw(data, *self.args, **self.kw_args)
 	
 	# mapper: function that turns xml into data points
 	# color: chart color (duh)
@@ -94,7 +96,7 @@ class Plot:
 	# type_: either "scatter", "bubble", "bar", "stacked bar" or
 	#  "stacked line"
 	# width: (only for bar charts) width of the bars
-	def draw(self, data, color, alpha=0.4, legend=None, click_callback=None, type_="scatter", width=0.8):
+	def _draw(self, data, color, alpha=0.4, legend=None, click_callback=None, type_="scatter", width=0.8):
 		def click_handler(plotter, callback, _, points):
 			if len(points) > 1:
 				text = f"{len(points)} points selected at once!"

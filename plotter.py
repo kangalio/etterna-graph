@@ -32,9 +32,9 @@ class PlotEntry:
 	data_generator = None
 	analysis_requirement = None # "no", "yes" or "optional"
 	
-	def __init__(self, plot, data_generator, analysis_requirement):
+	def __init__(self, plot, generator, analysis_requirement):
 		self.plot = plot
-		self.data_generator = data_generator
+		self.data_generator = generator
 		self.analysis_requirement = analysis_requirement
 
 class Plotter:
@@ -66,77 +66,157 @@ class Plotter:
 		plots.append(PlotEntry(_, g.gen_text_general_info, "optional"))
 		self.frame.next_row()
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Score rating over time")
-		_.set_args(cmap[0], click_callback=score_info)
-		plots.append(PlotEntry(_, g.gen_wifescore, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			flags="time_xaxis",
+			title="Score rating over time",
+			color=cmap[0],
+			click_callback=score_info),
+			
+			generator=g.gen_wifescore,
+			analysis_requirement="no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis manip_yaxis", title="Manipulation over time (log scale)")
-		_.set_args(cmap[3], click_callback=score_info)
-		plots.append(PlotEntry(_, g.gen_manip, "yes"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			flags="time_xaxis manip_yaxis",
+			title="Manipulation over time (log scale)",
+			color=cmap[3],
+			click_callback=score_info),
+			
+			generator=g.gen_manip,
+			analysis_requirement="yes"))
 		self.frame.next_row()
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis accuracy_yaxis", title="Accuracy over time (log scale)")
-		_.set_args(cmap[1], click_callback=score_info)
-		plots.append(PlotEntry(_, g.gen_accuracy, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			flags="time_xaxis accuracy_yaxis",
+			title="Accuracy over time (log scale)",
+			color=cmap[1],
+			click_callback=score_info),
+			
+			generator=g.gen_accuracy,
+			analysis_requirement="no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis ma_yaxis", title="MA over time (marvelouses÷perfects) (log scale)")
-		_.set_args(cmap[6], click_callback=score_info)
-		plots.append(PlotEntry(_, g.gen_ma, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			flags="time_xaxis ma_yaxis",
+			title="MA over time (marvelouses÷perfects) (log scale)",
+			color=cmap[6],
+			click_callback=score_info),
+			
+			generator=g.gen_ma,
+			analysis_requirement="no"))
 		self.frame.next_row()
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis step", title="Skillsets over time")
-		colors = ["ffffff", *util.skillset_colors] # Include overall
-		legend = ["Overall", *util.skillsets] # Include overall
-		_.set_args(colors, legend=legend, type_="stacked line")
-		plots.append(PlotEntry(_, g.gen_skillset_development, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			type_="stacked line",
+			flags="time_xaxis step",
+			title="Skillsets over time",
+			color=["ffffff", *util.skillset_colors], # Include overall
+			legend=["Overall", *util.skillsets]), # Include overall
+			
+			generator=g.gen_skillset_development,
+			analysis_requirement="no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Rating "
-				+ "improvement per session (x=date, y=session length, "
-				+ "bubble size=rating improvement)")
-		_.set_args(cmap[2], type_="bubble", click_callback=session_info)
-		plots.append(PlotEntry(_, g.gen_session_rating_improvement, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			type_="bubble",
+			flags="time_xaxis",
+			title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
+			color=cmap[2],
+			click_callback=session_info),
+			
+			generator=g.gen_session_rating_improvement,
+			analysis_requirement="no"))
 		self.frame.next_row()
 		
 		if prefs.enable_all_plots:
-			_ = Plot(self, frame, 30, title="Distribution of hit offset")
-			_.set_args(cmap[6], type_="bar")
-			plots.append(PlotEntry(_, g.gen_hit_distribution, "yes"))
+			plots.append(PlotEntry(Plot(self, frame,
+				colspan=30,
+				type_="bar",
+				title="Distribution of hit offset",
+				color=cmap[6]),
+				
+				generator=g.gen_hit_distribution,
+				analysis_requirement="yes"))
 			
-			_ = Plot(self, frame, 30, title="Idle time between plays (a bit broken)")
-			_.set_args(cmap[6], type_="bar")
-			plots.append(PlotEntry(_, g.gen_idle_time_buckets, "no"))
+			plots.append(PlotEntry(Plot(self, frame,
+				colspan=30,
+				type_="bar",
+				title="Idle time between plays (a bit broken)",
+				color=cmap[6]),
+				
+				generator=g.gen_idle_time_buckets,
+				analysis_requirement="no"))
 			self.frame.next_row()
 			
 			"""_ = Plot(self, frame, 30, title="CB probability based on combo length")
-			_.set_args(cmap[6], type_="bar")
+			_.set_draw_args(cmap[6], type_="bar")
 			plots.append(PlotEntry(_, g.gen_cb_probability, "yes"))"""
 			
-			_ = Plot(self, frame, 30, title="Number of sessions with specific score amount")
-			_.set_args(cmap[6], type_="bar")
-			plots.append(PlotEntry(_, g.gen_session_plays, "no"))
+			plots.append(PlotEntry(Plot(self, frame,
+				colspan=30,
+				type_="bar",
+				title="Number of sessions with specific score amount",
+				color=cmap[6]),
+				
+				generator=g.gen_session_plays,
+				analysis_requirement="no"))
 			self.frame.next_row()
 			
-			_ = Plot(self, frame, 30, flags="time_xaxis", title="Session length over time")
-			_.set_args(cmap[6])
-			plots.append(PlotEntry(_, g.gen_session_length, "no"))
+			plots.append(PlotEntry(Plot(self, frame,
+				colspan=30,
+				flags="time_xaxis",
+				title="Session length over time",
+				color=cmap[6]),
+				
+				generator=g.gen_session_length,
+				analysis_requirement="no"))
 			
-			_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of scores each week")
-			_.set_args(cmap[6], type_="bar", width=604800*0.8)
-			plots.append(PlotEntry(_, g.gen_plays_per_week, "no"))
+			plots.append(PlotEntry(Plot(self, frame,
+				colspan=30,
+				type_="bar",
+				flags="time_xaxis",
+				title="Number of scores each week",
+				color=cmap[6],
+				width=604800*0.8),
+				
+				generator=g.gen_plays_per_week,
+				analysis_requirement="no"))
 			self.frame.next_row()
 		
-		_ = Plot(self, frame, 30, title="Number of plays per hour of day")
-		_.set_args(cmap[4], type_="bar")
-		plots.append(PlotEntry(_, g.gen_plays_by_hour, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			type_="bar",
+			title="Number of plays per hour of day",
+			color=cmap[4]),
+			
+			generator=g.gen_plays_by_hour,
+			analysis_requirement="no"))
 		
-		_ = Plot(self, frame, 30, flags="time_xaxis", title="Number of play-hours each week")
-		_.set_args(cmap[5], type_="bar", width=604800*0.8)
-		plots.append(PlotEntry(_, g.gen_hours_per_week, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=30,
+			type_="bar",
+			flags="time_xaxis",
+			title="Number of play-hours each week",
+			color=cmap[5],
+			width=604800*0.8),
+			
+			generator=g.gen_hours_per_week,
+			analysis_requirement="no"))
+		
 		self.frame.next_row()
 		
-		_ = Plot(self, frame, 60, title="Skillsets trained per week")
-		_.set_args(util.skillset_colors, legend=util.skillsets, type_="stacked bar")
-		plots.append(PlotEntry(_, g.gen_week_skillsets, "no"))
+		plots.append(PlotEntry(Plot(self, frame,
+			colspan=60,
+			type_="stacked bar",
+			title="Skillsets trained per week",
+			color=util.skillset_colors,
+			legend=util.skillsets),
+			
+			generator=g.gen_week_skillsets,
+			analysis_requirement="no"))
 		self.frame.next_row()
 		
 		self.plots = plots
@@ -187,7 +267,7 @@ class Plotter:
 				else:
 					data = "[please load replay data]"
 				
-			plot.plot.draw_with_given_args(data)
+			plot.plot.draw(data)
 			qapp.processEvents()
 		
 		print("Done")
