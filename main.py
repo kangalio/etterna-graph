@@ -37,7 +37,7 @@ program requires you to select the ReplaysV2 folder as a whole.
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
-IGNORE_REPLAYS = False # Development purposes
+IGNORE_REPLAYS = True # Development purposes
 if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.
@@ -96,8 +96,8 @@ class Settings:
 				if b.get(key) != value}
 
 class SettingsDialog(QDialog):
-	xml_input = replays_input = None
-	settings = None
+	xml_input = None
+	replays_input = None
 	button_box = None
 	
 	def __init__(self):
@@ -131,9 +131,13 @@ class SettingsDialog(QDialog):
 		add_setting("Enable legacy plots (restart to apply)", self.enable_all)
 	
 	def apply(self):
+		# Copy the settings from UI to settings object
 		app.app.prefs.etterna_xml = self.xml_input.text()
 		app.app.prefs.replays_dir = self.replays_input.text()
 		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
+		
+		# Save settings and refresh graphs
+		app.app.prefs.write()
 		app.app.refresh_graphs()
 	
 	def handle_button_click(self, button):
@@ -147,8 +151,12 @@ class SettingsDialog(QDialog):
 			self.close()
 	
 	def run(self):
+		# Set settings UI to matching values
 		self.xml_input.insert(app.app.prefs.etterna_xml)
 		self.replays_input.insert(app.app.prefs.replays_dir)
+		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
+		
+		# Run the dialog
 		self.exec_()
 
 # Handles UI
@@ -178,9 +186,6 @@ class UI:
 		
 		# Put the widgets in
 		self.setup_widgets(layout)
-		
-		#self.open_settings()
-		#exit()
 		
 		# Start
 		w, h = 1600, 2500
