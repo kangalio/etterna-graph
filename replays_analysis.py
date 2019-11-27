@@ -16,7 +16,7 @@ class ReplaysAnalysis:
 		# This could also be implemented by counting the notes of
 		# the Etterna.xml, but it's easier to count in the replays.
 		self.total_notes = 0
-		self.longest_mcombo = [0, None]
+		self.longest_mcombo = (0, None)
 		self.num_near_hits = 0
 
 # This function is responsible for replay analysis. Every chart that
@@ -34,6 +34,11 @@ def analyze(xml, replays):
 	
 	boundaries = [] # Nested list [[0, 400, 850], [850, 1060], [1060...]...]
 	
+	# Happens when a marvelous combo ends
+	def do_mcombo_end():
+		if mcombo > r.longest_mcombo[0]:
+			r.longest_mcombo = (mcombo, chart)
+	
 	# Collect notes into NumPy arrays
 	for chart in xml.iter("Chart"):
 		score_boundaries = []
@@ -47,12 +52,40 @@ def analyze(xml, replays):
 				r.scores.append(score)
 				r.datetimes.append(parsedate(score.findtext("DateTime")))
 				
+				# Variables for the manipulation analysis
+				num_manipulated = 0
+				num_total = 0
+				previous_row = -1
+				
+				# Variable for longest marvelous combo analysis
+				mcombo = 0
+				
 				for line in replay:
 					if not line[0].isdigit(): continue
 					tokens = line.split(" ")
-					all_rows.append(int(tokens[0]))
-					all_offsets.append(float(tokens[1]))
+					
+					row = int(tokens[0])
+					offset = float(tokens[1])
+					all_rows.append(row)
+					all_offsets.append(offset)
 					all_columns.append(int(tokens[2]))
+					
+					if row < previous_row:
+						num_manipulated += 1
+					num_total += 1
+					previous_row = row
+					
+					if abs(offset) < 0.0225:
+						mcombo += 1
+					else:
+						do_mcombo_end()
+						mcombo = 0
+				
+				do_mcombo_end()
+				
+				manip_proportion = num_manipulated / num_total
+				r.manipulations.append(manip_proportion)
+				
 			except Exception:
 				# Only log once, to avoid spam
 				if not exception_happened:
@@ -92,30 +125,6 @@ def analyze(xml, replays):
 	great_or_better = abs(all_offsets < 0.09)
 	r.num_near_hits = np.count_nonzero(great_or_better)
 	r.offset_mean = np.average(all_offsets, weights=great_or_better)
-	
-	j = 0
-	# Per score analysis
-	for chart, score_boundaries in boundaries:
-		for i in range(0, len(score_boundaries) - 1):
-			score = r.scores[j]
-			j += 1
-			
-			# Get the score-relavant data slice from the arrays
-			start_index = score_boundaries[i]
-			end_index = score_boundaries[i + 1]
-			rows = all_rows[start_index:end_index]
-			offsets = all_offsets[start_index:end_index]
-			#columns = all_columns[start_index:end_index]
-			
-			# Add manipulation value
-			manip_proportion = (rows[1:] < rows[:-1]).sum() / rows.size
-			r.manipulations.append(manip_proportion)
-			
-			# Check longest marvelous combo
-			mcombos = [len(list(group)) for bit, group in groupby(abs(offsets) < 0.0225) if bit]
-			longest_mcombo = max(mcombos) if len(mcombos) else 0
-			if longest_mcombo > r.longest_mcombo[0]:
-				r.longest_mcombo = [longest_mcombo, chart]
 	
 	# TODO: implement offset buckets
 	
