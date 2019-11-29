@@ -310,6 +310,7 @@ class Application:
 			os.path.expanduser("~") + "/.etterna*", # Linux
 			os.path.expanduser("~") + "/.stepmania*", # Linux
 			"/opt/etterna*", # Linux
+			"Z:\\home\\kangalioo\\.etterna*", # Wine on Linux
 			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
 		]
 		# Assemble all possible save game locations. path_pairs is a

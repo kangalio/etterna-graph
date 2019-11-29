@@ -520,7 +520,7 @@ def gen_text_most_played_packs(xml):
 	return "<br>".join(text)
 
 # Calculate the median score increase, when playing a chart twice
-# successively
+# in direct succession
 def calc_median_score_increase(xml):
 	from statistics import median
 	
