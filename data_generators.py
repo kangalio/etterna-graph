@@ -392,6 +392,14 @@ def gen_skillset_development(xml):
 		all_ratings.append(ratings)
 	return (datetimes, all_ratings)
 
+def count_nums_grades(xml):
+	grades = []
+	for score in util.iter_scores(xml):
+		percent = float(score.findtext("SSRNormPercent"))
+		grade = sum(percent >= t for t in util.grade_thresholds) - 1
+		grades.append(util.grade_names[grade])
+	return Counter(grades)
+
 def gen_text_most_played_charts(xml):
 	text = ["Most played charts:"]
 	charts = gen_most_played_charts(xml, num_charts=5)
@@ -453,11 +461,20 @@ def gen_text_general_info(xml, r):
 	long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
 	long_combo_str = f"{combo} on {long_combo_chart}"
 	
+	grade_strings = []
+	grades = count_nums_grades(xml)
+	for grade_name in util.grade_names[::-1]:
+		num = grades[grade_name] # Number of scores with that grade
+		# ~ grade_strings.append(f"{num}x {grade_name}")
+		grade_strings.append(f"{grade_name}: {num}")
+	grades_string = ", ".join(grade_strings)
+	
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
 		f"Number of scores: {len(scores)}",
 		f"Number of unique files played: {num_charts}",
+		f"Grades: {grades_string}",
 		f"Total arrows hit: {total_notes_string}",
 		f"Longest combo: {long_combo_str}",
 		f"Longest marvelous combo: {long_mcombo_str}",

@@ -1,4 +1,4 @@
-import os, logging, json
+import os, logging, json, math
 from datetime import datetime, timedelta
 from urllib.request import urlopen
 import numpy as np
@@ -13,6 +13,8 @@ logger = logging.getLogger()
 # Modified (saturated) EO colors
 skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "808080"]
 
+grade_names = "D C B A AA AAA AAAA".split(" ")
+grade_thresholds = [-math.inf, 0.6, 0.7, 0.8, 0.93, 0.9975, 0.9997]
 
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
