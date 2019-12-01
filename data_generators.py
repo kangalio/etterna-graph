@@ -525,11 +525,11 @@ def gen_text_most_played_packs(xml):
 	likings = generate_pack_likings(xml)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)
-	best_packs = sorted_packs[:min(12, len(sorted_packs))]
+	best_packs = sorted_packs[:min(16, len(sorted_packs))]
 	text = ["Most played packs (last 6 months):"]
 	for i, pack in enumerate(best_packs):
 		if len(pack) > 25:
-			pack_str = pack[:25] + "…"
+			pack_str = pack[:20] + "…" + pack[-5:]
 		else:
 			pack_str = pack
 		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
