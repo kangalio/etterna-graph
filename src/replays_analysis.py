@@ -1,8 +1,13 @@
+from typing import *
+
 from itertools import groupby
+
 import numpy as np
+
 import util
 from util import parsedate
 import app
+
 
 class ReplaysAnalysis:
 	def __init__(self):

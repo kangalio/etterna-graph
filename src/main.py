@@ -1,11 +1,15 @@
+from typing import *
+
+import os, json, socket, glob
+
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import os, json, socket, glob
 
 from plotter import Plotter
 import util
 import app as app
+
 
 """
 This file mainly handles the UI and overall program state
@@ -44,7 +48,7 @@ This is version {VERSION_NUMBER}
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
-IGNORE_REPLAYS = True # Development purposes
+IGNORE_REPLAYS = False # Development purposes
 if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
 # QScrollArea wrapper with scroll wheel scrolling disabled.

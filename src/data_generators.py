@@ -1,9 +1,12 @@
+from typing import *
+
 import math
 from datetime import datetime, timedelta
 from collections import Counter
 
 import util
 from util import parsedate, cache, iter_scores
+
 
 """
 This file holds all the so-called data generators. Those take save data

@@ -1,7 +1,11 @@
+from typing import *
+
 import os, logging, json, math
 from datetime import datetime, timedelta
 from urllib.request import urlopen
+
 import numpy as np
+
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
@@ -137,7 +141,9 @@ def find_skillset_rating(values):
 # Returns list with 8 elements: first is the Overall rating, following
 # are the skillset ratings.
 def find_ratings(skillsets_values):
-	ratings = [find_skillset_rating(np.array(values)) for values in skillsets_values]
+	ratings = []
+	for values in skillsets_values:
+		ratings.append(find_skillset_rating(np.array(values)))
 	overall = (sum(ratings) - min(ratings)) / 6
 	ratings.insert(0, overall)
 	return ratings

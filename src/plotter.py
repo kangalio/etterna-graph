@@ -1,8 +1,11 @@
+from typing import *
+
 import xml.etree.ElementTree as ET
 
-from plot_frame import PlotFrame, Plot, TextBox
-import data_generators as g
 import util, replays_analysis
+import data_generators as g
+from plot_frame import PlotFrame, Plot, TextBox
+
 
 def score_info(plotter, score):
 	datetime = score.findtext("DateTime")
