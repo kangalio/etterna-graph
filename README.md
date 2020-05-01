@@ -12,8 +12,9 @@ You can click on the individual scatter points to see information about the corr
 Alternatively you can run the program from source directly:
 1. Get a copy of this repository (`git clone` or "Download ZIP")
 2. Install the latest version of Python 3
-3. Install the Python libraries lxml, numpy, scipy and pyqtgraph
-    - Note: the latest official release of pyqtgraph is 0.10 and it's quite buggy. You're recommended to install the development version (`pip install git+https://github.com/pyqtgraph/pyqtgraph@develop`)
+3. Install the required Python libraries via `pip -r requirements.txt`
+4. Install Rust
+4. Compile the crate in `replays_analysis/`, and move the resulting library file into `src/`, (also rename it from `liblib_replays_analysis` to `lib_replays_analysis`)
 4. Now execute the main.py file and the statistics _should_ pop up
 
 # Screenshot
@@ -31,6 +32,6 @@ Alternatively you can run the program from source directly:
 
 **data_generators.py** contains 30+ functions that take the raw Etterna data and analyze them in loads of different ways. Every plot has one corresponding function in here.
 
-**replays_analysis.py** contains all code doing the replays analysis.
+**replays_analysis.py** contains bridging code communicating with lib_replays_analysis
 
 **util.py** contains various utility functions and constants
