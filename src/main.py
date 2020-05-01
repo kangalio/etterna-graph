@@ -291,7 +291,7 @@ class Application:
 				self.prefs.etterna_xml = path
 		
 		# Generate plots
-		plotter.draw(self.ui.box_container, self.ui.pg_layout, self.prefs.etterna_xml, self.prefs.replays_dir)
+		plotter.draw(self.ui.qapp, self.ui.box_container, self.ui.pg_layout, self.prefs.etterna_xml, self.prefs.replays_dir)
 		
 		# Now, after the correct paths were established, save them
 		self.prefs.write()

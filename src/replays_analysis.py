@@ -26,7 +26,7 @@ class ReplaysAnalysis:
 # here.
 # It works by:
 # 1) Collecting all chartkeys into a list
-# 2) Passing the list to lib_replays_analysis (written in Rust), which evaluates it blazingly fast ™
+# 2) Passing the list to lib_replays_analysis (written in Rust), which evaluates it blazingly fast™
 # 3) Transfer the data from Rusts's ReplaysAnalaysis object to an instance of our ReplaysAnalysis
 #    class written in Python
 # 3.1) This involves traversing the xml once again, to collect score datetimes and score xml objects
