@@ -10,7 +10,7 @@ from util import parsedate
 import app
 
 
-class PyReplaysAnalysis:
+class ReplaysAnalysis:
 	def __init__(self):
 		self.scores = []
 		self.datetimes = []
@@ -18,32 +18,29 @@ class PyReplaysAnalysis:
 		self.offset_mean = 0
 		self.notes_per_column = [0, 0, 0, 0]
 		self.cbs_per_column = [0, 0, 0, 0]
-		# ~ self.offset_buckets = {} # TODO: implement this
-		# This could also be implemented by counting the notes of
-		# the Etterna.xml, but it's easier to count in the replays.
-		self.total_notes = 0
+		self.total_notes = 0 # MOVE THIS!!!
 		self.longest_mcombo = (0, None)
-		self.num_near_hits = 0
+		self.num_near_hits = 0 # MOVE THIS!!!
 
-# This function is responsible for replay analysis. Every chart that
-# uses replay data uses the data generated from this function.
-# It works in two phases; first all the data is read from the replay
-# files and collected into three long NumPy arrays.
-# In the second phase those arrays are analyzed.
-def analyze(xml, replays) -> Optional[PyReplaysAnalysis]:
+# This function is responsible for replay analysis. Every chart that uses replay data has it from
+# here.
+# It works by:
+# 1) Collecting all chartkeys into a list
+# 2) Passing the list to lib_replays_analysis (written in Rust), which evaluates it blazingly fast ™
+# 3) Transfer the data from Rusts's ReplaysAnalaysis object to an instance of our ReplaysAnalysis
+#    class written in Python
+# 3.1) This involves traversing the xml once again, to collect score datetimes and score xml objects
+def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	from lib_replays_analysis import ReplaysAnalysis as RustReplaysAnalysis
 	
-	r = PyReplaysAnalysis()
+	r = ReplaysAnalysis()
 	
-	print("start chartkey collection")
 	chartkeys: List[str] = []
 	for chart in xml.iter("Chart"):
 		chartkeys.extend(score.get("Key") for score in chart.iter("Score"))
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	print("starting analysis")
 	rustr = RustReplaysAnalysis(prefix, chartkeys)
-	print("finished analysis, start transfer")
 	
 	r.manipulations = rustr.manipulations
 	
@@ -51,7 +48,6 @@ def analyze(xml, replays) -> Optional[PyReplaysAnalysis]:
 		# When no replay could be parsed correctly. For cases when
 		# someone selects a legacy folder with 'correct' file names,
 		# but unexcepted (legacy) content. Happened to Providence
-		r = None
 		util.logger.warning("No valid replays found at all in the directory")
 		return None
 	
@@ -66,7 +62,7 @@ def analyze(xml, replays) -> Optional[PyReplaysAnalysis]:
 	
 	score_indices = rustr.score_indices
 	i = -1
-	next_index_index = 0
+	next_index_index = 0 # this thing is hacky
 	for chart in xml.iter("Chart"):
 		for score in chart.iter("Score"):
 			i += 1
@@ -81,7 +77,5 @@ def analyze(xml, replays) -> Optional[PyReplaysAnalysis]:
 		else:
 			continue
 		break
-	
-	print("finished transfer")
 	
 	return r
