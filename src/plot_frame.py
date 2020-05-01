@@ -171,20 +171,3 @@ class Plot:
 			self.plot.addItem(item)
 		
 		self.plot.autoBtnClicked()
-
-class TextBox:
-	def __init__(self, plotter, frame, colspan=1, rowspan=1):
-		self.plotter = plotter
-		self.label = frame.addLabel(justify="left", colspan=colspan, rowspan=rowspan)
-	
-	def draw(self, text): self.label.setText(text)
-	def draw_with_given_args(self, text): self.draw(text)
-
-class PlotFrame(pg.GraphicsLayoutWidget):
-	def __init__(self, infobar):
-		super().__init__(border=(100, 100, 100))
-		
-		self.infobar = infobar
-	
-	def next_row(self):
-		self.nextRow()

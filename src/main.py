@@ -6,7 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
-from plotter import Plotter
+import plotter
 import util
 import app as app
 
@@ -193,7 +193,7 @@ class UI:
 		# simultaneous scrolling and panning when hovering a plot while scrolling
 		class ScrollArea(QScrollArea):
 			def eventFilter(self, obj, event) -> bool:
-				if event.type() == QEvent.Wheel and self.ui_object.plotter.frame.underMouse():
+				if event.type() == QEvent.Wheel and self.ui_object.pg_layout.underMouse():
 					return True
 				return False
 		scroll = ScrollArea(window)
@@ -230,27 +230,20 @@ class UI:
 		button_row = QHBoxLayout(button_row_widget)
 		layout.addWidget(button_row_widget)
 		
-		# Load Replays button
-		button = QPushButton("Load Replays")
-		self.replays_button = button
-		button.setToolTip("Replay data is required for various statistics")
-		self.button_load_replays = button
-		button_row.addWidget(button)
-		button.clicked.connect(app.app.try_choose_replays)
-		
 		# About button
 		button = QPushButton("About this program")
 		button_row.addWidget(button)
-		button.clicked.connect(
-			lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
+		button.clicked.connect(lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 		
 		button = QPushButton("Settings")
 		button_row.addWidget(button)
 		button.clicked.connect(self.open_settings)
 		
-		# Add plot frame (that thing that contains all the plots)
-		self.plotter = Plotter(infobar, app.app.prefs)
-		layout.addWidget(self.plotter.frame)
+		import pyqtgraph as pg
+		self.box_container = QWidget()
+		layout.addWidget(self.box_container)
+		self.pg_layout = pg.GraphicsLayoutWidget()
+		layout.addWidget(self.pg_layout)
 	
 	# Returns path to Etterna.xml
 	def choose_etterna_xml(self):
@@ -283,7 +276,6 @@ class Application:
 		self.prefs = Settings()
 		self.prefs.load() # Load settings
 		self.ui = UI() # Init UI
-		self.plotter = self.ui.plotter
 		
 		self.check_new_release()
 		
@@ -299,7 +291,7 @@ class Application:
 				self.prefs.etterna_xml = path
 		
 		# Generate plots
-		self.refresh_graphs()
+		plotter.draw(self.ui.box_container, self.ui.pg_layout, self.prefs.etterna_xml, self.prefs.replays_dir)
 		
 		# Now, after the correct paths were established, save them
 		self.prefs.write()
@@ -316,7 +308,7 @@ class Application:
 			os.path.expanduser("~") + "/.etterna*", # Linux
 			os.path.expanduser("~") + "/.stepmania*", # Linux
 			"/opt/etterna*", # Linux
-			"Z:\\home\\kangalioo\\.etterna*", # Wine on Linux
+			"Z:\\home\\kangalioo\\.etterna*", # My Wine on Linux (for testing)
 			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
 		]
 		# Assemble all possible save game locations. path_pairs is a
@@ -357,19 +349,11 @@ class Application:
 		if os.path.exists(replays_dir):
 			self.prefs.replays_dir = replays_dir
 	
-	def refresh_graphs(self):
-		if IGNORE_REPLAYS: self.prefs.replays_dir = None
-		self.plotter.draw(self.prefs, self.ui.qapp)
-	
 	def try_choose_replays(self):
 		path = self.ui.choose_replays()
 		if path is not None:
 			self.set_replays(path)
 			self.refresh_graphs()
-	
-	def set_replays(self, path):
-		self.prefs.replays_dir = path
-		self.prefs.write()
 	
 	def check_new_release(self):
 		release = util.get_latest_release()
