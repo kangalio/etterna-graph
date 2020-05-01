@@ -51,13 +51,6 @@ SETTINGS_PATH = "etterna-graph-settings.json"
 IGNORE_REPLAYS = False # Development purposes
 if socket.gethostname() != "kangalioo-pc": IGNORE_REPLAYS = False
 
-# QScrollArea wrapper with scroll wheel scrolling disabled.
-# I did this to prevent simultaneous scrolling and panning
-# when hovering a plot while scrolling
-class ScrollArea(QScrollArea):
-	def wheelEvent(self, event):
-		pass
-
 SETTINGS_FIELDS = {
 	"etterna-xml": "etterna_xml",
 	"replays-dir": "replays_dir",
@@ -192,13 +185,22 @@ class UI:
 		root = QWidget()
 		layout = QVBoxLayout(root)
 		self.layout = layout
+
+		# Put the widgets in
+		self.setup_widgets(layout)
+		
+		# QScrollArea wrapper with scroll wheel scrolling disabled on plots. I did this to prevent
+		# simultaneous scrolling and panning when hovering a plot while scrolling
+		class ScrollArea(QScrollArea):
+			def eventFilter(self, obj, event) -> bool:
+				if event.type() == QEvent.Wheel and self.ui_object.plotter.frame.underMouse():
+					return True
+				return False
 		scroll = ScrollArea(window)
+		scroll.ui_object = self
 		scroll.setWidget(root)
 		scroll.setWidgetResizable(True)
 		window.setCentralWidget(scroll)
-		
-		# Put the widgets in
-		self.setup_widgets(layout)
 		
 		# Start
 		w, h = 1600, 2500
