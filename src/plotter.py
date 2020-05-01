@@ -11,6 +11,22 @@ import data_generators as g
 import replays_analysis, util, plot_frame
 
 
+def show_scrollable_msgbox(text, title=None):
+	scroll = QScrollArea()
+	scroll.setWidget(QLabel(text))
+	scroll.setFixedHeight(400)
+	scroll.setWidgetResizable(True) # I dunno?
+	
+	msgbox = QDialog()
+	# ~ msgbox.setModal(True) # don't block rest of the app
+	if title: msgbox.setWindowTitle(title)
+	msgbox_dummy_layout = QHBoxLayout(msgbox)
+	msgbox_dummy_layout.addWidget(scroll)
+	
+	# I wish I could make this modal to not block the rest of the app, but the msgbox won#t show up
+	# for some reason if I do that
+	msgbox.exec_()
+
 def show_score_info(xml, score):
 	datetime = score.findtext("DateTime")
 	percent = float(score.findtext("SSRNormPercent")) * 100
@@ -64,19 +80,23 @@ def draw(qapp, textbox_container: QWidget, pg_layout,
 	border_color = "white" if sys_bgcolor.lightness() < 128 else "black"
 	
 	textbox_grid = QGridLayout(textbox_container)
-	def textbox(row: int, col: int, rowspan: int, colspan: int, text: str):
+	def textbox(row: int, col: int, rowspan: int, colspan: int, fn, *args, read_more_title=None):
+		text = (fn)(*args)
 		label = QLabel(text)
 		label.setWordWrap(True)
 		label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 		label.setStyleSheet(f"border: 1px solid {border_color}; padding: 5px")
 		textbox_grid.addWidget(label, row, col, rowspan, colspan)
+		
+		label.setOpenExternalLinks(False)
+		label.linkActivated.connect(lambda _: show_scrollable_msgbox((fn)(*args, limit=None), read_more_title))
 	
-	textbox(0, 0, 2, 2, g.gen_text_most_played_packs(xml))
-	textbox(0, 2, 1, 2, g.gen_text_longest_sessions(xml))
-	textbox(0, 4, 1, 2, g.gen_text_skillset_hours(xml))
-	textbox(0, 6, 1, 2, g.gen_text_most_played_charts(xml))
-	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info(xml, analysis))
-	textbox(1, 5, 1, 3, g.gen_text_general_info(xml, analysis))
+	textbox(0, 0, 2, 2, g.gen_text_most_played_packs, xml, read_more_title="Most played packs")
+	textbox(0, 2, 1, 2, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
+	textbox(0, 4, 1, 2, g.gen_text_skillset_hours, xml)
+	textbox(0, 6, 1, 2, g.gen_text_most_played_charts, xml, read_more_title="Most played charts")
+	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info, xml, analysis)
+	textbox(1, 5, 1, 3, g.gen_text_general_info, xml, analysis)
 	
 	score_info_callback = lambda score: show_score_info(xml, score)
 	

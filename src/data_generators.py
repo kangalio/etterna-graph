@@ -403,22 +403,25 @@ def count_nums_grades(xml):
 		grades.append(util.grade_names[grade])
 	return Counter(grades)
 
-def gen_text_most_played_charts(xml):
+def gen_text_most_played_charts(xml, limit=5):
 	text = ["Most played charts:"]
-	charts = gen_most_played_charts(xml, num_charts=5)
+	charts = gen_most_played_charts(xml, num_charts=limit)
 	i = 1
 	for (chart, num_plays) in charts:
 		pack, song = chart.get("Pack"), chart.get("Song")
 		text.append(f"{i}) \"{pack}\" -> \"{song}\" with {num_plays} scores")
 		i += 1
 	
+	if limit is not None:
+		text.append('<a href="#read_more">Show all</a>')
+	
 	return "<br>".join(text)
 
-def gen_text_longest_sessions(xml):
+def gen_text_longest_sessions(xml, limit=5):
 	sessions = divide_into_sessions(xml)
 	sessions = [(s, (s[-1][1] - s[0][1]).total_seconds() / 60) for s in sessions]
 	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
-	sessions = sessions[:5]
+	sessions = sessions[:limit]
 	
 	text = ["Longest sessions:"]
 	i = 1
@@ -427,6 +430,9 @@ def gen_text_longest_sessions(xml):
 		datetime = str(session[0][1])[:-3] # Cut off seconds
 		text.append(f"{i}) {datetime}, {round(length)} minutes, {num_plays} scores")
 		i += 1
+	
+	if limit is not None:
+		text.append('<a href="#read_more">Show all</a>')
 	
 	return "<br>".join(text)
 
@@ -524,18 +530,23 @@ def gen_text_general_analysis_info(xml, a):
 		f"Wifescore of all notes last 6 months (in total) is {total_wifescore_str}",
 	])
 
-def gen_text_most_played_packs(xml):
+def gen_text_most_played_packs(xml, limit=15):
 	likings = generate_pack_likings(xml)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)
-	best_packs = sorted_packs[:min(16, len(sorted_packs))]
+	best_packs = sorted_packs[:limit]
 	text = ["Most played packs (last 6 months):"]
 	for i, pack in enumerate(best_packs):
 		if len(pack) > 25:
-			pack_str = pack[:20] + "…" + pack[-5:]
+			if limit is not None: # if no limit, there's also no limit horizontally
+				pack_str = pack[:20] + "…" + pack[-5:]
 		else:
 			pack_str = pack
+		if pack_str == "": pack_str = "<no name>"
 		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
+	
+	if limit is not None:
+		text.append('<a href="#read_more">Show all</a>')
 	
 	return "<br>".join(text)
 
