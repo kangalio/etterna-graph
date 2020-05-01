@@ -242,7 +242,7 @@ class UI:
 		import pyqtgraph as pg
 		self.box_container = QWidget()
 		layout.addWidget(self.box_container)
-		self.pg_layout = pg.GraphicsLayoutWidget()
+		self.pg_layout = pg.GraphicsLayoutWidget(border=pg.mkPen(255, 255, 255))
 		layout.addWidget(self.pg_layout)
 	
 	# Returns path to Etterna.xml
