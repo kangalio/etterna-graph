@@ -20,6 +20,13 @@ skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "
 grade_names = "D C B A AA AAA AAAA".split(" ")
 grade_thresholds = [-math.inf, 0.6, 0.7, 0.8, 0.93, 0.9975, 0.9997]
 
+def wifescore_to_grade_string(wifescore: float) -> str:
+	for grade_name, grade_threshold in zip(grade_names, grade_thresholds):
+		if wifescore >= grade_threshold:
+			return grade_name
+	return "huh?"
+	logger.exception("this shouldn't happen")
+
 # Parses date in Etterna.xml format
 def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 

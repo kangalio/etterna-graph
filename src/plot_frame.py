@@ -88,14 +88,13 @@ def draw(frame, data,
 	
 	def click_handler(_, points):
 		if len(points) > 1:
-			text = f"{len(points)} points selected at once!"
+			app.app.set_infobar(f"{len(points)} points selected at once!")
 		else:
 			try:
-				text = (click_callback)(points[0].data())
+				(click_callback)(points[0].data())
 			except Exception:
 				util.logger.exception("Click handler")
-				text = "[Error while generating info text]"
-		app.app.ui.infobar.setText(text)
+				app.app.set_infobar("[Error while generating info text]")
 	
 	plot.clear()
 	

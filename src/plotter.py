@@ -8,13 +8,18 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 import data_generators as g
-import replays_analysis, util, plot_frame
+import replays_analysis, util, plot_frame, app
 
 
-def show_scrollable_msgbox(text, title=None):
+def show_scrollable_msgbox(text, title=None, word_wrap=False):
+	label = QLabel(text)
+	label.setWordWrap(word_wrap)
+	
 	scroll = QScrollArea()
-	scroll.setWidget(QLabel(text))
-	scroll.setFixedHeight(400)
+	scroll.setMinimumWidth(label.sizeHint().width() + 45)
+	scroll.setStyleSheet("padding: 1px");
+	scroll.setWidget(label)
+	scroll.setMaximumHeight(400)
 	scroll.setWidgetResizable(True) # I dunno?
 	
 	msgbox = QDialog()
@@ -27,28 +32,81 @@ def show_scrollable_msgbox(text, title=None):
 	# for some reason if I do that
 	msgbox.exec_()
 
-def show_score_info(xml, score):
+def show_score_info(xml, score) -> None:
 	datetime = score.findtext("DateTime")
-	percent = float(score.findtext("SSRNormPercent")) * 100
-	percent = round(percent, 2)
+	wifescore = float(score.findtext("SSRNormPercent"))
 	chart = util.find_parent_chart(xml, score)
 	pack, song = chart.get("Pack"), chart.get("Song")
 	
+	text = f"{datetime}    {100*wifescore:.2f}%    "
 	if len(score.findall("SkillsetSSRs")) == 1:
 		msd = round(g.score_to_msd(score), 2)
 		score_value = float(score.findtext(".//Overall"))
-		return f'{datetime}    {percent}%    MSD: {msd}    Score: {score_value}    "{pack}" -> "{song}"'
+		text += f"Approx. MSD: {msd}    Score: {score_value}    "
 	else:
 		util.logger.warning("Selected scatter point doesn't have SkillsetSSRs data")
-		return f'{datetime}    {percent}%    "{pack}" -> "{song}"'
+	text += f'"{pack}" -> "{song}"'
+	text += '    <a href="read-more">Show more</a>'
+	
+	def show_all():
+		lines = [
+			f"<b>{song}</b> ({pack})",
+			f"- <b>{100*wifescore:.2f}%</b> ({util.wifescore_to_grade_string(wifescore)})",
+			f"- Max combo: <b>{score.findtext('MaxCombo')}x</b>",
+			f"- Modifiers: <b>\"{score.findtext('Modifiers')}\"</b>",
+		]
+		
+		tap_note_scores = score.find("TapNoteScores")
+		names = ["W1", "W2", "W3", "W4", "W5", "Miss"]
+		lines.append("- <b>" + " / ".join(tap_note_scores.findtext(name) for name in names) + "</b>")
+		
+		hit_mine = int(tap_note_scores.findtext("HitMine"))
+		avoid_mine = int(tap_note_scores.findtext("AvoidMine"))
+		try:
+			mine_avoided_ratio = avoid_mine / (hit_mine + avoid_mine)
+		except ZeroDivisionError:
+			mine_avoided_ratio = 1 # when there's no mines at all, just say the player has hit 100%
+		lines.append(f"- Avoided <b>{avoid_mine}/{hit_mine + avoid_mine}</b> mines (<b>{mine_avoided_ratio*100:.2f}%</b>)")
+		
+		hold_note_scores = score.find("HoldNoteScores")
+		let_go = int(hold_note_scores.findtext("LetGo"))
+		held = int(hold_note_scores.findtext("Held"))
+		missed_hold = int(hold_note_scores.findtext("MissedHold"))
+		total_holds = let_go + held + missed_hold
+		try:
+			held_ratio = held / total_holds
+		except ZeroDivisionError:
+			held_ratio = 1
+		lines.append(f"- Held <b>{held}/{total_holds}</b> holds (<b>{held_ratio*100:.2f}%</b>)")
+		
+		skillset_ssrs = score.find("SkillsetSSRs")
+		if skillset_ssrs:
+			lines.append(f"- Overall score rating: <b>{skillset_ssrs.findtext('Overall')}</b>")
+			for skillset_elem in skillset_ssrs:
+				if skillset_elem.tag == "Overall": continue # we already showed that
+				lines.append(f"=> {skillset_elem.tag}: <b>{skillset_elem.text}</b>")
+		
+		show_scrollable_msgbox("<br/>".join(lines), "Score info", word_wrap=True)
+	
+	# REMEMBER
+	show_all()
+	return
+	
+	app.app.set_infobar(text, lambda link_name: show_all())
 
-def show_session_info(data):
+def show_session_info(data) -> None:
 	(prev_rating, then_rating, num_scores, length) = data
 	prev_rating = round(prev_rating, 2)
 	then_rating = round(then_rating, 2)
 	length = round(length)
 	
-	return f'From {prev_rating} to {then_rating}    Total {length} minutes ({num_scores} scores)'
+	text = f'From {prev_rating} to {then_rating}    Total {length} minutes ({num_scores} scores)'
+	text += '    <a href="read-more">Show more</a>'
+	
+	def show_all():
+		show_scrollable_msgbox(text, "Session info", word_wrap=True)
+	
+	app.app.set_infobar(text, lambda link_name: show_all())
 
 cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 		'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
@@ -118,6 +176,7 @@ def draw(qapp, textbox_container: QWidget, pg_layout,
 		data=g.gen_manip(xml, analysis),
 	)
 	
+	return # REMEMBER
 	pg_layout.nextRow()
 	
 	qapp.processEvents()

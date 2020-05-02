@@ -21,6 +21,7 @@ def gen_manip(xml, analysis):
 	return ((x, y), ids)
 
 # This is only an approximation of the actual game mechanics
+# THIS SHOULD URGENTLY BE REMOVED; ITS PLAIN WRONG!!
 def score_to_msd(score):
 	overall = float(score.findtext(".//Overall"))
 	percentage = float(score.findtext("SSRNormPercent"))

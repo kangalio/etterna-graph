@@ -276,6 +276,7 @@ class Application:
 		self.prefs = Settings()
 		self.prefs.load() # Load settings
 		self.ui = UI() # Init UI
+		self.infobar_link_connection = None
 		
 		self.check_new_release()
 		
@@ -290,6 +291,9 @@ class Application:
 					return
 				self.prefs.etterna_xml = path
 		
+		if self.prefs.replays_dir is None:
+			self.try_choose_replays()
+		
 		# Generate plots
 		plotter.draw(self.ui.qapp, self.ui.box_container, self.ui.pg_layout, self.prefs.etterna_xml, self.prefs.replays_dir)
 		
@@ -298,6 +302,17 @@ class Application:
 		
 		# Pass on control to Qt
 		self.ui.exec_()
+	
+	def set_infobar(self, text, link_callback=None):
+		if self.infobar_link_connection:
+			try:
+				self.ui.infobar.disconnect(self.infobar_link_connection)
+				self.infobar_link_connectio = None
+			except TypeError as e:
+				util.logger.warning(e)
+		self.ui.infobar.setText(text)
+		if link_callback:
+			self.infobar_link_connection = self.ui.infobar.linkActivated.connect(link_callback)
 	
 	# Detects an Etterna installation and sets etterna_xml and
 	# replays_dir to the paths in it
