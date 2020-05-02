@@ -387,7 +387,6 @@ def calculate_total_wifescore(xml):
 		wifescore = float(score.findtext("SSRNormPercent"))
 		weighted_sum += wifescore * num_notes
 	return weighted_sum / num_notes_sum
-	
 
 def gen_skillset_development(xml):
 	datetimes, all_ratings = [], []
@@ -396,6 +395,29 @@ def gen_skillset_development(xml):
 		all_ratings.append(ratings)
 	return (datetimes, all_ratings)
 
+# we can't have effective cmod unfortunately because the exact receptor size is not in the xml
+# for some reason
+def gen_cmod_over_time(xml):
+	datetime_cmod_map = {}
+	for score in xml.iter("Score"):
+		modifiers = score.findtext("Modifiers").split(", ")
+		cmod = None
+		for modifier in modifiers:
+			if not modifier.startswith("C"): continue
+			try:
+				cmod = float(modifier[1:])
+				break
+			except ValueError:
+				continue
+		if cmod is None: continue # player's using xmod or something
+		
+		dt = parsedate(score.findtext("DateTime"))
+		datetime_cmod_map[dt] = cmod
+	
+	datetimes = list(sorted(datetime_cmod_map.keys()))
+	cmods = [datetime_cmod_map[dt] for dt in datetimes]
+	return datetimes, cmods
+	
 def count_nums_grades(xml):
 	grades = []
 	for score in util.iter_scores(xml):

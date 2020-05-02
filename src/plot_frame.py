@@ -153,6 +153,8 @@ def draw(frame, data,
 			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200, 200, 200), brush=color)
 		elif type_ == "bubble":
 			item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
+		elif type_ == "line":
+			item = pg.PlotDataItem(x, y, pen=color, stepMode=step_mode)
 		
 		if click_callback is not None:
 			item.sigClicked.connect(click_handler)
