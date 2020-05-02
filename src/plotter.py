@@ -103,18 +103,14 @@ def show_session_info(data) -> None:
 	text = f'From {prev_rating} to {then_rating}    Total {length} minutes ({num_scores} scores)'
 	text += '    <a href="read-more">Show more</a>'
 	
-	def show_all():
-		show_scrollable_msgbox(text, "Session info", word_wrap=True)
-	
-	app.app.set_infobar(text, lambda link_name: show_all())
+	app.app.set_infobar(text)
 
 cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 		'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
-def draw(qapp, textbox_container: QWidget, pg_layout,
-		xml_path: str, replays_path: Optional[str]) -> None:
+def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 	try: # First try UTF-8
-		xmltree = ET.parse(xml_path, ET.XMLParser(encoding='UTF-8'))
+		xmltree = ET.parse(prefs.xml_path, ET.XMLParser(encoding='UTF-8'))
 	except: # If that doesn't work, fall back to system encoding
 		os_encoding = sys.getdefaultencoding()
 		
@@ -124,12 +120,11 @@ def draw(qapp, textbox_container: QWidget, pg_layout,
 			os_encoding = "ISO-8859-1"
 		
 		util.logger.exception(f"XML parsing with UTF-8 failed, falling back to {os_encoding}")
-		xmltree = ET.parse(xml_path, ET.XMLParser(encoding=os_encoding))
-	
+		xmltree = ET.parse(prefs.xml_path, ET.XMLParser(encoding=os_encoding))
 	xml = xmltree.getroot()
-	# ~ replays_path = None # REMEMBER
-	if replays_path:
-		analysis = replays_analysis.analyze(xml, replays_path)
+	
+	if prefs.replays_dir:
+		analysis = replays_analysis.analyze(xml, prefs.replays_dir)
 	else:
 		analysis = None
 	
@@ -176,7 +171,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout,
 		data=g.gen_manip(xml, analysis),
 	)
 	
-	return # REMEMBER
 	pg_layout.nextRow()
 	
 	qapp.processEvents()
@@ -228,6 +222,60 @@ def draw(qapp, textbox_container: QWidget, pg_layout,
 		color=cmap[4],
 		data=g.gen_plays_by_hour(xml),
 	)
+	
+	if prefs.enable_all_plots:
+		# ~ qapp.processEvents()
+		# ~ plot_frame.draw(pg_layout,
+			# ~ colspan=30,
+			# ~ type_="bar",
+			# ~ title="Distribution of hit offset",
+			# ~ color=cmap[6],
+			# ~ data=g.gen_hit_distribution(xml, analysis),
+		# ~ )
+		
+		qapp.processEvents()
+		plot_frame.draw(pg_layout,
+			colspan=30,
+			type_="bar",
+			title="Idle time between plays (a bit broken)",
+			color=cmap[6],
+			data=g.gen_idle_time_buckets(xml),
+		)
+		
+		pg_layout.nextRow()
+		
+		qapp.processEvents()
+		plot_frame.draw(pg_layout,
+			colspan=30,
+			type_="bar",
+			title="Number of sessions with specific score amount",
+			color=cmap[6],
+			data=g.gen_session_plays(xml),
+		)
+		
+		pg_layout.nextRow()
+		
+		qapp.processEvents()
+		plot_frame.draw(pg_layout,
+			colspan=30,
+			flags="time_xaxis",
+			title="Session length over time",
+			color=cmap[6],
+			data=g.gen_session_length(xml),
+		)
+		
+		qapp.processEvents()
+		plot_frame.draw(pg_layout,
+			colspan=30,
+			type_="bar",
+			flags="time_xaxis",
+			title="Number of scores each week",
+			color=cmap[6],
+			width=604800*0.8,
+			data=g.gen_plays_per_week(xml),
+		)
+		
+		pg_layout.nextRow()
 
 	qapp.processEvents()
 	plot_frame.draw(pg_layout,

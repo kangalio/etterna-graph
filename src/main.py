@@ -94,12 +94,9 @@ class Settings:
 			if value is not None:
 				setattr(self, attr, value)
 	
-	# Returns a dict, but with only the properties that are different
-	# in the `other` settings dict
-	def difference(self, other_dict):
-		a, b = self.to_dict(), other_dict
-		return {key: value for key, value in a.items()
-				if b.get(key) != value}
+	@property
+	def xml_path(self):
+		return self.etterna_xml
 
 class SettingsDialog(QDialog):
 	xml_input = None
@@ -295,7 +292,7 @@ class Application:
 			self.try_choose_replays()
 		
 		# Generate plots
-		plotter.draw(self.ui.qapp, self.ui.box_container, self.ui.pg_layout, self.prefs.etterna_xml, self.prefs.replays_dir)
+		plotter.draw(self.ui.qapp, self.ui.box_container, self.ui.pg_layout, self.prefs)
 		
 		# Now, after the correct paths were established, save them
 		self.prefs.write()
