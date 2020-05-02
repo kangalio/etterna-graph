@@ -242,8 +242,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 			data=g.gen_idle_time_buckets(xml),
 		)
 		
-		pg_layout.nextRow()
-		
 		qapp.processEvents()
 		plot_frame.draw(pg_layout,
 			colspan=30,
