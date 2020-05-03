@@ -88,10 +88,6 @@ def show_score_info(xml, score) -> None:
 		
 		show_scrollable_msgbox("<br/>".join(lines), "Score info", word_wrap=True)
 	
-	# REMEMBER
-	show_all()
-	return
-	
 	app.app.set_infobar(text, lambda link_name: show_all())
 
 def show_session_info(data) -> None:
@@ -123,10 +119,7 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		xmltree = ET.parse(prefs.xml_path, ET.XMLParser(encoding=os_encoding))
 	xml = xmltree.getroot()
 	
-	if prefs.replays_dir:
-		analysis = replays_analysis.analyze(xml, prefs.replays_dir)
-	else:
-		analysis = None
+	analysis = replays_analysis.analyze(xml, prefs.replays_dir)
 	
 	# both dark and light system theme compatibility :)
 	sys_bgcolor = textbox_container.palette().color(textbox_container.backgroundRole())
@@ -195,16 +188,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 	
 	qapp.processEvents()
 	plot_frame.draw(pg_layout,
-		type_="stacked line",
-		flags="time_xaxis step",
-		title="Skillsets over time",
-		color=["ffffff", *util.skillset_colors], # Include overall
-		legend=["Overall", *util.skillsets], # Include overall
-		data=g.gen_skillset_development(xml),
-	)
-	
-	qapp.processEvents()
-	plot_frame.draw(pg_layout,
 		type_="bubble",
 		flags="time_xaxis",
 		title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
@@ -212,8 +195,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		click_callback=show_session_info,
 		data=g.gen_session_rating_improvement(xml),
 	)
-	
-	pg_layout.nextRow()
 	
 	qapp.processEvents()
 	plot_frame.draw(pg_layout,
@@ -223,6 +204,8 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		data=g.gen_plays_by_hour(xml),
 	)
 	
+	pg_layout.nextRow()
+	
 	qapp.processEvents()
 	plot_frame.draw(pg_layout,
 		type_="line",
@@ -231,8 +214,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		color=cmap[1],
 		data=g.gen_cmod_over_time(xml),
 	)
-	
-	pg_layout.nextRow()
 	
 	if prefs.enable_all_plots:
 		# ~ qapp.processEvents()
@@ -246,7 +227,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		
 		qapp.processEvents()
 		plot_frame.draw(pg_layout,
-			colspan=30,
 			type_="bar",
 			title="Idle time between plays (a bit broken)",
 			color=cmap[6],
@@ -255,7 +235,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		
 		qapp.processEvents()
 		plot_frame.draw(pg_layout,
-			colspan=30,
 			type_="bar",
 			title="Number of sessions with specific score amount",
 			color=cmap[6],
@@ -266,7 +245,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		
 		qapp.processEvents()
 		plot_frame.draw(pg_layout,
-			colspan=30,
 			flags="time_xaxis",
 			title="Session length over time",
 			color=cmap[6],
@@ -275,7 +253,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		
 		qapp.processEvents()
 		plot_frame.draw(pg_layout,
-			colspan=30,
 			type_="bar",
 			flags="time_xaxis",
 			title="Number of scores each week",
@@ -283,8 +260,6 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 			width=604800*0.8,
 			data=g.gen_plays_per_week(xml),
 		)
-		
-		pg_layout.nextRow()
 
 	qapp.processEvents()
 	plot_frame.draw(pg_layout,
@@ -294,6 +269,19 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		color=cmap[5],
 		width=604800*0.8,
 		data=g.gen_hours_per_week(xml),
+	)
+	
+	pg_layout.nextRow()
+	
+	qapp.processEvents()
+	plot_frame.draw(pg_layout,
+		colspan=2,
+		type_="stacked line",
+		flags="time_xaxis step",
+		title="Skillsets over time",
+		color=["ffffff", *util.skillset_colors], # Include overall
+		legend=["Overall", *util.skillsets], # Include overall
+		data=g.gen_skillset_development(xml),
 	)
 
 	pg_layout.nextRow()

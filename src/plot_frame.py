@@ -1,5 +1,6 @@
 from typing import *
 
+import math
 from datetime import datetime
 
 import pyqtgraph as pg
@@ -85,7 +86,6 @@ def draw(frame, data,
 	plot.setTitle(title)
 	if "log" in flags: plot.setLogMode(x=False, y=True)
 	
-	
 	def click_handler(_, points):
 		if len(points) > 1:
 			app.app.set_infobar(f"{len(points)} points selected at once!")
@@ -160,4 +160,16 @@ def draw(frame, data,
 			item.sigClicked.connect(click_handler)
 		plot.addItem(item)
 	
+	# Add horizontal score threshold lines
+	if "accuracy_yaxis" in flags:
+		print("adding lines")
+		plot.addLine(y=-(math.log(100 - 60.00) / math.log(10)), pen="#c97bff")
+		plot.addLine(y=-(math.log(100 - 70.00) / math.log(10)), pen="#5b78bb")
+		plot.addLine(y=-(math.log(100 - 80.00) / math.log(10)), pen="#da5757")
+		plot.addLine(y=-(math.log(100 - 93.00) / math.log(10)), pen="#66cc66")
+		plot.addLine(y=-(math.log(100 - 99.75) / math.log(10)), pen="#eebb00")
+		plot.addLine(y=-(math.log(100 - 99.97) / math.log(10)), pen="#66ccff")
+		print("done adding lines")
+	
 	plot.autoBtnClicked()
+	return plot
