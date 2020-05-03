@@ -52,7 +52,7 @@ This is version {VERSION_NUMBER}
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
 
-_keep_storage = []
+_keep_storage: List[Any] = []
 def keep(*args) -> None:
 	_keep_storage.extend(args)
 
@@ -121,7 +121,7 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("Etterna XML path"), 0, 0)
 		layout.addWidget(self.xml_input, 0, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("document-open"))
+		btn.setIcon(QIcon.fromTheme("document-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
 		btn.pressed.connect(xml_chooser_handler)
 		layout.addWidget(btn, 0, 2)
 		
@@ -132,7 +132,7 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("ReplaysV2 directory path"), 1, 0)
 		layout.addWidget(self.replays_input, 1, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("folder-open"))
+		btn.setIcon(QIcon.fromTheme("folder-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
 		btn.pressed.connect(replays_chooser_handler)
 		layout.addWidget(btn, 1, 2)
 		
@@ -194,9 +194,10 @@ class UI:
 		window.setCentralWidget(scroll)
 		
 		# Start
-		w, h = 1600, 2500
-		if app.app.prefs.enable_all_plots: h = 3800 # More plots -> more room
-		root.setMinimumSize(1000, h)
+		w, h = 1600, 3100
+		if app.app.prefs.enable_all_plots: h += 1300 # More plots -> more room
+		# ~ root.setMinimumSize(1000, h)
+		root.setMinimumHeight(h)
 		window.resize(w, h)
 		window.show()
 		keep(window)
@@ -230,30 +231,47 @@ class UI:
 class Application:
 	def run(self):
 		self._prefs = Settings.load_from_json(SETTINGS_PATH)
-		ui = UI()
-		
-		self.try_detect_etterna()
+		self._ui = UI()
+		self._infobar_link_connection = None
 		
 		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
-			xml_path = try_select_xml()
-			if not xml_path:
-				text = "You need to provide your Etterna.xml!"
-				QMessageBox.critical(None, text, text)
-				return
-			self._prefs.xml_path = xml_path
-			replays_dir = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../ReplaysV2"))
-			if os.path.exists(replays_dir):
-				self._prefs.replays_dir = replays_dir
-			else:
-				QMessageBox.information(None, "ReplaysV2 could not be found",
-						"The ReplaysV2 directory could not be found. Please select it manually in the following dialog")
-				SettingsDialog().exec_()
-			self._prefs.save_to_json(SETTINGS_PATH)
+			self.try_detect_etterna()
 		
-		box_container, pg_container = ui.get_box_container_and_pg_layout()
-		plotter.draw(ui.get_qapp(), box_container, pg_container, self._prefs)
+		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
+			self.make_user_choose_paths()
 		
-		ui.run()
+		self._prefs.save_to_json(SETTINGS_PATH)
+		
+		box_container, pg_container = self._ui.get_box_container_and_pg_layout()
+		plotter.draw(self._ui.get_qapp(), box_container, pg_container, self._prefs)
+		
+		self._ui.run()
+	
+	def set_infobar(self, text: str, link_callback=None) -> None:
+		if self._infobar_link_connection:
+			try:
+				self._ui.infobar.disconnect(self._infobar_link_connection)
+				self._infobar_link_connection = None
+			except TypeError as e:
+				util.logger.warning(e)
+		self._ui.infobar.setText(text)
+		if link_callback:
+			self._infobar_link_connection = self._ui.infobar.linkActivated.connect(link_callback)
+	
+	def make_user_choose_paths(self):
+		xml_path = try_select_xml()
+		if not xml_path:
+			text = "You need to provide your Etterna.xml!"
+			QMessageBox.critical(None, text, text)
+			return
+		self._prefs.xml_path = xml_path
+		replays_dir = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../ReplaysV2"))
+		if os.path.exists(replays_dir):
+			self._prefs.replays_dir = replays_dir
+		else:
+			QMessageBox.information(None, "ReplaysV2 could not be found",
+					"The ReplaysV2 directory could not be found. Please select it manually in the following dialog")
+			SettingsDialog().exec_()
 	
 	# Detects an Etterna installation and sets xml_path and
 	# replays_dir to the paths in it
