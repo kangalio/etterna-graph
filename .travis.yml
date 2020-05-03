@@ -1,0 +1,12 @@
+os: windows
+language:
+  - rust
+  - python
+rust:
+  - nightly
+python:
+  - "3.8"
+before_script: cd replays_analysis
+script:
+  - cargo build --release
+  - move target\release\liblib_replays_analysis.dll ..\src\lib_replays_analysis.pyd
