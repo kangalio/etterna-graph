@@ -227,7 +227,7 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 	plot_frame.draw(pg_layout,
 		type_="line",
 		flags="time_xaxis step",
-		title="CMod over time",
+		title="Effective CMod over time",
 		color=cmap[1],
 		data=g.gen_cmod_over_time(xml),
 	)

@@ -402,17 +402,29 @@ def gen_cmod_over_time(xml):
 	for score in xml.iter("Score"):
 		modifiers = score.findtext("Modifiers").split(", ")
 		cmod = None
+		receptor_size = None
 		for modifier in modifiers:
-			if not modifier.startswith("C"): continue
-			try:
-				cmod = float(modifier[1:])
-				break
-			except ValueError:
-				continue
+			if cmod is None and modifier.startswith("C"):
+				try:
+					cmod = float(modifier[1:])
+				except ValueError:
+					continue
+			elif receptor_size is None and modifier.endswith("Mini"):
+				mini_percentage_string = modifier[:-4]
+				if mini_percentage_string == "":
+					receptor_size = 0.5
+				else:
+					if not mini_percentage_string.endswith("% "): continue # false positive
+					mini = float(mini_percentage_string[:-2]) / 100
+					receptor_size = 1 - mini / 2
+		if receptor_size is None: receptor_size = 1
+		
 		if cmod is None: continue # player's using xmod or something
 		
+		effective_cmod = cmod * receptor_size
+		
 		dt = parsedate(score.findtext("DateTime"))
-		datetime_cmod_map[dt] = cmod
+		datetime_cmod_map[dt] = effective_cmod
 	
 	datetimes = list(sorted(datetime_cmod_map.keys()))
 	cmods = [datetime_cmod_map[dt] for dt in datetimes]
