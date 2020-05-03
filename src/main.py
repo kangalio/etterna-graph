@@ -1,8 +1,9 @@
 from __future__ import annotations
 from typing import *
 
-import json
+import json, os, glob
 from dataclasses import dataclass
+from copy import copy
 
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -33,7 +34,7 @@ however would not.
 
 Also, if you have any more plot ideas - scatter plot, bar chart,
 whatever - I would be thrilled if you sent them to me, over
-Discord/Reddit
+Discord/Reddit (kangalioo#9108 and u/kangalioo respectively)
 """.strip() # strip() to remove leading and trailing newlines
 
 REPLAYS_CHOOSER_INFO_MSG = """
@@ -55,6 +56,17 @@ _keep_storage = []
 def keep(*args) -> None:
 	_keep_storage.extend(args)
 
+def try_select_xml() -> Optional[str]:
+	result = QFileDialog.getOpenFileName(
+			caption="Select your Etterna.xml",
+			filter="Etterna XML files(Etterna.xml)")
+	return result[0] if result else None
+
+def try_choose_replays() -> Optional[str]:
+	result = QFileDialog.getExistingDirectory(
+			caption="Select the ReplaysV2 directory")
+	return result[0] if result else None
+
 @dataclass
 class Settings:
 	xml_path: str
@@ -63,10 +75,13 @@ class Settings:
 	
 	@staticmethod
 	def load_from_json(path: str) -> Settings:
-		with open(path) as f:
-			j = json.load(f)
-		
-		return Settings(j["etterna-xml"], j["replays-dir"], j["enable-all-plots"])
+		if os.path.exists(path):
+			with open(path) as f:
+				j = json.load(f)
+			
+			return Settings(j["etterna-xml"], j["replays-dir"], j["enable-all-plots"])
+		else:
+			return Settings(None, None, False)
 	
 	def save_to_json(self, path: str) -> None:
 		json_data = {
@@ -76,6 +91,76 @@ class Settings:
 		}
 		with open(path, "w") as f:
 			json.dump(json_data, f)
+
+class SettingsDialog(QDialog):
+	def __init__(self):
+		super().__init__()
+		self.setWindowTitle("Settings")
+		
+		vbox = QVBoxLayout(self)
+		
+		layout_widget = QWidget(self)
+		vbox.addWidget(layout_widget)
+		layout = QGridLayout(layout_widget)
+		
+		buttons = QDialogButtonBox()
+		save_btn = buttons.addButton("Save", QDialogButtonBox.ButtonRole.AcceptRole)
+		save_btn.pressed.connect(self.try_save)
+		cancel_btn = buttons.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
+		cancel_btn.pressed.connect(self.reject)
+		vbox.addWidget(buttons)
+		
+		restart_info = QLabel("<i>Restart for changes to take place</i>")
+		restart_info.setAlignment(Qt.AlignCenter | Qt.AlignRight)
+		vbox.addWidget(restart_info)
+		
+		self.xml_input = QLineEdit(app.app.prefs.xml_path)
+		def xml_chooser_handler():
+			result = try_select_xml()
+			if result: self.xml_input.setText(result)
+		layout.addWidget(QLabel("Etterna XML path"), 0, 0)
+		layout.addWidget(self.xml_input, 0, 1)
+		btn = QPushButton()
+		btn.setIcon(QIcon.fromTheme("document-open"))
+		btn.pressed.connect(xml_chooser_handler)
+		layout.addWidget(btn, 0, 2)
+		
+		self.replays_input = QLineEdit(app.app.prefs.replays_dir)
+		def replays_chooser_handler():
+			result = try_choose_replays()
+			if result: self.replays_input.setText(result)
+		layout.addWidget(QLabel("ReplaysV2 directory path"), 1, 0)
+		layout.addWidget(self.replays_input, 1, 1)
+		btn = QPushButton()
+		btn.setIcon(QIcon.fromTheme("folder-open"))
+		btn.pressed.connect(replays_chooser_handler)
+		layout.addWidget(btn, 1, 2)
+		
+		self.enable_all = QCheckBox()
+		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
+		layout.addWidget(QLabel("Enable experimental plots\n(not recommended)"), 2, 0)
+		layout.addWidget(self.enable_all, 2, 1, 1, 2)
+		
+		self.setMinimumWidth(600)
+	
+	def try_save(self):
+		missing_inputs = []
+		if not os.path.exists(self.xml_input.text()): # includes blank input
+			missing_inputs.append("Etterna.xml path")
+		if not os.path.exists(self.replays_input.text()): # includes blank input
+			missing_inputs.append("ReplaysV2 directory")
+		if len(missing_inputs) >= 1:
+			QMessageBox.information(None, "Missing or invalid fields",
+					"Please fill in valid values for: " + ", ".join(missing_inputs))
+			return
+		
+		app.app.prefs.xml_path = self.xml_input.text()
+		app.app.prefs.replays_dir = self.replays_input.text()
+		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
+		print("Saving prefs to json...")
+		app.app.prefs.save_to_json(SETTINGS_PATH)
+		
+		self.accept()
 
 class UI:
 	def __init__(self):
@@ -87,6 +172,10 @@ class UI:
 		window = QMainWindow()
 		root = QWidget()
 		layout = QVBoxLayout(root)
+		
+		help_menu = window.menuBar().addMenu("Help")
+		help_menu.addAction("Settings").triggered.connect(lambda: SettingsDialog().exec_())
+		help_menu.addAction("About").triggered.connect(lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 
 		# Put the widgets in
 		self.setup_widgets(layout, window)
@@ -143,10 +232,78 @@ class Application:
 		self._prefs = Settings.load_from_json(SETTINGS_PATH)
 		ui = UI()
 		
+		self.try_detect_etterna()
+		
+		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
+			xml_path = try_select_xml()
+			if not xml_path:
+				text = "You need to provide your Etterna.xml!"
+				QMessageBox.critical(None, text, text)
+				return
+			self._prefs.xml_path = xml_path
+			replays_dir = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../ReplaysV2"))
+			if os.path.exists(replays_dir):
+				self._prefs.replays_dir = replays_dir
+			else:
+				QMessageBox.information(None, "ReplaysV2 could not be found",
+						"The ReplaysV2 directory could not be found. Please select it manually in the following dialog")
+				SettingsDialog().exec_()
+			self._prefs.save_to_json(SETTINGS_PATH)
+		
 		box_container, pg_container = ui.get_box_container_and_pg_layout()
 		plotter.draw(ui.get_qapp(), box_container, pg_container, self._prefs)
 		
 		ui.run()
+	
+	# Detects an Etterna installation and sets xml_path and
+	# replays_dir to the paths in it
+	def try_detect_etterna(self):
+		globs = [
+			"C:\\Games\\Etterna*", # Windows
+			"C:\\Users\\*\\AppData\\*\\etterna*", # Windows
+			os.path.expanduser("~") + "/.etterna*", # Linux
+			os.path.expanduser("~") + "/.stepmania*", # Linux
+			"/opt/etterna*", # Linux
+			"Z:\\home\\kangalioo\\.etterna*", # My Wine on Linux (for testing)
+			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
+		]
+		# Assemble all possible save game locations. path_pairs is a
+		# list of tuples `(xml_path, replays_dir_path)`
+		path_pairs = []
+		for glob_str in globs:
+			for path in glob.iglob(glob_str):
+				replays_dir = path + "/Save/ReplaysV2"
+				possible_xml_paths = glob.iglob(path + "/Save/LocalProfiles/*/Etterna.xml")
+				for xml_path in possible_xml_paths:
+					path_pairs.append((xml_path, replays_dir))
+		
+		if len(path_pairs) == 0:
+			return # No installation could be found
+		elif len(path_pairs) == 1:
+			# Only one was found, but maybe this is the wrong one and
+			# the correct xml was not detected at all. Better ask
+			mibs = os.path.getsize(path_pairs[0][0]) / 1024**2 # MiB's
+			text = f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_pairs[0][0]}. Should the program use that?"
+			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
+					QMessageBox.Yes, QMessageBox.No)
+			if reply == QMessageBox.No: return
+			path_pair = path_pairs[0]
+		else: # With multiple possible installations, it's tricky
+			# Select the savegame pair with the largest XML, ask user if that one is right
+			path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+			mibs = os.path.getsize(path_pair[0]) / 1024**2 # MiB's
+			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one \n({path_pair[0]})\nis {mibs:.2f} MiB; should the program use that?"
+			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
+					QMessageBox.Yes, QMessageBox.No)
+			if reply == QMessageBox.No: return
+		
+		# Apply the paths. Also, do a check if files exist. I mean, they
+		# _should_ exist at this point, but you can never be too sure
+		xml_path, replays_dir = path_pair
+		if os.path.exists(xml_path):
+			self._prefs.xml_path = xml_path
+		if os.path.exists(replays_dir):
+			self._prefs.replays_dir = replays_dir
 	
 	@property
 	def prefs(self):
