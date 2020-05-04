@@ -31,7 +31,7 @@ class ReplaysAnalysis:
 #    class written in Python
 # 3.1) This involves traversing the xml once again, to collect score datetimes and score xml objects
 def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
-	from lib_replays_analysis import ReplaysAnalysis as RustReplaysAnalysis
+	import lib_replays_analysis
 	
 	r = ReplaysAnalysis()
 	
@@ -40,7 +40,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		chartkeys.extend(score.get("Key") for score in chart.iter("Score"))
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	rustr = RustReplaysAnalysis(prefix, chartkeys)
+	rustr = lib_replays_analysis.PyReplaysAnalysis(prefix, chartkeys)
 	
 	r.manipulations = rustr.manipulations
 	

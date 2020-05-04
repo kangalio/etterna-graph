@@ -1,32 +1,11 @@
-#![allow(dead_code)]
-use std::fs::File;
-use std::io::{self, BufRead};
-use pyo3::prelude::*;
-use rayon::prelude::*;
-
-
-fn read_lines(path: &str) -> io::Result<io::Lines<io::BufReader<File>>> {
-	let file = File::open(path)?;
-    return Ok(io::BufReader::new(file).lines());
-}
-
-#[pyclass(dict)]
 #[derive(Default)]
 pub struct ReplaysAnalysis {
-	#[pyo3(get)]
-	score_indices: Vec<u64>,
-	#[pyo3(get)]
-	manipulations: Vec<f64>,
-	#[pyo3(get)]
-	deviation_mean: f64, // mean of all non-cb offsets
-	#[pyo3(get)]
-	notes_per_column: [u64; 4],
-	#[pyo3(get)]
-	cbs_per_column: [u64; 4],
-	#[pyo3(get)]
-	_total_notes: u64, // TODO: implement by counting notes in xml
-	#[pyo3(get)]
-	longest_mcombo: (u64, String), // contains longest combo and the associated scorekey
+	pub score_indices: Vec<u64>,
+	pub manipulations: Vec<f64>,
+	pub deviation_mean: f64, // mean of all non-cb offsets
+	pub notes_per_column: [u64; 4],
+	pub cbs_per_column: [u64; 4],
+	pub longest_mcombo: (u64, String), // contains longest combo and the associated scorekey
 }
 
 #[derive(Default)]
@@ -38,9 +17,56 @@ struct ScoreAnalysis {
 	longest_mcombo: u64,
 }
 
+macro_rules! ok_or_continue {
+	( $e:expr ) => (
+		match $e {
+			Ok(value) => value,
+			Err(_) => continue,
+		}
+	)
+}
+
+// like slice.split(), but with optimizations based on a minimum line length assumption
+mod split_newlines {
+	pub struct SplitNewlines<'a> {
+		bytes: &'a [u8],
+		min_line_length: usize,
+		current_pos: usize, // the only changing field in here
+	}
+	
+	impl<'a> Iterator for SplitNewlines<'a> {
+		type Item = &'a [u8];
+		
+		fn next(&mut self) -> Option<Self::Item> {
+			// Check stop condition
+			if self.current_pos >= self.bytes.len() {
+				return None;
+			}
+			
+			let start_pos = self.current_pos;
+			self.current_pos += self.min_line_length; // skip ahead as far as we can get away with
+			
+			while let Some(&c) = self.bytes.get(self.current_pos) {
+				if c == b'\n' { break }
+				self.current_pos += 1;
+			}
+			let line = &self.bytes[start_pos..self.current_pos];
+			
+			self.current_pos += 1; // Advance one to be on the start of a line again
+			return Some(line);
+		}
+	}
+	
+	pub fn split_newlines<'a>(bytes: &'a [u8], min_line_length: usize) -> SplitNewlines<'a> {
+		return SplitNewlines { bytes, min_line_length, current_pos: 0 };
+	}
+}
+use split_newlines::split_newlines;
+
+
 // Analyze a single score's replay
 fn analyze(path: &str) -> Option<ScoreAnalysis> {
-	let lines = read_lines(path).ok()?;
+	let bytes = std::fs::read(path).ok()?;
 	
 	let mut score = ScoreAnalysis::default();
 	
@@ -49,18 +75,18 @@ fn analyze(path: &str) -> Option<ScoreAnalysis> {
 	let mut num_notes: u64 = 0; // we can't derive this from notes_per_column cuz those exclude 5k+
 	let mut num_manipped_notes: u64 = 0;
 	let mut deviation_sum: f64 = 0.0;
-	for line in lines {
-		let line = line.expect("the hell");
-		if line.starts_with("H") { continue }
+	for line in split_newlines(&bytes, 5) {
+		if line.len() == 0 || line[0usize] == b'H' { continue }
 		
-		let mut token_iter = line.split(" ");
+		let mut token_iter = line.splitn(3, |&c| c == b' ');
 		
 		let tick = token_iter.next().expect("Missing tick token");
-		let tick: u64 = match tick.parse() { Ok(a) => a, Err(_) => continue };
+		let tick: u64 = ok_or_continue!(btoi::btou(tick));
 		let deviation = token_iter.next().expect("Missing tick token");
-		let deviation: f64 = match deviation.parse() { Ok(a) => a, Err(_) => continue };
+		let deviation: f64 = ok_or_continue!(lexical::parse_lossy(&deviation[..6]));
+		// "column" has the remainer of the string, luckily we just care about the first column
 		let column = token_iter.next().expect("Missing tick token");
-		let column: u64 = match column.parse() { Ok(a) => a, Err(_) => continue };
+		let column: u64 = (column[0] - b'0') as u64;
 		
 		num_notes += 1;
 		
@@ -98,13 +124,11 @@ fn analyze(path: &str) -> Option<ScoreAnalysis> {
 	return Some(score);
 }
 
-#[pymethods]
 impl ReplaysAnalysis {
-	#[new]
-	fn create(prefix: &str, scorekeys: Vec<&str>) -> Self {
+	pub fn create(prefix: &str, scorekeys: &[&str]) -> Self {
 		let mut analysis = Self::default();
 		
-		let score_analyses: Vec<_> = scorekeys.par_iter()
+		let score_analyses: Vec<_> = scorekeys.iter()
 				.map(|scorekey| {
 					let score_option = analyze(&(prefix.to_string() + scorekey));
 					return (scorekey, score_option);
@@ -137,9 +161,45 @@ impl ReplaysAnalysis {
 	}
 }
 
+// HERE BEGINS PYTHON INTERFACING CODE
+
+use pyo3::prelude::*;
+
+#[pyclass]
+pub struct PyReplaysAnalysis {
+	#[pyo3(get)]
+	pub score_indices: Vec<u64>,
+	#[pyo3(get)]
+	pub manipulations: Vec<f64>,
+	#[pyo3(get)]
+	pub deviation_mean: f64, // mean of all non-cb offsets
+	#[pyo3(get)]
+	pub notes_per_column: [u64; 4],
+	#[pyo3(get)]
+	pub cbs_per_column: [u64; 4],
+	#[pyo3(get)]
+	pub longest_mcombo: (u64, String), // contains longest combo and the associated scorekey
+}
+
+#[pymethods]
+impl PyReplaysAnalysis {
+	#[new]
+	pub fn create(prefix: &str, scorekeys: Vec<&str>) -> Self {
+		let analysis = ReplaysAnalysis::create(prefix, &scorekeys);
+		return PyReplaysAnalysis {
+			score_indices: analysis.score_indices,
+			manipulations: analysis.manipulations,
+			deviation_mean: analysis.deviation_mean,
+			notes_per_column: analysis.notes_per_column,
+			cbs_per_column: analysis.cbs_per_column,
+			longest_mcombo: analysis.longest_mcombo,
+		};
+	}
+}
+
 #[pymodule]
 fn lib_replays_analysis(_py: Python, m: &PyModule) -> PyResult<()> {
-	m.add_class::<ReplaysAnalysis>()?;
+	m.add_class::<PyReplaysAnalysis>()?;
 	
 	return Ok(());
 }
