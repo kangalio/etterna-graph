@@ -1,3 +1,6 @@
+use crate::ok_or_continue;
+
+
 #[derive(Default)]
 pub struct ReplaysAnalysis {
 	pub score_indices: Vec<u64>,
@@ -15,15 +18,6 @@ struct ScoreAnalysis {
 	notes_per_column: [u64; 4],
 	cbs_per_column: [u64; 4],
 	longest_mcombo: u64,
-}
-
-macro_rules! ok_or_continue {
-	( $e:expr ) => (
-		match $e {
-			Ok(value) => value,
-			Err(_) => continue,
-		}
-	)
 }
 
 // like slice.split(b'\n'), but with optimizations based on a minimum line length assumption

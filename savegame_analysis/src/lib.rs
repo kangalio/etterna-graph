@@ -1,4 +1,10 @@
+#![allow(dead_code)]
+
 mod replays_analysis;
+mod skill_development_calc;
+mod util;
+pub use replays_analysis::*;
+pub use skill_development_calc::*;
 
 use pyo3::prelude::*;
 
@@ -22,7 +28,7 @@ pub struct PyReplaysAnalysis {
 impl PyReplaysAnalysis {
 	#[new]
 	pub fn create(prefix: &str, scorekeys: Vec<&str>) -> Self {
-		let analysis = replays_analysis::ReplaysAnalysis::create(prefix, &scorekeys);
+		let analysis = ReplaysAnalysis::create(prefix, &scorekeys);
 		return PyReplaysAnalysis {
 			score_indices: analysis.score_indices,
 			manipulations: analysis.manipulations,
@@ -34,9 +40,30 @@ impl PyReplaysAnalysis {
 	}
 }
 
+#[pyclass]
+pub struct PySkillTimeline {
+	#[pyo3(get)]
+	pub day_vector: Vec<String>,
+	#[pyo3(get)]
+	pub rating_vectors: [Vec<f64>; 7],
+}
+
+#[pymethods]
+impl PySkillTimeline {
+	#[new]
+	pub fn create(xml_path: &str) -> Self {
+		let timeline = SkillTimeline::create(xml_path);
+		return Self {
+			day_vector: timeline.day_vector,
+			rating_vectors: timeline.rating_vectors
+		};
+	}
+}
+
 #[pymodule]
 fn savegame_analysis(_py: Python, m: &PyModule) -> PyResult<()> {
 	m.add_class::<PyReplaysAnalysis>()?;
+	m.add_class::<PySkillTimeline>()?;
 	
 	return Ok(());
 }
