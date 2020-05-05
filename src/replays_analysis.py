@@ -31,16 +31,17 @@ class ReplaysAnalysis:
 #    class written in Python
 # 3.1) This involves traversing the xml once again, to collect score datetimes and score xml objects
 def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
-	import lib_replays_analysis
+	import savegame_analysis
 	
 	r = ReplaysAnalysis()
 	
 	chartkeys: List[str] = []
 	for chart in xml.iter("Chart"):
 		chartkeys.extend(score.get("Key") for score in chart.iter("Score"))
+	chartkeys = chartkeys[:100] # REMEMBER
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	rustr = lib_replays_analysis.PyReplaysAnalysis(prefix, chartkeys)
+	rustr = savegame_analysis.PyReplaysAnalysis(prefix, chartkeys)
 	
 	r.manipulations = rustr.manipulations
 	
