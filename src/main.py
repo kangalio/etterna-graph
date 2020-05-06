@@ -238,7 +238,8 @@ class Application:
 			self.try_detect_etterna()
 		
 		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
-			self.make_user_choose_paths()
+			if not self.make_user_choose_paths():
+				return
 		
 		self._prefs.save_to_json(SETTINGS_PATH)
 		
@@ -258,12 +259,12 @@ class Application:
 		if link_callback:
 			self._infobar_link_connection = self._ui.infobar.linkActivated.connect(link_callback)
 	
-	def make_user_choose_paths(self):
+	def make_user_choose_paths(self) -> bool: # return False if user cancelled
 		xml_path = try_select_xml()
 		if not xml_path:
 			text = "You need to provide your Etterna.xml!"
 			QMessageBox.critical(None, text, text)
-			return
+			return False
 		self._prefs.xml_path = xml_path
 		replays_dir = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../ReplaysV2"))
 		if os.path.exists(replays_dir):
@@ -272,6 +273,7 @@ class Application:
 			QMessageBox.information(None, "ReplaysV2 could not be found",
 					"The ReplaysV2 directory could not be found. Please select it manually in the following dialog")
 			SettingsDialog().exec_()
+		return True
 	
 	# Detects an Etterna installation and sets xml_path and
 	# replays_dir to the paths in it
