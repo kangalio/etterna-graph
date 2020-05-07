@@ -1,0 +1,27 @@
+name: Compile savegame_analysis
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: hecrj/setup-rust-action@v1
+      with:
+        rust-version: nightly
+    
+    - uses: actions/checkout@v2
+    
+    - name: Build
+      run: cargo build --release
+      working-directory: ./savegame_analysis
+    
+    - uses: actions/upload-artifact@v2
+      with:
+        name: savegame_analysis.pyd
+        path: savegame_analysis/target/release/savegame_analysis.dll
