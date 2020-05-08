@@ -1,4 +1,4 @@
 @echo off
 
-pyinstaller src/main.py --onefile
+pyinstaller pyinstaller.spec
 move dist\main.exe EtternaGraph.exe
