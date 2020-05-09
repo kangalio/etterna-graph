@@ -154,7 +154,8 @@ def draw(frame, data,
 		elif type_ == "bubble":
 			item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
 		elif type_ == "line":
-			item = pg.PlotDataItem(x, y, pen=color, stepMode=step_mode)
+			width = 3 if "thick_line" in flags else 1
+			item = pg.PlotDataItem(x, y, pen=pg.mkPen(color, width=width), stepMode=step_mode)
 		
 		if click_callback is not None:
 			item.sigClicked.connect(click_handler)
@@ -172,4 +173,5 @@ def draw(frame, data,
 		print("done adding lines")
 	
 	plot.autoBtnClicked()
+	plot.showGrid(x=True, y=True, alpha=0.15)
 	return plot
