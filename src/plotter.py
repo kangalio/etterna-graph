@@ -121,17 +121,13 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 	
 	analysis = replays_analysis.analyze(xml, prefs.replays_dir)
 	
-	# both dark and light system theme compatibility :)
-	sys_bgcolor = textbox_container.palette().color(textbox_container.backgroundRole())
-	border_color = "white" if sys_bgcolor.lightness() < 128 else "black"
-	
 	textbox_grid = QGridLayout(textbox_container)
 	def textbox(row: int, col: int, rowspan: int, colspan: int, fn, *args, read_more_title=None):
 		text = (fn)(*args)
 		label = QLabel(text)
 		label.setWordWrap(True)
 		label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-		label.setStyleSheet(f"border: 1px solid {border_color}; padding: 5px")
+		label.setStyleSheet(f"border: 1px solid {util.border_color}; padding: 5px")
 		textbox_grid.addWidget(label, row, col, rowspan, colspan)
 		
 		label.setOpenExternalLinks(False)

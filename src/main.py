@@ -5,6 +5,7 @@ import json, os, glob
 from dataclasses import dataclass
 from copy import copy
 
+import pyqtgraph as pg
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -166,12 +167,19 @@ class UI:
 	def __init__(self):
 		# Construct app, root widget and layout
 		self.qapp = QApplication(["Kangalioo's Etterna stats analyzer"])
-		self.qapp.setStyle("Fusion")
 		
 		# Prepare area for the widgets
 		window = QMainWindow()
 		root = QWidget()
 		layout = QVBoxLayout(root)
+		
+		# setup style
+		root.setStyleSheet(f"""
+			background-color: {util.bg_color};
+			color: {util.text_color};
+		""")
+		pg.setConfigOption("background", util.bg_color)
+		pg.setConfigOption("foreground", util.text_color)
 		
 		help_menu = window.menuBar().addMenu("Help")
 		help_menu.addAction("Settings").triggered.connect(lambda: SettingsDialog().exec_())
@@ -215,10 +223,9 @@ class UI:
 		toolbar.addWidget(infobar)
 		window.addToolBar(Qt.BottomToolBarArea, toolbar)
 		
-		import pyqtgraph as pg
 		self.box_container = QWidget()
 		layout.addWidget(self.box_container)
-		self.pg_layout = pg.GraphicsLayoutWidget(border=pg.mkPen(255, 255, 255))
+		self.pg_layout = pg.GraphicsLayoutWidget(border=pg.mkPen(util.border_color))
 		layout.addWidget(self.pg_layout)
 	
 	def get_box_container_and_pg_layout(self):

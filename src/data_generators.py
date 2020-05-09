@@ -446,7 +446,7 @@ def gen_text_most_played_charts(xml, limit=5):
 		i += 1
 	
 	if limit is not None:
-		text.append('<a href="#read_more">Show all</a>')
+		text.append(f'<a href="#read_more" style="color: {util.link_color}">Show all</a>')
 	
 	return "<br>".join(text)
 
@@ -465,7 +465,7 @@ def gen_text_longest_sessions(xml, limit=5):
 		i += 1
 	
 	if limit is not None:
-		text.append('<a href="#read_more">Show all</a>')
+		text.append(f'<a href="#read_more" style="color: {util.link_color}">Show all</a>')
 	
 	return "<br>".join(text)
 
@@ -577,7 +577,7 @@ def gen_text_most_played_packs(xml, limit=15):
 		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
 	
 	if limit is not None:
-		text.append('<a href="#read_more">Show all</a>')
+		text.append(f'<a href="#read_more" style="color: {util.link_color}">Show all</a>')
 	
 	return "<br>".join(text)
 
