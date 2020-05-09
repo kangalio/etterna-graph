@@ -570,12 +570,10 @@ def gen_text_most_played_packs(xml, limit=15):
 	best_packs = sorted_packs[:limit]
 	text = ["Most played packs (last 6 months):"]
 	for i, pack in enumerate(best_packs):
-		if len(pack) > 25:
-			if limit is not None: # if no limit, there's also no limit horizontally
-				pack_str = pack[:20] + "…" + pack[-5:]
+		if pack == "":
+			pack_str = "<no name>"
 		else:
 			pack_str = pack
-		if pack_str == "": pack_str = "<no name>"
 		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
 	
 	if limit is not None:
