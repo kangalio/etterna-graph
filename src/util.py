@@ -22,8 +22,12 @@ grade_thresholds = [-math.inf, 0.6, 0.7, 0.8, 0.93, 0.9975, 0.9997]
 
 bg_color = "#222222"
 text_color = "#DDDDDD"
-border_color = "#DDDDDD"
+border_color = "#777777"
 link_color = "#5193d4"
+
+_keep_storage = []
+def keep(*args): # an escape hatch of Python's GC
+	_keep_storage.extend(args)
 
 def wifescore_to_grade_string(wifescore: float) -> str:
 	for grade_name, grade_threshold in zip(grade_names, grade_thresholds):

@@ -192,7 +192,7 @@ class UI:
 		# simultaneous scrolling and panning when hovering a plot while scrolling
 		class ScrollArea(QScrollArea):
 			def eventFilter(self, obj, event) -> bool:
-				if event.type() == QEvent.Wheel and self.ui_object.pg_layout.underMouse():
+				if event.type() == QEvent.Wheel and self.ui_object.plot_container.underMouse():
 					return True
 				return False
 		scroll = ScrollArea(window)
@@ -225,11 +225,11 @@ class UI:
 		
 		self.box_container = QWidget()
 		layout.addWidget(self.box_container)
-		self.pg_layout = pg.GraphicsLayoutWidget(border=pg.mkPen(util.border_color))
-		layout.addWidget(self.pg_layout)
+		self.plot_container = QWidget()
+		layout.addWidget(self.plot_container)
 	
-	def get_box_container_and_pg_layout(self):
-		return self.box_container, self.pg_layout
+	def get_box_container_and_plot_container(self):
+		return self.box_container, self.plot_container
 	
 	def get_qapp(self):
 		return self.qapp
@@ -250,8 +250,8 @@ class Application:
 		
 		self._prefs.save_to_json(SETTINGS_PATH)
 		
-		box_container, pg_container = self._ui.get_box_container_and_pg_layout()
-		plotter.draw(self._ui.get_qapp(), box_container, pg_container, self._prefs)
+		box_container, plot_container = self._ui.get_box_container_and_plot_container()
+		plotter.draw(self._ui.get_qapp(), box_container, plot_container, self._prefs)
 		
 		self._ui.run()
 	

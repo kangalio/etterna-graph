@@ -64,8 +64,8 @@ class DIYLogAxisItem(pg.AxisItem):
 # type_: either "scatter", "bubble", "bar", "stacked bar" or
 #  "stacked line"
 # width: (only for bar charts) width of the bars
-def draw(frame, data,
-		colspan=1, rowspan=1, flags="", title=None,
+def draw(data,
+		flags="", title=None,
 		color="white", alpha=0.4, legend=None,
 		click_callback=None, type_="scatter", width=0.8):
 	
@@ -82,7 +82,8 @@ def draw(frame, data,
 		axisItems["left"] = DIYLogAxisItem(accuracy=False, decimal_places=1,
 				orientation="left")
 	
-	plot = frame.addPlot(axisItems=axisItems, colspan=colspan, rowspan=rowspan)
+	plot_widget = pg.PlotWidget(axisItems=axisItems)
+	plot = plot_widget.getPlotItem()
 	plot.setTitle(title)
 	if "log" in flags: plot.setLogMode(x=False, y=True)
 	
@@ -174,4 +175,4 @@ def draw(frame, data,
 	
 	plot.autoBtnClicked()
 	plot.showGrid(x=True, y=True, alpha=0.15)
-	return plot
+	return plot_widget

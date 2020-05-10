@@ -104,7 +104,7 @@ def show_session_info(data) -> None:
 cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 		'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
-def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
+def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> None:
 	try: # First try UTF-8
 		xmltree = ET.parse(prefs.xml_path, ET.XMLParser(encoding='UTF-8'))
 	except: # If that doesn't work, fall back to system encoding
@@ -144,80 +144,103 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info, xml, analysis)
 	textbox(1, 5, 1, 3, g.gen_text_general_info, xml, analysis)
 	
+	plotbox_grid = QGridLayout(plot_container)
+	plotbox_grid.setVerticalSpacing(10)
+	cur_row = 0
+	cur_col = 0
+	def plotbox(plot, title: str, colspan: int=1):
+		nonlocal cur_row, cur_col
+		
+		container_widget = QWidget()
+		container_widget.setStyleSheet(f"border: 1px solid {util.border_color}")
+		plotbox_grid.addWidget(container_widget, cur_row, cur_col, 1, colspan)
+		container = QVBoxLayout(container_widget)
+		container.setSpacing(0)
+		# ~ container.setContentsMargins(0,0,0,0)
+		
+		plot.setStyleSheet("border: 0px solid transparent")
+		
+		label = QLabel(title)
+		label.setStyleSheet("font-size: 18px; font-weight: bold; border: 0px solid transparent")
+		label.setWordWrap(True)
+		label.setAlignment(Qt.AlignHCenter)
+		util.keep(label)
+		
+		container.addWidget(label)
+		container.addWidget(plot)
+		cur_col += colspan
+		if cur_col >= 2:
+			cur_row += 1
+			cur_col = 0
+	
 	score_info_callback = lambda score: show_score_info(xml, score)
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		flags="time_xaxis",
-		title="Score rating over time",
 		color=cmap[0],
 		click_callback=score_info_callback,
 		data=g.gen_wifescore(xml),
 	)
+	plotbox(plot, "Score rating over time")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		flags="time_xaxis manip_yaxis",
-		title="Manipulation over time (log scale)",
 		color=cmap[3],
 		click_callback=score_info_callback,
 		data=g.gen_manip(xml, analysis),
 	)
-	
-	pg_layout.nextRow()
+	plotbox(plot, "Manipulation over time (log scale)")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		flags="time_xaxis accuracy_yaxis",
-		title="Accuracy over time (log scale)",
 		color=cmap[1],
 		click_callback=score_info_callback,
 		data=g.gen_accuracy(xml),
 	)
+	plotbox(plot, "Accuracy over time (log scale)")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		flags="time_xaxis ma_yaxis",
-		title="MA over time (marvelouses÷perfects) (log scale)",
 		color=cmap[6],
 		click_callback=score_info_callback,
 		data=g.gen_ma(xml),
 	)
-	
-	pg_layout.nextRow()
+	plotbox(plot, "MA over time (marvelouses÷perfects) (log scale)")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		type_="bubble",
 		flags="time_xaxis",
-		title="Rating improvement per session (x=date, y=session length, bubble size=rating improvement)",
 		color=cmap[2],
 		click_callback=show_session_info,
 		data=g.gen_session_rating_improvement(xml),
 	)
+	plotbox(plot, "Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		type_="bar",
-		title="Number of plays per hour of day",
 		color=cmap[4],
 		data=g.gen_plays_by_hour(xml),
 	)
-	
-	pg_layout.nextRow()
+	plotbox(plot, "Number of plays per hour of day")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		type_="line",
 		flags="time_xaxis step thick_line",
-		title="Effective CMod over time",
 		color=cmap[1],
 		data=g.gen_cmod_over_time(xml),
 	)
+	plotbox(plot, "Effective CMod over time")
 	
 	if prefs.enable_all_plots:
 		# ~ qapp.processEvents()
-		# ~ plot_frame.draw(pg_layout,
+		# ~ plot = plot_frame.draw(
 			# ~ colspan=30,
 			# ~ type_="bar",
 			# ~ title="Distribution of hit offset",
@@ -226,72 +249,64 @@ def draw(qapp, textbox_container: QWidget, pg_layout, prefs) -> None:
 		# ~ )
 		
 		qapp.processEvents()
-		plot_frame.draw(pg_layout,
+		plot = plot_frame.draw(
 			type_="bar",
-			title="Idle time between plays (a bit broken)",
 			color=cmap[6],
 			data=g.gen_idle_time_buckets(xml),
 		)
+		plotbox(plot, "Idle time between plays (a bit broken)")
 		
 		qapp.processEvents()
-		plot_frame.draw(pg_layout,
+		plot = plot_frame.draw(
 			type_="bar",
-			title="Number of sessions with specific score amount",
 			color=cmap[6],
 			data=g.gen_session_plays(xml),
 		)
-		
-		pg_layout.nextRow()
+		plotbox(plot, "Number of sessions with specific score amount")
 		
 		qapp.processEvents()
-		plot_frame.draw(pg_layout,
+		plot = plot_frame.draw(
 			flags="time_xaxis",
-			title="Session length over time",
 			color=cmap[6],
 			data=g.gen_session_length(xml),
 		)
+		plotbox(plot, "Session length over time")
 		
 		qapp.processEvents()
-		plot_frame.draw(pg_layout,
+		plot = plot_frame.draw(
 			type_="bar",
 			flags="time_xaxis",
-			title="Number of scores each week",
 			color=cmap[6],
 			width=604800*0.8,
 			data=g.gen_plays_per_week(xml),
 		)
+		plotbox(plot, "Number of scores each week")
 
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
+	plot = plot_frame.draw(
 		type_="bar",
 		flags="time_xaxis",
-		title="Number of play-hours each week",
 		color=cmap[5],
 		width=604800*0.8,
 		data=g.gen_hours_per_week(xml),
 	)
-	
-	pg_layout.nextRow()
+	plotbox(plot, "Number of play-hours each week")
 	
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
-		colspan=2,
+	plot = plot_frame.draw(
 		type_="stacked line",
 		flags="time_xaxis step",
-		title="Skillsets over time",
 		color=["ffffff", *util.skillset_colors], # Include overall
 		legend=["Overall", *util.skillsets], # Include overall
 		data=g.gen_skillset_development(xml),
 	)
-
-	pg_layout.nextRow()
+	plotbox(plot, "Skillsets over time", colspan=2)
 
 	qapp.processEvents()
-	plot_frame.draw(pg_layout,
-		colspan=2,
+	plot = plot_frame.draw(
 		type_="stacked bar",
-		title="Skillsets trained per week",
 		color=util.skillset_colors,
 		legend=util.skillsets,
 		data=g.gen_week_skillsets(xml),
 	)
+	plotbox(plot, "Skillsets trained per week", colspan=2)
