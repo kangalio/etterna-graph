@@ -38,7 +38,6 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	chartkeys: List[str] = []
 	for chart in xml.iter("Chart"):
 		chartkeys.extend(score.get("Key") for score in chart.iter("Score"))
-	chartkeys = chartkeys[:100] # REMEMBER
 	
 	prefix = os.path.join(replays, "a")[:-1]
 	rustr = savegame_analysis.PyReplaysAnalysis(prefix, chartkeys)
