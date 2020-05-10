@@ -156,8 +156,9 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> No
 		plotbox_grid.addWidget(container_widget, cur_row, cur_col, 1, colspan)
 		container = QVBoxLayout(container_widget)
 		container.setSpacing(0)
-		# ~ container.setContentsMargins(0,0,0,0)
 		
+		# we set transparent borders here to prevent cascading the border setting from the container
+		# widget. this css is in the label style sheet too, see below
 		plot.setStyleSheet("border: 0px solid transparent")
 		
 		label = QLabel(title)
@@ -194,11 +195,12 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> No
 	plotbox(plot, "Manipulation over time (log scale)")
 	
 	qapp.processEvents()
+	accuracy_data, brushes = g.gen_accuracy(xml, cmap[1])
 	plot = plot_frame.draw(
 		flags="time_xaxis accuracy_yaxis",
-		color=cmap[1],
+		color=brushes,
 		click_callback=score_info_callback,
-		data=g.gen_accuracy(xml),
+		data=accuracy_data,
 	)
 	plotbox(plot, "Accuracy over time (log scale)")
 	

@@ -46,9 +46,11 @@ def score_to_ma(score):
 	ma = marvelouses / perfects
 	return math.log(ma) / math.log(10) # For log scale support
 
-def map_scores(xml, mapper, *mapper_args, discard_errors=True):
+def map_scores(xml, mapper, *mapper_args, discard_errors=True, brush_color_over_10_notes=None):
 	x, y = [], []
 	ids = []
+	if brush_color_over_10_notes:
+		brushes = []
 	for score in iter_scores(xml):
 		if discard_errors:
 			try: value = (mapper)(score, *mapper_args)
@@ -60,11 +62,23 @@ def map_scores(xml, mapper, *mapper_args, discard_errors=True):
 		x.append(parsedate(score.findtext("DateTime")))
 		y.append(value)
 		ids.append(score)
+		if brush_color_over_10_notes:
+			tap_note_scores = score.find("TapNoteScores")
+			if tap_note_scores:
+				judgements = ["Miss", "W1", "W2", "W3", "W4", "W5"]
+				total_notes = sum(int(tap_note_scores.findtext(x)) for x in judgements)
+			else:
+				total_notes = 500 # just assume 100 as a default yolo
+			
+			brushes.append(brush_color_over_10_notes if total_notes > 10 else "#AAAAAA")
 	
-	return ((x, y), ids)
+	if brush_color_over_10_notes:
+		return (((x, y), ids), brushes)
+	else:
+		return ((x, y), ids)
 
 def gen_wifescore(xml): return map_scores(xml, score_to_wifescore)
-def gen_accuracy(xml): return map_scores(xml, score_to_accuracy)
+def gen_accuracy(xml, color): return map_scores(xml, score_to_accuracy, brush_color_over_10_notes=color)
 def gen_ma(xml): return map_scores(xml, score_to_ma)
 
 # Returns list of sessions where a session is [(Score, datetime)]

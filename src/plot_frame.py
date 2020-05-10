@@ -97,7 +97,7 @@ def draw(data,
 				util.logger.exception("Click handler")
 				app.app.set_infobar("[Error while generating info text]")
 	
-	plot.clear()
+	# ~ plot.clear()
 	
 	if isinstance(data, str):
 		item = pg.TextItem(data, anchor=(0.5, 0.5))
@@ -146,8 +146,13 @@ def draw(data,
 				plot.legend.addItem(item, legend[row_i])
 			plot.addItem(item)
 	else:
-		color = pg.mkColor(color)
-		color.setAlphaF(alpha)
+		if isinstance(color, list):
+			for i in range(len(color)):
+				color[i] = pg.mkColor(color[i])
+				color[i].setAlphaF(alpha)
+		else:
+			color = pg.mkColor(color)
+			color.setAlphaF(alpha)
 		if type_ == "scatter":
 			item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
 		elif type_ == "bar":
@@ -164,14 +169,13 @@ def draw(data,
 	
 	# Add horizontal score threshold lines
 	if "accuracy_yaxis" in flags:
-		print("adding lines")
 		plot.addLine(y=-(math.log(100 - 60.00) / math.log(10)), pen="#c97bff")
 		plot.addLine(y=-(math.log(100 - 70.00) / math.log(10)), pen="#5b78bb")
 		plot.addLine(y=-(math.log(100 - 80.00) / math.log(10)), pen="#da5757")
 		plot.addLine(y=-(math.log(100 - 93.00) / math.log(10)), pen="#66cc66")
 		plot.addLine(y=-(math.log(100 - 99.75) / math.log(10)), pen="#eebb00")
 		plot.addLine(y=-(math.log(100 - 99.97) / math.log(10)), pen="#66ccff")
-		print("done adding lines")
+		plot.addLine(y=-(math.log(100 - 99.999) / math.log(10)), pen="#ffffff")
 	
 	plot.autoBtnClicked()
 	plot.showGrid(x=True, y=True, alpha=0.15)
