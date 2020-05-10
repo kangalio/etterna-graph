@@ -1,24 +1,38 @@
-# etterna-graph
-This is a Python program that visualizes various Etterna playing statistics. Written with PyQt5 and PyQtGraph.
+# EtternaGraph
+Various graphs and plots to visualize your Etterna savegame.
 
 ## Usage
 Download the [portable exe file](https://github.com/kangalioo/etterna-graph/releases/latest/download/EtternaGraph.exe) and execute it.
 
 *I sometimes upload beta releases, check out the [releases page](https://github.com/kangalioo/etterna-graph/releases) for that*
 
-You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen. (The infobar is not visible in the screenshots currently)
+**Navigate by panning and zooming with your mouse. Drag with the right mouse button for finer zoom control. You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen.**
 
 ## Running from source
 Alternatively you can run the program from source directly:
 1. Get a copy of this repository (`git clone` or "Download ZIP")
 2. Install the latest version of Python 3
 3. Install the required Python libraries via `pip install -r requirements.txt`
-4. Install Rust Nightly
-4. Compile the crate in `replays_analysis/`, and move the resulting library file into `src/`, (also rename it from `liblib_replays_analysis` to `lib_replays_analysis`)
-4. Now execute the main.py file and the statistics _should_ pop up
+3. Optional steps to fix legend symbols not appearing in "Skillsets trained per week" graph (bug in graphing library):
+     - Locate Python package install directory with `pip show pyqtgraph`
+     - Open `pyqtgraph/graphicsItems/LegendItem.py`
+     - Towards the bottom of the file, replace the line `if opts['antialias']:` with `if opts.get('antialias', False):`
+4. In case `src/savegame_analysis.pyd` (Windows) or `src/savegame_analysis.so` don't exist yet:
+     - Install Rust nightly
+     - Compile the crate in `savegame_analysis/` with `cargo build --release`
+     - Move the resulting library file from `savegame_analysis/target/release/` into `src/`
+          - Windows: move and rename from `savegame_analysis/target/release/savegame_analysis.dll` to **`src/savegame_analysis.pyd`**
+          - Linux: move and rename from `savegame_analysis/target/release/libsavegame_analysis.so` to **`src/savegame_analysis.so`**
+4. Now execute the main.py file from inside the root directory `python src/main.py`
+If anything in this complicated procedure didn't work, please write an issue, or just write me on Discord/Reddit/whatever
 
 # Screenshot
-![](https://imgur.com/h5GZRha.jpg)
+![](https://i.imgur.com/VpWEVAE.png)
+![](https://i.imgur.com/knq8p0J.png)
+![](https://i.imgur.com/za9U0jP.png)
+![](https://i.imgur.com/9K1Aw7G.png)
+![](https://i.imgur.com/BOG4Akj.png)
+![](https://i.imgur.com/z6fzF9J.png)
 
 # Code structure
 
