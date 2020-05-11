@@ -40,9 +40,8 @@ def show_score_info(xml, score) -> None:
 	
 	text = f"{datetime}    {100*wifescore:.2f}%    "
 	if len(score.findall("SkillsetSSRs")) == 1:
-		msd = round(g.score_to_msd(score), 2)
 		score_value = float(score.findtext(".//Overall"))
-		text += f"Approx. MSD: {msd}    Score: {score_value}    "
+		text += f"Score rating: {score_value}    "
 	else:
 		util.logger.warning("Selected scatter point doesn't have SkillsetSSRs data")
 	text += f'"{pack}" -> "{song}"'

@@ -20,14 +20,6 @@ def gen_manip(xml, analysis):
 	ids = analysis.scores
 	return ((x, y), ids)
 
-# This is only an approximation of the actual game mechanics
-# THIS SHOULD URGENTLY BE REMOVED; ITS PLAIN WRONG!!
-def score_to_msd(score):
-	overall = float(score.findtext(".//Overall"))
-	percentage = float(score.findtext("SSRNormPercent"))
-	percentage = min(0.965, percentage) # Cap to 96.5%, like in the real game
-	return overall * (0.93 / percentage)
-
 def score_to_wifescore(score):
 	overall = float(score.findtext(".//Overall"))
 	return overall
