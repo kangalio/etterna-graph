@@ -51,10 +51,17 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		util.logger.warning("No valid replays found at all in the directory")
 		return None
 	
+	# this is NOT part of replays analysis. this is xml analysis. this is in here anyway because
+	# it's easier. this should really be moved into a separate xml analysis module (in case I'll
+	# ever get around implementing that...?)
+	r.total_notes = 0
+	for tap_note_scores in xml.iter("TapNoteScores"):
+		judgements = ["Miss", "W1", "W2", "W3", "W4", "W5"]
+		r.total_notes += sum(int(tap_note_scores.findtext(x)) for x in judgements)
+	
 	r.offset_mean = rustr.deviation_mean
 	r.notes_per_column = rustr.notes_per_column
 	r.cbs_per_column = rustr.cbs_per_column
-	r.total_notes = sum(r.notes_per_column) # TODO: ehhh do with xml
 	r.longest_mcombo = rustr.longest_mcombo
 	r.num_near_hits = sum(r.notes_per_column) / sum(r.cbs_per_column)
 	
