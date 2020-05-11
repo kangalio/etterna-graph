@@ -87,15 +87,7 @@ def divide_into_sessions(xml):
 	if cache("sessions_division_cache"):
 		return cache("sessions_division_cache")
 	
-	def session_end_threshold(current_length):
-		LOWER = 15
-		UPPER = 60
-		LENGTH_HALFWAY = 50
-		
-		minutes = current_length.total_seconds() / 60
-		threshold = LOWER + (UPPER - LOWER) * (0.5 ** (minutes / LENGTH_HALFWAY))
-		
-		return timedelta(minutes=threshold)
+	session_end_threshold = timedelta(hours=2)
 	
 	scores = list(iter_scores(xml))
 	datetimes = [parsedate(s.find("DateTime").text) for s in scores]
@@ -108,7 +100,7 @@ def divide_into_sessions(xml):
 	for i in range(1, len(zipped)):
 		datetime = zipped[i][1]
 		idle_time = zipped[i][1] - zipped[i - 1][1]
-		if idle_time > session_end_threshold(datetime - s_start):
+		if idle_time > session_end_threshold:
 			sessions.append(current_session)
 			current_session = []
 			s_start = zipped[i][1]
