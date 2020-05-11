@@ -37,7 +37,13 @@ def wifescore_to_grade_string(wifescore: float) -> str:
 	logger.exception("this shouldn't happen")
 
 # Parses date in Etterna.xml format
-def parsedate(s): return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+def parsedate(s):
+	try:
+		return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+	except ValueError:
+		# in this case this datetime is on midnight, in which case Etterna omits the time part
+		# of the datetime. Weird behavior, but true. Found by snover
+		return datetime.strptime(s, "%Y-%m-%d")
 
 # Used for `is_relevant(score)`
 SCORE_DATE_THRESHOLD = datetime.now() - timedelta(days=183)
