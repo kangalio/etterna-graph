@@ -192,11 +192,10 @@ class UI:
 		# simultaneous scrolling and panning when hovering a plot while scrolling
 		class ScrollArea(QScrollArea):
 			def eventFilter(self, obj, event) -> bool:
-				if event.type() == QEvent.Wheel and self.ui_object.plot_container.underMouse():
+				if event.type() == QEvent.Wheel and any(w.underMouse() for w in app.app.get_pg_plots()):
 					return True
 				return False
 		scroll = ScrollArea(window)
-		scroll.ui_object = self
 		scroll.setWidget(root)
 		scroll.setWidgetResizable(True)
 		window.setCentralWidget(scroll)
@@ -237,6 +236,7 @@ class UI:
 # Handles general application state
 class Application:
 	def run(self):
+		self._pg_plots = None
 		self._prefs = Settings.load_from_json(SETTINGS_PATH)
 		self._ui = UI()
 		self._infobar_link_connection = None
@@ -251,9 +251,12 @@ class Application:
 		self._prefs.save_to_json(SETTINGS_PATH)
 		
 		box_container, plot_container = self._ui.get_box_container_and_plot_container()
-		plotter.draw(self._ui.get_qapp(), box_container, plot_container, self._prefs)
+		self._pg_plots = plotter.draw(self._ui.get_qapp(), box_container, plot_container, self._prefs)
 		
 		self._ui.run()
+	
+	def get_pg_plots(self) -> Optional[List[QWidget]]:
+		return self._pg_plots
 	
 	def set_infobar(self, text: str, link_callback=None) -> None:
 		if self._infobar_link_connection:

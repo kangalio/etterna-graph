@@ -104,7 +104,8 @@ def show_session_info(data) -> None:
 cmap = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
 		'#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
-def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> None:
+# returns a list of all the pyqtgraph widgets on which scrolling should be ignored
+def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> List[QWidget]:
 	try: # First try UTF-8
 		xmltree = ET.parse(prefs.xml_path, ET.XMLParser(encoding='UTF-8'))
 	except: # If that doesn't work, fall back to system encoding
@@ -144,12 +145,17 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> No
 	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info, xml, analysis)
 	textbox(1, 5, 1, 3, g.gen_text_general_info, xml, analysis)
 	
+	all_plots = [] # this will be filled in plotbox() and returned at the end
+	
 	plotbox_grid = QGridLayout(plot_container)
 	plotbox_grid.setVerticalSpacing(10)
+	plotbox_grid.setHorizontalSpacing(10)
 	cur_row = 0
 	cur_col = 0
 	def plotbox(plot, title: str, colspan: int=1):
 		nonlocal cur_row, cur_col
+		
+		all_plots.append(plot)
 		
 		container_widget = QWidget()
 		container_widget.setStyleSheet(f"border: 1px solid {util.border_color}")
@@ -312,3 +318,5 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> No
 		data=g.gen_week_skillsets(xml),
 	)
 	plotbox(plot, "Skillsets trained per week", colspan=2)
+	
+	return all_plots
