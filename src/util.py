@@ -47,13 +47,11 @@ def parsedate(s):
 		# of the datetime. Weird behavior, but true. Found by snover
 		return datetime.strptime(s, "%Y-%m-%d")
 
-# Used for `is_relevant(score)`
-SCORE_DATE_THRESHOLD = datetime.now() - timedelta(days=183)
-# Returns True or False depending on whether the score is relevant
-# If it't not relevant, it won't be included in some statistics
-def is_relevant(score):
-	return parsedate(score.findtext("DateTime")) > SCORE_DATE_THRESHOLD
-def get_relevance_string(): return "last 6 months"
+def score_within_n_months(score, months: Optional[int]) -> bool:
+	if months is None: return True
+	
+	time_delta = datetime.now() - parsedate(score.findtext("DateTime"))
+	return time_delta <= timedelta(365 / 12 * months)
 
 def is_score_valid(score):
 	skillset_ssrs = score.find("SkillsetSSRs")

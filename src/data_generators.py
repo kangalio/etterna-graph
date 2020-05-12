@@ -362,12 +362,14 @@ def find_longest_combo(xml):
 	return max_combo_chart, max_combo
 
 # Returns dict with pack names as keys and the respective "pack liking"
-# as value. The liking value is currently simply the amount of recent
-# plays in the pack. Recent = in the last `timespan_months` months
-def generate_pack_likings(xml):
+# as value. The liking value is currently simply the amount of plays in the pack
+def generate_pack_likings(xml, months):
 	likings = {}
 	for chart in xml.iter("Chart"):
-		num_relevant_plays = sum(map(util.is_relevant, iter_scores(chart)))
+		num_relevant_plays = 0
+		for score in iter_scores(chart):
+			if util.score_within_n_months(score, months):
+				num_relevant_plays += 1
 		pack = chart.get("Pack")
 		
 		if pack not in likings: likings[pack] = 0
@@ -375,10 +377,12 @@ def generate_pack_likings(xml):
 	
 	return likings
 
-def calculate_total_wifescore(xml):
+def calculate_total_wifescore(xml, months=6):
 	weighted_sum = 0
 	num_notes_sum = 0
-	for score in filter(util.is_relevant, iter_scores(xml)):
+	for score in iter_scores(xml):
+		if not util.score_within_n_months(score, months): continue
+		
 		num_notes = sum([int(e.text) for e in score.find("TapNoteScores")])
 		num_notes_sum += num_notes
 		
@@ -548,7 +552,7 @@ def gen_text_general_analysis_info(xml, a):
 	sessions = divide_into_sessions(xml)
 	num_sessions = len([s for s in sessions if s[0][1] > session_date_threshold])
 	
-	total_wifescore = calculate_total_wifescore(xml)
+	total_wifescore = calculate_total_wifescore(xml, months=6)
 	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
 	
 	return "<br>".join([
@@ -558,15 +562,17 @@ def gen_text_general_analysis_info(xml, a):
 		f"Mean hit offset: {mean_string}",
 		f"Average hours per day (last 6 months): {average_hours_str}",
 		f"Number of sessions, last 7 days: {num_sessions}",
-		f"Wifescore of all notes last 6 months (in total) is {total_wifescore_str}",
+		f"Average wifescore last 6 months is {total_wifescore_str}",
 	])
 
-def gen_text_most_played_packs(xml, limit=15):
-	likings = generate_pack_likings(xml)
+def gen_text_most_played_packs(xml, limit=15, months: Optional[int]=None):
+	likings = generate_pack_likings(xml, months)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)
 	best_packs = sorted_packs[:limit]
-	text = ["Most played packs (last 6 months):"]
+	text = [f'Most played packs (<a href="toggle" style="color: {util.link_color}">'
+			+ (f"last {months} months" if months else "all time")
+			+ "</a>):"]
 	for i, pack in enumerate(best_packs):
 		if pack == "":
 			pack_str = "<no name>"

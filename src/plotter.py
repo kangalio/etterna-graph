@@ -122,8 +122,10 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	analysis = replays_analysis.analyze(xml, prefs.replays_dir)
 	
 	textbox_grid = QGridLayout(textbox_container)
-	def textbox(row: int, col: int, rowspan: int, colspan: int, fn, *args, read_more_title=None):
-		text = (fn)(*args)
+	def textbox(row: int, col: int, rowspan: int, colspan: int, fn, *args,
+			read_more_title=None, link_handler=lambda link: None, **kwargs):
+		
+		text = (fn)(*args, **kwargs)
 		label = QLabel(text)
 		label.setWordWrap(True)
 		label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
@@ -132,12 +134,28 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 			padding: 5px;
 			font-size: 13px;
 		""")
+		
+		existing_item = textbox_grid.itemAtPosition(row, col)
+		if existing_item:
+			textbox_grid.removeItem(existing_item)
 		textbox_grid.addWidget(label, row, col, rowspan, colspan)
 		
+		def link_callback(link):
+			if link == "#read_more" and read_more_title:
+				show_scrollable_msgbox((fn)(*args, **kwargs, limit=None), read_more_title)
+			else:
+				(link_handler)(link)
+		
 		label.setOpenExternalLinks(False)
-		label.linkActivated.connect(lambda _: show_scrollable_msgbox((fn)(*args, limit=None), read_more_title))
+		label.linkActivated.connect(link_callback)
 	
-	textbox(0, 0, 2, 2, g.gen_text_most_played_packs, xml, read_more_title="Most played packs")
+	# spaghetti
+	def most_played_packs_textbox(all_time=False):
+		read_more_title = "Most played packs (" + ("all time)" if all_time else "last 6 months)")
+		textbox(0, 0, 2, 2, g.gen_text_most_played_packs, xml, months=None if all_time else 6,
+				read_more_title=read_more_title,
+				link_handler=lambda link: most_played_packs_textbox(all_time=not all_time))
+	most_played_packs_textbox(all_time=False)
 	textbox(0, 2, 1, 2, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
 	textbox(0, 4, 1, 2, g.gen_text_skillset_hours, xml)
 	textbox(0, 6, 1, 2, g.gen_text_most_played_charts, xml, read_more_title="Most played charts")
