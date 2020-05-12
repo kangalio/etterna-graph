@@ -205,9 +205,9 @@ class UI:
 		pg.setConfigOption("background", util.bg_color)
 		pg.setConfigOption("foreground", util.text_color)
 		
-		help_menu = window.menuBar().addMenu("Help")
-		help_menu.addAction("Settings").triggered.connect(lambda: SettingsDialog().exec_())
-		help_menu.addAction("About").triggered.connect(lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
+		main_menu = window.menuBar().addMenu("File")
+		main_menu.addAction("Settings").triggered.connect(lambda: SettingsDialog().exec_())
+		main_menu.addAction("About").triggered.connect(lambda: QMessageBox.about(None, "About", ABOUT_TEXT))
 
 		# Put the widgets in
 		self.setup_widgets(layout, window)
