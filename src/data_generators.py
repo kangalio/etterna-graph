@@ -570,12 +570,16 @@ def gen_text_most_played_packs(xml, limit=15, months: Optional[int]=None):
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)
 	best_packs = sorted_packs[:limit]
-	text = [f'Most played packs (<a href="toggle" style="color: {util.link_color}">'
-			+ (f"last {months} months" if months else "all time")
-			+ "</a>):"]
+	
+	first_line = "Most played packs (" + (f"last {months} months" if months else "all time")
+	if limit:
+		first_line += ' - <a href="toggle" style="color: {util.link_color}">toggle</a>'
+	first_line += ")"
+	
+	text = [first_line]
 	for i, pack in enumerate(best_packs):
 		if pack == "":
-			pack_str = "<no name>"
+			pack_str = '<span style="color: #777777">[no name]</span>'
 		else:
 			pack_str = pack
 		text.append(f"{i+1}) {pack_str} with {likings[pack]} plays")
