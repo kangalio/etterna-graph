@@ -68,27 +68,42 @@ def try_choose_replays() -> Optional[str]:
 			caption="Select the ReplaysV2 directory")
 	return result[0] if result else None
 
+# When adding a new setting, keep care to update all placed marked with "# setting here"
 @dataclass
 class Settings:
+	# setting here
 	xml_path: str
 	replays_dir: str
 	enable_all_plots: bool
+	hide_invalidated: bool
 	
 	@staticmethod
 	def load_from_json(path: str) -> Settings:
+		# setting here
+		settings = Settings(None, None, False, True) # default values
+		
 		if os.path.exists(path):
 			with open(path) as f:
-				j = json.load(f)
-			
-			return Settings(j["etterna-xml"], j["replays-dir"], j["enable-all-plots"])
-		else:
-			return Settings(None, None, False)
+				for key, value in json.load(f).items(): # setting here
+					if key == "etterna-xml":
+						settings.xml_path = value
+					elif key == "replays-dir":
+						settings.replays_dir = value
+					elif key == "enable-all-plots":
+						settings.enable_all_plots = value
+					elif key == "hide-invalidated":
+						settings.hide_invalidated = value
+					else:
+						print(f"unknown settings key-value pair: {key}, {value}")
+		return settings
 	
 	def save_to_json(self, path: str) -> None:
 		json_data = {
+			# setting here
 			"etterna-xml": self.xml_path,
 			"replays-dir": self.replays_dir,
 			"enable-all-plots": self.enable_all_plots,
+			"hide-invalidated": self.hide_invalidated
 		}
 		with open(path, "w") as f:
 			json.dump(json_data, f)
@@ -114,6 +129,8 @@ class SettingsDialog(QDialog):
 		restart_info = QLabel("<i>Restart for changes to take place</i>")
 		restart_info.setAlignment(Qt.AlignCenter | Qt.AlignRight)
 		vbox.addWidget(restart_info)
+		
+		# setting here
 		
 		self.xml_input = QLineEdit(app.app.prefs.xml_path)
 		def xml_chooser_handler():
@@ -142,6 +159,11 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("Enable experimental plots\n(not recommended)"), 2, 0)
 		layout.addWidget(self.enable_all, 2, 1, 1, 2)
 		
+		self.hide_invalidated = QCheckBox()
+		self.hide_invalidated.setChecked(app.app.prefs.hide_invalidated)
+		layout.addWidget(QLabel("Hide invalidated scores"), 3, 0)
+		layout.addWidget(self.hide_invalidated, 3, 1, 1, 2)
+		
 		self.setMinimumWidth(600)
 	
 	def try_save(self):
@@ -155,9 +177,11 @@ class SettingsDialog(QDialog):
 					"Please fill in valid values for: " + ", ".join(missing_inputs))
 			return
 		
+		# setting here
 		app.app.prefs.xml_path = self.xml_input.text()
 		app.app.prefs.replays_dir = self.replays_input.text()
 		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
+		app.app.prefs.hide_invalidated = self.hide_invalidated.isChecked()
 		print("Saving prefs to json...")
 		app.app.prefs.save_to_json(SETTINGS_PATH)
 		

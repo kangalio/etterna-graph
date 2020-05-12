@@ -6,6 +6,8 @@ from urllib.request import urlopen
 
 import numpy as np
 
+import app
+
 
 skillsets = ["Stream", "Jumpstream", "Handstream", "Stamina",
 		"Jacks", "Chordjacks", "Technical"]
@@ -60,7 +62,7 @@ def is_score_valid(score):
 		if overall_ssr > 40:
 			return False
 	
-	if score.findtext("EtternaValid") == "0": return False
+	if score.findtext("EtternaValid") == "0" and app.app.prefs.hide_invalidated: return False
 	
 	return True
 
