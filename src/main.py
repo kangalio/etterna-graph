@@ -156,7 +156,7 @@ class SettingsDialog(QDialog):
 		
 		self.enable_all = QCheckBox()
 		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
-		layout.addWidget(QLabel("Enable experimental plots\n(not recommended)"), 2, 0)
+		layout.addWidget(QLabel("Enable old boring plots"), 2, 0)
 		layout.addWidget(self.enable_all, 2, 1, 1, 2)
 		
 		self.hide_invalidated = QCheckBox()
