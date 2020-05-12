@@ -403,6 +403,7 @@ def gen_cmod_over_time(xml):
 		modifiers = score.findtext("Modifiers").split(", ")
 		cmod = None
 		receptor_size = None
+		perspective_mod_multiplier = 1
 		for modifier in modifiers:
 			if cmod is None and modifier.startswith("C"):
 				try:
@@ -417,11 +418,21 @@ def gen_cmod_over_time(xml):
 					if not mini_percentage_string.endswith("% "): continue # false positive
 					mini = float(mini_percentage_string[:-2]) / 100
 					receptor_size = 1 - mini / 2
+			elif modifier == "Incoming":
+				# This and the following three values were gathered through a quick-and-dirty
+				# screen recording based test
+				perspective_mod_multiplier = 1 / 1.2931
+			elif modifier == "Space":
+				perspective_mod_multiplier = 1 / 1.2414
+			elif modifier == "Hallway":
+				perspective_mod_multiplier = 1 / 1.2931
+			elif modifier == "Distant":
+				perspective_mod_multiplier = 1 / 1.2759
 		if receptor_size is None: receptor_size = 1
 		
 		if cmod is None: continue # player's using xmod or something
 		
-		effective_cmod = cmod * receptor_size
+		effective_cmod = cmod * receptor_size * perspective_mod_multiplier
 		
 		dt = parsedate(score.findtext("DateTime"))
 		datetime_cmod_map[dt] = effective_cmod
