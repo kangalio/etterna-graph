@@ -301,6 +301,45 @@ def gen_plays_per_week(xml):
 
 # OPTIONAL PLOTS END
 
+def gen_scores_per_hour(xml):
+	hours_of_day = []
+	overalls = []
+	ids = []
+	for score in xml.iter("Score"):
+		skillset_ssrs = score.find("SkillsetSSRs")
+		if not skillset_ssrs: continue
+		overalls.append(float(skillset_ssrs.findtext("Overall")))
+		
+		dt = parsedate(score.findtext("DateTime"))
+		midnight = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+		hour_of_day = (dt - midnight).total_seconds() / 3600
+		hours_of_day.append(hour_of_day)
+		
+		ids.append(score)
+	
+	return (hours_of_day, overalls), ids
+
+def gen_avg_score_per_hour(xml):
+	nums_scores = [0] * 24
+	score_sums = [0] * 24
+	for score in xml.iter("Score"):
+		skillset_ssrs = score.find("SkillsetSSRs")
+		if not skillset_ssrs: continue
+		
+		hour = parsedate(score.findtext("DateTime")).hour
+		nums_scores[hour] += 1
+		
+		score_sums[hour] += float(skillset_ssrs.findtext("Overall"))
+	
+	x, y = [], []
+	for i, (num_scores, score_sum) in enumerate(zip(nums_scores, score_sums)):
+		x.append(i)
+		try:
+			y.append(score_sum / num_scores)
+		except ZeroDivisionError:
+			y.append(0)
+	return x, y
+
 def calc_ratings_for_sessions(xml):
 	if cache("calc_ratings_for_sessions"):
 		return cache("calc_ratings_for_sessions")
@@ -429,6 +468,8 @@ def gen_cmod_over_time(xml):
 			elif modifier == "Distant":
 				perspective_mod_multiplier = 1 / 1.2759
 		if receptor_size is None: receptor_size = 1
+		
+		# TODO: decide if MMod should be counted as CMod in this function
 		
 		if cmod is None: continue # player's using xmod or something
 		

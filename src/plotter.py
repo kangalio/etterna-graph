@@ -238,6 +238,14 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	
 	qapp.processEvents()
 	plot = plot_frame.draw(
+		type_="bar",
+		color=cmap[4],
+		data=g.gen_plays_by_hour(xml),
+	)
+	plotbox(plot, "Number of plays per hour of day")
+	
+	qapp.processEvents()
+	plot = plot_frame.draw(
 		type_="bubble",
 		flags="time_xaxis",
 		color=cmap[2],
@@ -248,20 +256,22 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	
 	qapp.processEvents()
 	plot = plot_frame.draw(
-		type_="bar",
-		color=cmap[4],
-		data=g.gen_plays_by_hour(xml),
-	)
-	plotbox(plot, "Number of plays per hour of day")
-	
-	qapp.processEvents()
-	plot = plot_frame.draw(
 		type_="line",
 		flags="time_xaxis step thick_line",
 		color=cmap[1],
 		data=g.gen_cmod_over_time(xml),
 	)
 	plotbox(plot, "Effective CMod over time")
+	
+	qapp.processEvents()
+	plot = plot_frame.draw(
+		type_="bar",
+		flags="time_xaxis",
+		color=cmap[5],
+		width=604800*0.8,
+		data=g.gen_hours_per_week(xml),
+	)
+	plotbox(plot, "Number of play-hours each week")
 	
 	if prefs.enable_all_plots:
 		# ~ qapp.processEvents()
@@ -280,6 +290,26 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 			data=g.gen_idle_time_buckets(xml),
 		)
 		plotbox(plot, "Idle time between plays (a bit broken)")
+		
+		# The following two were implemented based on an idea of snover. Unfortunately they didn't
+		# provide much insight, so yeah, now they're here.
+		
+		qapp.processEvents()
+		plot = plot_frame.draw(
+			type_="bar",
+			color=cmap[6],
+			data=g.gen_avg_score_per_hour(xml),
+		)
+		plotbox(plot, "Average score rating per hour of day")
+		
+		qapp.processEvents()
+		plot = plot_frame.draw(
+			type_="scatter",
+			color=cmap[6],
+			click_callback=score_info_callback,
+			data=g.gen_scores_per_hour(xml),
+		)
+		plotbox(plot, "Score ratings per hour of day")
 		
 		qapp.processEvents()
 		plot = plot_frame.draw(
@@ -306,16 +336,6 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 			data=g.gen_plays_per_week(xml),
 		)
 		plotbox(plot, "Number of scores each week")
-
-	qapp.processEvents()
-	plot = plot_frame.draw(
-		type_="bar",
-		flags="time_xaxis",
-		color=cmap[5],
-		width=604800*0.8,
-		data=g.gen_hours_per_week(xml),
-	)
-	plotbox(plot, "Number of play-hours each week")
 	
 	qapp.processEvents()
 	plot = plot_frame.draw(
