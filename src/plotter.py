@@ -156,8 +156,8 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 				read_more_title=read_more_title,
 				link_handler=lambda link: most_played_packs_textbox(all_time=not all_time))
 	most_played_packs_textbox(all_time=False)
-	textbox(0, 2, 1, 2, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
-	textbox(0, 4, 1, 2, g.gen_text_skillset_hours, xml)
+	textbox(0, 2, 1, 1, g.gen_text_skillset_hours, xml)
+	textbox(0, 3, 1, 3, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
 	textbox(0, 6, 1, 2, g.gen_text_most_played_charts, xml, read_more_title="Most played charts")
 	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info, xml, analysis)
 	textbox(1, 5, 1, 3, g.gen_text_general_info, xml, analysis)

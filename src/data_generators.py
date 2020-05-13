@@ -79,12 +79,15 @@ def divide_into_sessions(xml):
 	if cache("sessions_division_cache"):
 		return cache("sessions_division_cache")
 	
-	session_end_threshold = timedelta(hours=2)
+	session_end_threshold = timedelta(hours=1)
 	
 	scores = list(iter_scores(xml))
 	datetimes = [parsedate(s.find("DateTime").text) for s in scores]
 	zipped = zip(scores, datetimes)
 	zipped = sorted(zipped, key=lambda pair: pair[1])
+	
+	# zipped is a list of sessions, where every session is a tuple of `List[score objects]`
+	#  and `List[datetimes]`
 	
 	s_start = zipped[0][1]
 	current_session = [zipped[0]]
@@ -507,16 +510,23 @@ def gen_text_most_played_charts(xml, limit=5):
 
 def gen_text_longest_sessions(xml, limit=5):
 	sessions = divide_into_sessions(xml)
-	sessions = [(s, (s[-1][1] - s[0][1]).total_seconds() / 60) for s in sessions]
+	new_sessions = [] # like `sessions`, but with total gameplay seconds annotated
+	for session in sessions:
+		total_gameplay_seconds = sum(float(score[0].findtext("SurviveSeconds")) for score in session)
+		new_sessions.append((session, total_gameplay_seconds))
+	sessions = new_sessions
 	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
 	sessions = sessions[:limit]
 	
 	text = ["Longest sessions:"]
 	i = 1
-	for (session, length) in sessions:
+	for (session, gameplay_seconds) in sessions:
+		total_seconds = (session[-1][1] - session[0][1]).total_seconds()
+		
 		num_plays = len(session)
 		datetime = str(session[0][1])[:-3] # Cut off seconds
-		text.append(f"{i}) {datetime}, {round(length)} minutes, {num_plays} scores")
+		text.append(f"{i}) {datetime}, {gameplay_seconds/60:.0f} min gameplay, "
+					f"{total_seconds/60:.0f} min total, {num_plays} scores")
 		i += 1
 	
 	if limit is not None:
