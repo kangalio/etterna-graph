@@ -19,9 +19,7 @@ import app
 This file mainly handles the UI and overall program state
 """
 
-VERSION_NUMBER = "v0.4"
-
-ABOUT_TEXT = """
+ABOUT_TEXT = """<p>
 This was coded using PyQt5 and PyQtGraph in Python, by kangalioo.
 
 The manipulation percentage is calculated by counting the number of
@@ -29,26 +27,19 @@ notes that were hit out of order. This is not optimal, but I think it
 works well enough.
 
 For session time calculation a session is defined to end when one play
-is more than 20 minutes apart from the next play. Therefore a 15min
-pause between playing would still count as one session, a 25 min pause
-however would not.
+is more than 1 hours apart from the next play.
 
 Also, if you have any more plot ideas - scatter plot, bar chart,
 whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit (kangalioo#9108 and u/kangalioo respectively)
-""".strip() # strip() to remove leading and trailing newlines
+</p>""".strip()
 
-REPLAYS_CHOOSER_INFO_MSG = """
+REPLAYS_CHOOSER_INFO_MSG = """<p>
 In the following dialog you need to select the ReplaysV2 directory in
 your 'Save' directory and click OK. Important: don't try to select
-individual files within and don't choose another directory. This
+individual files within and don't choose a different directory. This
 program requires you to select the ReplaysV2 folder as a whole.
-""".strip()
-
-NEW_VERSION_MSG = f"""
-Version {{0}} is available on the GitHub releases page.
-This is version {VERSION_NUMBER}
-""".strip()
+</p>"""
 
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
@@ -64,6 +55,7 @@ def try_select_xml() -> Optional[str]:
 	return result[0] if result else None
 
 def try_choose_replays() -> Optional[str]:
+	QMessageBox.information(REPLAYS_CHOOSER_INFO_MSG)
 	return QFileDialog.getExistingDirectory(
 			caption="Select the ReplaysV2 directory")
 
