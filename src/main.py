@@ -64,9 +64,8 @@ def try_select_xml() -> Optional[str]:
 	return result[0] if result else None
 
 def try_choose_replays() -> Optional[str]:
-	result = QFileDialog.getExistingDirectory(
+	return QFileDialog.getExistingDirectory(
 			caption="Select the ReplaysV2 directory")
-	return result[0] if result else None
 
 # When adding a new setting, keep care to update all placed marked with "# setting here"
 @dataclass
