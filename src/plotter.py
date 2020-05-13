@@ -14,6 +14,7 @@ import replays_analysis, util, plot_frame, app
 def show_scrollable_msgbox(text, title=None, word_wrap=False):
 	label = QLabel(text)
 	label.setWordWrap(word_wrap)
+	label.setTextInteractionFlags(label.textInteractionFlags() | Qt.TextSelectableByMouse);
 	
 	scroll = QScrollArea()
 	scroll.setMinimumWidth(label.sizeHint().width() + 45)
@@ -129,6 +130,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		label = QLabel(text)
 		label.setWordWrap(True)
 		label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+		label.setTextInteractionFlags(label.textInteractionFlags() | Qt.TextSelectableByMouse);
 		label.setStyleSheet(f"""
 			border: 1px solid {util.border_color};
 			padding: 5px;
