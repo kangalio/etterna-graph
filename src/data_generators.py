@@ -97,6 +97,7 @@ def divide_into_sessions(xml):
 			current_session = []
 			s_start = zipped[i][1]
 		current_session.append(zipped[i])
+	sessions.append(current_session)
 	
 	return cache("sessions_division_cache", sessions)
 
