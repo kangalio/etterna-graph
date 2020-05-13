@@ -441,6 +441,14 @@ def gen_skillset_development(xml):
 	return (datetimes, all_ratings)
 
 def gen_cmod_over_time(xml):
+	# These values were gathered through a quick-and-dirty screen recording based test
+	perspective_mod_multipliers = {
+		"Incoming": 1 / 1.2931,
+		"Space": 1 / 1.2414,
+		"Hallway": 1 / 1.2931,
+		"Distant": 1 / 1.2759,
+	}
+	
 	datetime_cmod_map = {}
 	for score in xml.iter("Score"):
 		modifiers = score.findtext("Modifiers").split(", ")
@@ -448,10 +456,11 @@ def gen_cmod_over_time(xml):
 		receptor_size = None
 		perspective_mod_multiplier = 1
 		for modifier in modifiers:
-			if cmod is None and modifier.startswith("C"):
+			if cmod is None and modifier.startswith("C") and modifier[1:].isdecimal():
 				try:
 					cmod = float(modifier[1:])
 				except ValueError:
+					print("huh a weird cmod:", modifier)
 					continue
 			elif receptor_size is None and modifier.endswith("Mini"):
 				mini_percentage_string = modifier[:-4]
@@ -461,16 +470,19 @@ def gen_cmod_over_time(xml):
 					if not mini_percentage_string.endswith("% "): continue # false positive
 					mini = float(mini_percentage_string[:-2]) / 100
 					receptor_size = 1 - mini / 2
-			elif modifier == "Incoming":
-				# This and the following three values were gathered through a quick-and-dirty
-				# screen recording based test
-				perspective_mod_multiplier = 1 / 1.2931
-			elif modifier == "Space":
-				perspective_mod_multiplier = 1 / 1.2414
-			elif modifier == "Hallway":
-				perspective_mod_multiplier = 1 / 1.2931
-			elif modifier == "Distant":
-				perspective_mod_multiplier = 1 / 1.2759
+			elif any(persp_mod in modifier for persp_mod in perspective_mod_multipliers.keys()):
+				# modifier can either be something like "Distant" or "50% Distant"
+				tokens = modifier.split(" ")
+				if len(tokens) == 1:
+					perspective_mod_multiplier = perspective_mod_multipliers[tokens[0]]
+				elif len(tokens) == 2:
+					perspective_mod_multiplier = perspective_mod_multipliers[tokens[1]]
+					
+					# factor in the "50%" (or whichever number it is)
+					perspective_strength = float(tokens[0][:-1]) / 100
+					perspective_mod_multiplier **= perspective_strength
+				else:
+					print(f"uhh this shouldn't happen? '{modifier}'")
 		if receptor_size is None: receptor_size = 1
 		
 		# TODO: decide if MMod should be counted as CMod in this function
