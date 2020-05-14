@@ -344,28 +344,41 @@ def gen_avg_score_per_hour(xml):
 			y.append(0)
 	return x, y
 
+# the Python wrapping adds about +30% execution time
 def calc_ratings_for_sessions(xml):
 	if cache("calc_ratings_for_sessions"):
 		return cache("calc_ratings_for_sessions")
 	
-	sessions = divide_into_sessions(xml)
-	skillsets_values = [[], [], [], [], [], [], []]
-	session_rating_pairs = []
-	# For each session
-	for (session_i, session) in enumerate(sessions):
-		# For each score in the session
-		for (score, _score_datetime) in session:
-			# For every skillset trained with the score
-			for i in range(7):
-				# Append it to the list of skillset training values
-				player_skillsets = score.find("SkillsetSSRs")
-				if player_skillsets is None: continue
-				value = float(player_skillsets[i + 1].text)
-				skillsets_values[i].append(value)
+	from savegame_analysis import SkillTimeline
+	
+	sessions = []
+	session_ids = []
+	ssr_lists = [[], [], [], [], [], [], []]
+	for (session_i, session) in enumerate(divide_into_sessions(xml)):
+		sessions.append(session)
+		session_ids.append(session_i)
 		
-		# Overall-rating delta
-		ratings = util.find_ratings(skillsets_values)
-		session_rating_pairs.append((session, ratings))
+		for (score, _score_datetime) in session:
+			player_skillsets = score.find("SkillsetSSRs")
+			if player_skillsets is None: continue
+			for i in range(7):
+				value = float(player_skillsets[i + 1].text)
+				ssr_lists[i].append(value)
+	
+	timeline = SkillTimeline(ssr_lists, session_ids)
+	
+	def ratings_list(i):
+		ratings = [rating_vector[i] for rating_vector in timeline.rating_vectors]
+		overall = (sum(ratings) - min(ratings)) / 6
+		ratings.insert(0, overall)
+		return ratings
+	
+	session_rating_pairs = [(session, ratings_list(i)) for (i, session) in enumerate(sessions)]
+	# session_rating_pairs format:
+	# [
+	#   (<session>, [25, 17, 41, 23, 25, 26, 12]),
+	#   (<session>, [25, 25, 26, 12, 17, 41, 23]),
+	# ]
 	
 	return cache("calc_ratings_for_sessions", session_rating_pairs)
 
