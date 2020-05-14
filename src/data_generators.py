@@ -575,23 +575,14 @@ def gen_text_general_info(xml, r):
 	
 	if r: # If ReplaysAnalysis is avilable
 		total_notes_string = util.abbreviate(r.total_notes, min_precision=3)
-		
-		chart = r.longest_mcombo[1]
-		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-		long_mcombo_str = f"{r.longest_mcombo[0]} on {long_mcombo_chart}"
 	else:
 		total_notes_string = "[please load replay data]"
-		long_mcombo_str = "[please load replay data]"
-	
+
 	scores = list(iter_scores(xml))
 	num_charts = len(list(xml.iter("Chart")))
 	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
-	
-	chart, combo = find_longest_combo(xml)
-	long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
-	long_combo_str = f"{combo} on {long_combo_chart}"
 	
 	grade_strings = []
 	grades = count_nums_grades(xml)
@@ -601,6 +592,30 @@ def gen_text_general_info(xml, r):
 		grade_strings.append(f"{grade_name}: {num}")
 	grades_string = ", ".join(grade_strings)
 	
+	best_aaa = (None, 0)
+	best_aaaa = (None, 0)
+	for score in iter_scores(xml):
+		wifescore = float(score.findtext("SSRNormPercent"))
+		skillset_ssrs = score.find("SkillsetSSRs")
+		if skillset_ssrs is None: continue
+		overall = float(skillset_ssrs.findtext("Overall"))
+
+		if wifescore < 0.9975:
+			pass # we don't care about sub-AAA scores
+		elif wifescore < 0.9997:
+			if overall > best_aaa[1]:
+				best_aaa = (score, overall)
+		else:
+			if overall > best_aaaa[1]:
+				best_aaaa = (score, overall)
+	def get_score_desc(score, overall) -> str:
+		chart = util.find_parent_chart(xml, score)
+		dt = score.findtext("DateTime")
+		wifescore = float(score.findtext("SSRNormPercent"))
+		pack = chart.get("Pack")
+		song = chart.get("Song")
+		return f"{overall:.2f}, {wifescore*100:.2f}% - \"{song}\" ({pack}) - {dt}"
+
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
 		f"Total hours spent playing: {round(hours)} hours",
@@ -608,12 +623,23 @@ def gen_text_general_info(xml, r):
 		f"Number of unique files played: {num_charts}",
 		f"Grades: {grades_string}",
 		f"Total arrows hit: {total_notes_string}",
-		f"Longest combo: {long_combo_str}",
-		f"Longest marvelous combo: {long_mcombo_str}",
+		f"Best AAA: {get_score_desc(*best_aaa)}",
+		f"Best AAAA: {get_score_desc(*best_aaaa)}",
 	])
 
 # a stands for ReplaysAnalysis
 def gen_text_general_analysis_info(xml, a):
+	if a: # If ReplaysAnalysis is avilable
+		chart = a.longest_mcombo[1]
+		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+		long_mcombo_str = f"{a.longest_mcombo[0]} on {long_mcombo_chart}"
+	else:
+		long_mcombo_str = "[please load replay data]"
+	
+	chart, combo = find_longest_combo(xml)
+	long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+	long_combo_str = f"{combo} on {long_combo_chart}"
+
 	if a:
 		cb_ratio_per_column = [cbs / total for (cbs, total)
 				in zip(a.cbs_per_column, a.notes_per_column)]
@@ -651,6 +677,8 @@ def gen_text_general_analysis_info(xml, a):
 		f"Average hours per day (last 6 months): {average_hours_str}",
 		f"Number of sessions, last 7 days: {num_sessions}",
 		f"Average wifescore last 6 months is {total_wifescore_str}",
+		f"Longest combo: {long_combo_str}",
+		f"Longest marvelous combo: {long_mcombo_str}",
 	])
 
 def gen_text_most_played_packs(xml, limit=15, months: Optional[int]=None):
