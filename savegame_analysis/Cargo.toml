@@ -20,5 +20,7 @@ version = "0.9.2"
 features = ["extension-module"]
 
 [profile.release]
+# this can just stay on debug=true, since it doesn't do harm on Windows anyway, and on Linux, it adds some debug info
+# to the exeuctable no matter if debug=true or debug=false. So we have to strip anyway, and can just let debug=true
 debug = true
 lto = true
