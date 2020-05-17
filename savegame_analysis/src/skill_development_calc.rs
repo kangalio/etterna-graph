@@ -1,4 +1,3 @@
-//~ use minidom::{Element, node::Node};
 use itertools::Itertools;
 use pyo3::prelude::*;
 
@@ -38,7 +37,6 @@ mod calc_rating {
 }
 
 #[pyclass]
-#[derive(Debug)]
 pub struct SkillTimeline {
 	#[pyo3(get)]
 	pub rating_vectors: [Vec<f64>; 7],

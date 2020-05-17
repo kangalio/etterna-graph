@@ -211,8 +211,8 @@ def calc_average_hours_per_day(xml, timespan=timedelta(days=365/2)):
 
 # OPTIONAL PLOTS BEGINNING
 
-def gen_hit_distribution(xml, analysis):
-	buckets = analysis.offset_buckets
+def gen_hit_distribution_sub_93(xml, analysis):
+	buckets = analysis.sub_93_offset_buckets
 	return (list(buckets.keys()), list(buckets.values()))
 
 def gen_idle_time_buckets(xml):
@@ -609,12 +609,13 @@ def gen_text_general_info(xml, r):
 			if overall > best_aaaa[1]:
 				best_aaaa = (score, overall)
 	def get_score_desc(score, overall) -> str:
+		if score is None: return "[none]"
 		chart = util.find_parent_chart(xml, score)
 		dt = score.findtext("DateTime")
 		wifescore = float(score.findtext("SSRNormPercent"))
 		pack = chart.get("Pack")
 		song = chart.get("Song")
-		return f"{overall:.2f}, {wifescore*100:.2f}% - \"{song}\" ({pack}) - {dt}"
+		return f"{overall:.2f}, {wifescore*100:.2f}% - \"{song}\" ({pack}) - {dt[:10]}"
 
 	return "<br>".join([
 		f"You started playing {duration.years} years {duration.months} months ago",
@@ -623,8 +624,8 @@ def gen_text_general_info(xml, r):
 		f"Number of unique files played: {num_charts}",
 		f"Grades: {grades_string}",
 		f"Total arrows hit: {total_notes_string}",
-		f"Best AAA: {get_score_desc(*best_aaa)}",
-		f"Best AAAA: {get_score_desc(*best_aaaa)}",
+		f"Best AAA: {get_score_desc(best_aaa[0], best_aaa[1])}",
+		f"Best AAAA: {get_score_desc(best_aaaa[0], best_aaaa[1])}",
 	])
 
 # a stands for ReplaysAnalysis

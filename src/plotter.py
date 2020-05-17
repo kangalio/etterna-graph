@@ -276,14 +276,13 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Number of play-hours each week")
 	
 	if prefs.enable_all_plots:
-		# ~ qapp.processEvents()
-		# ~ plot = plot_frame.draw(
-			# ~ colspan=30,
-			# ~ type_="bar",
-			# ~ title="Distribution of hit offset",
-			# ~ color=cmap[6],
-			# ~ data=g.gen_hit_distribution(xml, analysis),
-		# ~ )
+		qapp.processEvents()
+		plot = plot_frame.draw(
+			type_="bar",
+			color=cmap[3],
+			data=g.gen_hit_distribution_sub_93(xml, analysis),
+		)
+		plotbox(plot, "Hit distribution (only sub 93% scores)")
 		
 		qapp.processEvents()
 		plot = plot_frame.draw(

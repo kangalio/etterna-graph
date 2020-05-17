@@ -19,6 +19,7 @@ class ReplaysAnalysis:
 		self.total_notes = 0 # MOVE THIS!!!
 		self.longest_mcombo = (0, None)
 		self.num_near_hits = 0 # MOVE THIS!!!
+		self.sub_93_offset_buckets = {}
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -34,11 +35,14 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	r = ReplaysAnalysis()
 	
 	chartkeys: List[str] = []
+	wifescores: List[float] = []
 	for chart in xml.iter("Chart"):
-		chartkeys.extend(score.get("Key") for score in chart.iter("Score"))
+		for score in chart.iter("Score"):
+			chartkeys.append(score.get("Key"))
+			wifescores.append(float(score.findtext("SSRNormPercent")))
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	rustr = savegame_analysis.PyReplaysAnalysis(prefix, chartkeys)
+	rustr = savegame_analysis.ReplaysAnalysis(prefix, chartkeys, wifescores)
 	
 	r.manipulations = rustr.manipulations
 	
@@ -62,6 +66,9 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	r.cbs_per_column = rustr.cbs_per_column
 	r.longest_mcombo = rustr.longest_mcombo
 	r.num_near_hits = sum(r.notes_per_column) / sum(r.cbs_per_column)
+	
+	for i, num_hits in enumerate(rustr.sub_93_offset_buckets):
+		r.sub_93_offset_buckets[i - 180] = num_hits
 	
 	rust_longest_mcombo = rustr.longest_mcombo
 	
