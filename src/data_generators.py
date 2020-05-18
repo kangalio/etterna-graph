@@ -647,9 +647,12 @@ def gen_text_general_analysis_info(xml, a):
 		cbs_string = ', '.join([f"{round(100 * r, 2)}%" for r in cb_ratio_per_column])
 		
 		mean_string = f"{round(a.offset_mean * 1000, 1)}ms"
+		
+		sd_string = f"{a.standard_deviation:.2f} ms"
 	else:
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
+		sd_string = "[please load replay data]"
 	
 	session_secs = int(xml.find("GeneralData").findtext("TotalSessionSeconds"))
 	play_secs = int(xml.find("GeneralData").findtext("TotalGameplaySeconds"))
@@ -675,6 +678,7 @@ def gen_text_general_analysis_info(xml, a):
 		f"Total CB percentage per column (left to right): {cbs_string}",
 		f"Median score increase when immediately replaying a chart: {median_score_increase}%",
 		f"Mean hit offset: {mean_string}",
+		f"Overall standard deviation: {sd_string}",
 		f"Average hours per day (last 6 months): {average_hours_str}",
 		f"Number of sessions, last 7 days: {num_sessions}",
 		f"Average wifescore last 6 months is {total_wifescore_str}",

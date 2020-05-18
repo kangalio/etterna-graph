@@ -1,11 +1,11 @@
 use crate::ok_or_continue;
 use rayon::prelude::*;
 use pyo3::prelude::*;
-use util::split_newlines;
+use crate::util::split_newlines;
 
 
-static OFFSET_BUCKET_RANGE = 180;
-static NUM_OFFSET_BUCKETS = 2 * OFFSET_BUCKET_RANGE + 1
+static OFFSET_BUCKET_RANGE: u64 = 180;
+static NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
 
 #[pyclass]
 #[derive(Default)]
@@ -22,9 +22,12 @@ pub struct ReplaysAnalysis {
 	pub cbs_per_column: [u64; 4],
 	#[pyo3(get)]
 	pub longest_mcombo: (u64, String), // contains longest combo and the associated scorekey
-	// 361 entries: 180 in each direction, and one for the middle (0ms)
+	#[pyo3(get)]
+	pub offset_buckets: Vec<u64>,
 	#[pyo3(get)]
 	pub sub_93_offset_buckets: Vec<u64>,
+	#[pyo3(get)]
+	pub standard_deviation: f64,
 }
 
 #[derive(Default)]
@@ -34,7 +37,7 @@ struct ScoreAnalysis {
 	// the thing that's called "mean" in Etterna eval screen, except that it only counts non-CBs
 	deviation_mean: f64,
 	// the number of notes counted for the deviation_mean
-	num_deviation_notes: f64,
+	num_deviation_notes: u64,
 	// number of total notes for each column
 	notes_per_column: [u64; 4],
 	// number of combo-breakers for each column
@@ -44,6 +47,8 @@ struct ScoreAnalysis {
 	// a vector of size NUM_OFFSET_BUCKETS. Each number corresponds to a certain timing window,
 	// for example the middle entry is for (-0.5ms - 0.5ms). each number stands for the number of
 	// hits in the respective timing window
+	offset_buckets: Vec<u64>,
+	// like offset_buckets, but for, well, sub 93% scores only
 	sub_93_offset_buckets: Vec<u64>,
 }
 
@@ -59,7 +64,8 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 	let mut num_deviation_notes: u64 = 0; // number of notes used in deviation calculation
 	let mut num_manipped_notes: u64 = 0;
 	let mut deviation_sum: f64 = 0.0;
-	let mut sub_93_offset_buckets = vec![0u64; 361];
+	let mut offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
+	let mut sub_93_offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	for line in split_newlines(&bytes, 5) {
 		if line.len() == 0 || line[0usize] == b'H' { continue }
 		
@@ -101,10 +107,11 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 			mcombo = 0;
 		}
 		
-		if wifescore < 0.93 {
-			let deviation_ms_rounded = (deviation * 1000f64).round() as i64;
-			let bucket_index = deviation_ms_rounded + 180i64;
-			if bucket_index >= 0 && bucket_index < sub_93_offset_buckets.len() as i64 {
+		let deviation_ms_rounded = (deviation * 1000f64).round() as i64;
+		let bucket_index = deviation_ms_rounded + OFFSET_BUCKET_RANGE as i64;
+		if bucket_index >= 0 && bucket_index < sub_93_offset_buckets.len() as i64 {
+			offset_buckets[bucket_index as usize] += 1;
+			if wifescore < 0.93 {
 				sub_93_offset_buckets[bucket_index as usize] += 1;
 			}
 		}
@@ -115,9 +122,52 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 	score.num_deviation_notes = num_deviation_notes;
 	score.deviation_mean = deviation_sum / num_deviation_notes as f64;
 	score.manipulation = num_manipped_notes as f64 / num_notes as f64;
+	score.offset_buckets = offset_buckets;
 	score.sub_93_offset_buckets = sub_93_offset_buckets;
 	
 	return Some(score);
+}
+
+fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
+	/*
+	standard deviation is `sqrt(mean(square(values - mean(values)))`
+	modified version with weights:
+	`sqrt(mean(square(values - mean(values, weights)), weights))`
+	or, with the "mean(values, weights)" construction expanded:
+	
+	sqrt(
+		sum(
+			weights
+			*
+			square(
+				values
+				-
+				sum(values * weights) / sum(weights)))
+		/
+		sum(weights)
+	*/
+	
+	// util function
+	let iter_value_weight_pairs = || offset_buckets.iter()
+			.enumerate()
+			.map(|(i, weight)| ((i - OFFSET_BUCKET_RANGE as usize) as i64, weight));
+	
+	let mut value_x_weights_sum = 0;
+	let mut weights_sum = 0;
+	for (value, &weight) in iter_value_weight_pairs() {
+		value_x_weights_sum += value * weight as i64;
+		weights_sum += weight;
+	}
+	
+	let temp_value = value_x_weights_sum / weights_sum as i64;
+	
+	let mut temp_sum = 0;
+	for (value, &weight) in iter_value_weight_pairs() {
+		temp_sum += weight as i64 * (value - temp_value).pow(2);
+	}
+	
+	let standard_deviation = (temp_sum as f64 / weights_sum as f64).sqrt();
+	return standard_deviation;
 }
 
 #[pymethods]
@@ -125,7 +175,8 @@ impl ReplaysAnalysis {
 	#[new]
 	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>) -> Self {
 		let mut analysis = Self::default();
-		analysis.sub_93_offset_buckets = vec![0; 361];
+		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
+		analysis.sub_93_offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		
 		let score_analyses: Vec<_> = scorekeys
 				.par_iter()
@@ -150,7 +201,8 @@ impl ReplaysAnalysis {
 				analysis.cbs_per_column[i] += score.cbs_per_column[i];
 				analysis.notes_per_column[i] += score.notes_per_column[i];
 			}
-			for i in 0..score.sub_93_offset_buckets.len() {
+			for i in 0..NUM_OFFSET_BUCKETS as usize {
+				analysis.offset_buckets[i] += score.offset_buckets[i];
 				analysis.sub_93_offset_buckets[i] += score.sub_93_offset_buckets[i];
 			}
 			if score.longest_mcombo > longest_mcombo {
@@ -161,6 +213,8 @@ impl ReplaysAnalysis {
 		let num_scores = analysis.manipulations.len();
 		analysis.deviation_mean = deviation_mean_sum / num_scores as f64;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());
+		
+		analysis.standard_deviation = calculate_standard_deviation(&analysis.offset_buckets);
 		
 		return analysis;
 	}

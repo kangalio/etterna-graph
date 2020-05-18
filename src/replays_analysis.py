@@ -20,12 +20,13 @@ class ReplaysAnalysis:
 		self.longest_mcombo = (0, None)
 		self.num_near_hits = 0 # MOVE THIS!!!
 		self.sub_93_offset_buckets = {}
+		self.standard_deviation = 0
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
 # It works by:
 # 1) Collecting all chartkeys into a list
-# 2) Passing the list to lib_replays_analysis (written in Rust), which evaluates it blazingly fast™
+# 2) Passing the list to savegame_analysis library (written in Rust, so it's blazingly fast :tm:)
 # 3) Transfer the data from Rusts's ReplaysAnalaysis object to an instance of our ReplaysAnalysis
 #    class written in Python
 # 3.1) This involves traversing the xml once again, to collect score datetimes and score xml objects
@@ -66,6 +67,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	r.cbs_per_column = rustr.cbs_per_column
 	r.longest_mcombo = rustr.longest_mcombo
 	r.num_near_hits = sum(r.notes_per_column) / sum(r.cbs_per_column)
+	r.standard_deviation = rustr.standard_deviation
 	
 	for i, num_hits in enumerate(rustr.sub_93_offset_buckets):
 		r.sub_93_offset_buckets[i - 180] = num_hits
