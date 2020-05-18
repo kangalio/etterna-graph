@@ -9,7 +9,7 @@ Download the [portable exe file](https://github.com/kangalioo/etterna-graph/rele
 **Navigate by panning and zooming with your mouse. Drag with the right mouse button for finer zoom control. You can click on the individual scatter points to see information about the corresponding score/session in the infobar at the bottom of the screen.**
 
 ## Running from source
-Alternatively you can run the program from source directly:
+Alternatively, you can run the program from source directly:
 1. Get a copy of this repository (`git clone` or "Download ZIP")
 1. Install the latest version of Python 3 (if you're on Windows, check the PATH checkbox at the end!)
 1. Install the required Python libraries via `pip install -r requirements.txt`
@@ -17,7 +17,7 @@ Alternatively you can run the program from source directly:
      1. Locate Python package install directory with `pip show pyqtgraph`
      1. Open `pyqtgraph/graphicsItems/LegendItem.py`
      1. Towards the bottom of the file, replace the line `if opts['antialias']:` with `if opts.get('antialias', False):`
-1. [Go to the latest "action"](https://github.com/kangalioo/etterna-graph/actions) and download the compiled savegame_analysis modules. Extract the dll file (.so file on Linux) from the downloaded zip and move it into `src/` (alternatively, you can [compile savegame_analysis from source](#compiling-savegame_analysis-from-source))
+1. [Go to the latest "action"](https://github.com/kangalioo/etterna-graph/actions) and download the compiled savegame_analysis modules. Extract the dll file (.so file on Linux) from the downloaded zip and move it into `src/` (alternatively, you can [compile savegame_analysis from source](#compiling-savegame_analysis-from-source-))
 1. Now execute the main.py file from inside the root directory `python src/main.py`
 If anything in this complicated procedure didn't work, please write an issue, or just write me on Discord/Reddit/whatever
 
