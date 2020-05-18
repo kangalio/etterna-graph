@@ -16,9 +16,7 @@ class ReplaysAnalysis:
 		self.offset_mean = 0
 		self.notes_per_column = [0, 0, 0, 0]
 		self.cbs_per_column = [0, 0, 0, 0]
-		self.total_notes = 0 # MOVE THIS!!!
 		self.longest_mcombo = (0, None)
-		self.num_near_hits = 0 # MOVE THIS!!!
 		self.sub_93_offset_buckets = {}
 		self.standard_deviation = 0
 

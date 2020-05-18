@@ -573,10 +573,10 @@ def gen_text_skillset_hours(xml):
 def gen_text_general_info(xml, r):
 	from dateutil.relativedelta import relativedelta
 	
-	if r: # If ReplaysAnalysis is avilable
-		total_notes_string = util.abbreviate(r.total_notes, min_precision=3)
-	else:
-		total_notes_string = "[please load replay data]"
+	total_notes = 0
+	for tap_note_scores in xml.iter("TapNoteScores"):
+		total_notes += sum(int(e.text) for e in tap_note_scores)
+	total_notes_string = util.abbreviate(total_notes, min_precision=3)
 
 	scores = list(iter_scores(xml))
 	num_charts = len(list(xml.iter("Chart")))
