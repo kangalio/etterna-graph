@@ -1,7 +1,11 @@
 use crate::ok_or_continue;
 use rayon::prelude::*;
 use pyo3::prelude::*;
+use util::split_newlines;
 
+
+static OFFSET_BUCKET_RANGE = 180;
+static NUM_OFFSET_BUCKETS = 2 * OFFSET_BUCKET_RANGE + 1
 
 #[pyclass]
 #[derive(Default)]
@@ -25,51 +29,23 @@ pub struct ReplaysAnalysis {
 
 #[derive(Default)]
 struct ScoreAnalysis {
+	// a percentage (from 0.0 to 1.0) that says how many notes were hit out of order
 	manipulation: f64,
+	// the thing that's called "mean" in Etterna eval screen, except that it only counts non-CBs
 	deviation_mean: f64,
+	// the number of notes counted for the deviation_mean
+	num_deviation_notes: f64,
+	// number of total notes for each column
 	notes_per_column: [u64; 4],
+	// number of combo-breakers for each column
 	cbs_per_column: [u64; 4],
+	// the length of the longest combo of marvelous-only hits
 	longest_mcombo: u64,
+	// a vector of size NUM_OFFSET_BUCKETS. Each number corresponds to a certain timing window,
+	// for example the middle entry is for (-0.5ms - 0.5ms). each number stands for the number of
+	// hits in the respective timing window
 	sub_93_offset_buckets: Vec<u64>,
 }
-
-// like slice.split(b'\n'), but with optimizations based on a minimum line length assumption
-mod split_newlines {
-	pub struct SplitNewlines<'a> {
-		bytes: &'a [u8],
-		min_line_length: usize,
-		current_pos: usize, // the only changing field in here
-	}
-	
-	impl<'a> Iterator for SplitNewlines<'a> {
-		type Item = &'a [u8];
-		
-		fn next(&mut self) -> Option<Self::Item> {
-			// Check stop condition
-			if self.current_pos >= self.bytes.len() {
-				return None;
-			}
-			
-			let start_pos = self.current_pos;
-			self.current_pos += self.min_line_length; // skip ahead as far as we can get away with
-			
-			while let Some(&c) = self.bytes.get(self.current_pos) {
-				if c == b'\n' { break }
-				self.current_pos += 1;
-			}
-			let line = &self.bytes[start_pos..self.current_pos];
-			
-			self.current_pos += 1; // Advance one to be on the start of a line again
-			return Some(line);
-		}
-	}
-	
-	pub fn split_newlines<'a>(bytes: &'a [u8], min_line_length: usize) -> SplitNewlines<'a> {
-		return SplitNewlines { bytes, min_line_length, current_pos: 0 };
-	}
-}
-use split_newlines::split_newlines;
-
 
 // Analyze a single score's replay
 fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
@@ -80,6 +56,7 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 	let mut prev_tick: u64 = 0;
 	let mut mcombo: u64 = 0;
 	let mut num_notes: u64 = 0; // we can't derive this from notes_per_column cuz those exclude 5k+
+	let mut num_deviation_notes: u64 = 0; // number of notes used in deviation calculation
 	let mut num_manipped_notes: u64 = 0;
 	let mut deviation_sum: f64 = 0.0;
 	let mut sub_93_offset_buckets = vec![0u64; 361];
@@ -104,6 +81,7 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 		
 		if deviation.abs() <= 0.09 {
 			deviation_sum += deviation;
+			num_deviation_notes += 1;
 		}
 		
 		if column < 4 {
@@ -134,7 +112,8 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 		prev_tick = tick;
 	}
 	
-	score.deviation_mean = deviation_sum / num_notes as f64;
+	score.num_deviation_notes = num_deviation_notes;
+	score.deviation_mean = deviation_sum / num_deviation_notes as f64;
 	score.manipulation = num_manipped_notes as f64 / num_notes as f64;
 	score.sub_93_offset_buckets = sub_93_offset_buckets;
 	
