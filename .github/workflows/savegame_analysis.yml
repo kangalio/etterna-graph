@@ -14,11 +14,11 @@ jobs:
         os: [windows-latest, ubuntu-latest]
         include:
         - os: windows-latest
-          LIBRARY_EXTENSION: dll
-          PYMODULE_EXTENSION: pyd
+          LIBRARY_FILENAME: savegame_analysis.dll
+          PYMODULE_FILENAME: savegame_analysis.pyd
         - os: ubuntu-latest
-          LIBRARY_EXTENSION: so
-          PYMODULE_EXTENSION: so
+          LIBRARY_FILENAME: libsavegame_analysis.so
+          PYMODULE_FILENAME: savegame_analysis.so
 
     steps:
     - uses: hecrj/setup-rust-action@v1
@@ -39,8 +39,13 @@ jobs:
       working-directory: ./savegame_analysis
     
     - name: Rename Python module file extension and move
-      run: mv savegame_analysis/target/release/savegame_analysis.${{matrix.LIBRARY_EXTENSION}} savegame_analysis.${{matrix.PYMODULE_EXTENSION}}
+      run: mv savegame_analysis/target/release/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
+    
+    - name: Strip library
+      if: startsWith(matrix.os, 'ubuntu')
+      run: strip ${{matrix.PYMODULE_FILENAME}}
     
     - uses: actions/upload-artifact@v2
       with:
-        path: savegame_analysis.${{matrix.PYMODULE_EXTENSION}}
+        name: Compiled savegame_analysis modules
+        path: ${{matrix.PYMODULE_FILENAME}}
