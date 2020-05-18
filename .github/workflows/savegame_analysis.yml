@@ -8,7 +8,17 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        include:
+        - os: windows-latest
+          LIBRARY_EXTENSION: dll
+          PYMODULE_EXTENSION: pyd
+        - os: ubuntu-latest
+          LIBRARY_EXTENSION: so
+          PYMODULE_EXTENSION: so
 
     steps:
     - uses: hecrj/setup-rust-action@v1
@@ -28,7 +38,9 @@ jobs:
       run: cargo build --release
       working-directory: ./savegame_analysis
     
+    - name: Rename Python module file extension and move
+      run: mv savegame_analysis/target/release/savegame_analysis.${{matrix.LIBRARY_EXTENSION}} savegame_analysis.${{matrix.PYMODULE_EXTENSION}}
+    
     - uses: actions/upload-artifact@v2
       with:
-        name: savegame_analysis.pyd
-        path: savegame_analysis/target/release/savegame_analysis.dll
+        path: savegame_analysis.${{matrix.PYMODULE_EXTENSION}}
