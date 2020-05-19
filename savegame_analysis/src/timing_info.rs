@@ -14,9 +14,16 @@ pub struct SongId {
 pub type TimingInfoIndex = HashMap<SongId, TimingInfo>;
 
 #[derive(Debug)]
+pub struct BpmChange {
+	beat: f64,
+	bpm: f64,
+}
+
+#[derive(Debug)]
 pub struct TimingInfo {
-	// List of (beat, bpm). Must be chronologically ordered!
-	changes: Vec<(f64, f64)>,
+	first_bpm: f64,
+	// Must be chronologically ordered!
+	changes: Vec<BpmChange>,
 }
 
 impl TimingInfo {
@@ -28,12 +35,55 @@ impl TimingInfo {
 			let equal_sign_index = pair.find('=').ok_or(anyhow!("No equals sign in bpms entry"))?;
 			let beat: f64 = pair[..equal_sign_index].trim().parse()?;
 			let bpm: f64 = pair[equal_sign_index+1..].trim().parse()?;
-			changes.push((beat, bpm));
+			changes.push(BpmChange { beat, bpm });
 		}
 		
-		// TODO: sort chronologically!
+		changes.sort_by(|a, b| a.beat.partial_cmp(&b.beat).unwrap());
 		
-		return Ok(TimingInfo { changes });
+		if changes[0].beat != 0.0 {
+			return Err(anyhow!(format!("First bpm change is not at beat=0, it's {:?}", changes[0])));
+		}
+		let first_bpm = changes[0].bpm;
+		changes.drain(0..1); // remove first entry (0.0=xxx)
+		
+		return Ok(TimingInfo { changes, first_bpm });
+	}
+	
+	/// Input slice must be sorted! Not sure what happens if not sorted
+	pub fn ticks_to_seconds(&self, ticks: &[u64]) -> Vec<f64> {
+		let mut cursor_beat: f64 = 0.0;
+		let mut cursor_second: f64 = 0.0;
+		let mut beat_time = 60.0 / self.first_bpm;
+		
+		// if a tick lies exactly on the boundary, if will _not_ be processed
+		let mut ticks_i = 0;
+		let mut seconds_vec = Vec::with_capacity(ticks.len());
+		let mut convert_ticks_up_to = |beat: f64, cursor_second: f64, cursor_beat: f64, beat_time: f64| {
+			while ticks_i < ticks.len() && ticks[ticks_i] as f64 / 48.0 < beat {
+				println!("got tick {} with beat_time {} starting at {}", ticks[ticks_i], beat_time, cursor_second);
+				
+				let beat = ticks[ticks_i] as f64 / 48.0;
+				let second = cursor_second + (beat - cursor_beat) * beat_time;
+				seconds_vec.push(second);
+				
+				ticks_i += 1;
+			}
+		};
+		
+		for BpmChange { beat: change_beat, bpm: change_bpm } in self.changes {
+			convert_ticks_up_to(change_beat, cursor_second, cursor_beat, beat_time);
+			
+			cursor_second += beat_time * (change_beat - cursor_beat);
+			cursor_beat = change_beat;
+			beat_time = 60.0 / change_bpm;
+		}
+		
+		// process all remaining ticks (i.e. all ticks coming after the last bpm change
+		convert_ticks_up_to(f64::INFINITY, cursor_second, cursor_beat, beat_time);
+		
+		assert!(ticks.len() == seconds_vec.len());
+		
+		return seconds_vec;
 	}
 }
 
@@ -57,7 +107,7 @@ fn find_sm_like_from_root(base: &Path) -> Result<Vec<PathBuf>> {
 	return Ok(sm_likes);
 }
 
-fn timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
+fn song_id_timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
 	fn pack_name_from_sm_path(sm_path: &Path) -> Option<String> {
 		let pack_name = sm_path.parent()?.parent()?.file_name()?;
 		return Some(pack_name.to_string_lossy().into_owned()); // OsStr to String
@@ -84,13 +134,17 @@ fn timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
 	return Ok((song_id, timing_info));
 }
 
+pub fn timing_info_from_sm(sm_path: &Path) -> Result<TimingInfo> {
+	return Ok(song_id_timing_info_from_sm(sm_path)?.1);
+}
+
 pub fn build_timing_info_index(songs_root: &Path) -> Result<TimingInfoIndex> {
 	let mut index = TimingInfoIndex::new();
 	
 	let paths = find_sm_like_from_root(&songs_root)
 			.context("Couldn't collect sm-like song paths")?;
 	for path in paths {
-		let (song_id, timing_info) = match timing_info_from_sm(&path) {
+		let (song_id, timing_info) = match song_id_timing_info_from_sm(&path) {
 			Ok(a) => a,
 			Err(_e) => {
 				//~ println!("Couldn't get timing info from sm: {:?}", _e);
