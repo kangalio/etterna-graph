@@ -41,6 +41,12 @@ individual files within and don't choose a different directory. This
 program requires you to select the ReplaysV2 folder as a whole.
 </p>"""
 
+SONGS_ROOT_CHOOSER_INFO_MSG = """<p>
+In the following dialog please select your songs folder (typically Songs/) and click OK.
+Important: don't try to select individual files within and don't choose a different directory. This
+program requires you to select your root songs folder as a whole.
+</p>"""
+
 XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
 
@@ -59,19 +65,25 @@ def try_choose_replays() -> Optional[str]:
 	return QFileDialog.getExistingDirectory(
 			caption="Select the ReplaysV2 directory")
 
+def try_choose_songs_root() -> Optional[str]:
+	QMessageBox.information(None, "How to use", SONGS_ROOT_CHOOSER_INFO_MSG)
+	return QFileDialog.getExistingDirectory(
+			caption="Select the root songs folder")
+
 # When adding a new setting, keep care to update all placed marked with "# setting here"
 @dataclass
 class Settings:
 	# setting here
 	xml_path: str
 	replays_dir: str
+	songs_root: str
 	enable_all_plots: bool
 	hide_invalidated: bool
 	
 	@staticmethod
 	def load_from_json(path: str) -> Settings:
 		# setting here
-		settings = Settings(None, None, False, True) # default values
+		settings = Settings(None, None, None, False, True) # default values
 		
 		if os.path.exists(path):
 			with open(path) as f:
@@ -80,6 +92,8 @@ class Settings:
 						settings.xml_path = value
 					elif key == "replays-dir":
 						settings.replays_dir = value
+					elif key == "songs-root":
+						settings.songs_root = value
 					elif key == "enable-all-plots":
 						settings.enable_all_plots = value
 					elif key == "hide-invalidated":
@@ -93,6 +107,7 @@ class Settings:
 			# setting here
 			"etterna-xml": self.xml_path,
 			"replays-dir": self.replays_dir,
+			"songs-root": self.songs_root,
 			"enable-all-plots": self.enable_all_plots,
 			"hide-invalidated": self.hide_invalidated
 		}
@@ -145,15 +160,26 @@ class SettingsDialog(QDialog):
 		btn.pressed.connect(replays_chooser_handler)
 		layout.addWidget(btn, 1, 2)
 		
+		self.songs_root_input = QLineEdit(app.app.prefs.songs_root)
+		def songs_root_choose_handler():
+			result = try_choose_songs_root()
+			if result: self.songs_root_input.setText(result)
+		layout.addWidget(QLabel("Root songs directory"), 2, 0)
+		layout.addWidget(self.songs_root_input, 2, 1)
+		btn = QPushButton()
+		btn.setIcon(QIcon.fromTheme("folder-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
+		btn.pressed.connect(songs_root_choose_handler)
+		layout.addWidget(btn, 2, 2)
+		
 		self.enable_all = QCheckBox()
 		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
-		layout.addWidget(QLabel("Enable old boring plots"), 2, 0)
-		layout.addWidget(self.enable_all, 2, 1, 1, 2)
+		layout.addWidget(QLabel("Enable old boring plots"), 3, 0)
+		layout.addWidget(self.enable_all, 3, 1, 1, 2)
 		
 		self.hide_invalidated = QCheckBox()
 		self.hide_invalidated.setChecked(app.app.prefs.hide_invalidated)
-		layout.addWidget(QLabel("Hide invalidated scores"), 3, 0)
-		layout.addWidget(self.hide_invalidated, 3, 1, 1, 2)
+		layout.addWidget(QLabel("Hide invalidated scores"), 4, 0)
+		layout.addWidget(self.hide_invalidated, 4, 1, 1, 2)
 		
 		self.setMinimumWidth(600)
 	
@@ -171,6 +197,7 @@ class SettingsDialog(QDialog):
 		# setting here
 		app.app.prefs.xml_path = self.xml_input.text()
 		app.app.prefs.replays_dir = self.replays_input.text()
+		app.app.prefs.songs_root = self.songs_root_input.text()
 		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
 		app.app.prefs.hide_invalidated = self.hide_invalidated.isChecked()
 		print("Saving prefs to json...")
@@ -291,13 +318,21 @@ class Application:
 			QMessageBox.critical(None, text, text)
 			return False
 		self._prefs.xml_path = xml_path
+		
 		replays_dir = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../ReplaysV2"))
 		if os.path.exists(replays_dir):
 			self._prefs.replays_dir = replays_dir
-		else:
-			QMessageBox.information(None, "ReplaysV2 could not be found",
-					"The ReplaysV2 directory could not be found. Please select it manually in the following dialog")
+		
+		songs_root = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../../Songs"))
+		if os.path.exists(songs_root):
+			self._prefs.songs_root = songs_root
+		
+		if self._prefs.replays_dir is None or self._prefs.songs_root:
+			QMessageBox.information(None, "Couldn't locate game data",
+					"The ReplaysV2 directory and/or root songs directory could not be found. "
+					+ "Please select it manually in the following dialog")
 			SettingsDialog().exec_()
+		
 		return True
 	
 	# Detects an Etterna installation and sets xml_path and
