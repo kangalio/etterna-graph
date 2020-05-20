@@ -632,13 +632,13 @@ def gen_text_general_info(xml, r):
 def gen_text_general_analysis_info(xml, a):
 	if a: # If ReplaysAnalysis is avilable
 		chart = a.longest_mcombo[1]
-		long_mcombo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+		long_mcombo_chart = f'"{chart.get("Song")}" ({chart.get("Pack")})'
 		long_mcombo_str = f"{a.longest_mcombo[0]} on {long_mcombo_chart}"
 	else:
 		long_mcombo_str = "[please load replay data]"
 	
 	chart, combo = find_longest_combo(xml)
-	long_combo_chart = f'"{chart.get("Pack")} -> "{chart.get("Song")}"'
+	long_combo_chart = f'"{chart.get("Song")}" ({chart.get("Pack")})'
 	long_combo_str = f"{combo} on {long_combo_chart}"
 
 	if a:
@@ -685,7 +685,7 @@ def gen_text_general_analysis_info(xml, a):
 		wifescore = float(score.findtext("SSRNormPercent"))
 		dt = score.findtext("DateTime")
 		
-		fastest_combo_string = f"NPS={nps:.2f} ({length} notes) - {wifescore*100:.2f}%, \"{song}\" ({pack})"
+		fastest_combo_string = f"NPS={nps:.2f} ({length} notes) on \"{song}\" ({pack}), {wifescore*100:.2f}%"
 	else:
 		fastest_combo_string = "[please load replay data]"
 	

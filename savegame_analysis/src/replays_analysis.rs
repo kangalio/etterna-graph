@@ -75,10 +75,54 @@ struct FastestComboInScoreInfo {
 	nps: f64,
 }
 
+fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> FastestComboInScoreInfo {
+	// The nps track-keeping here is ignoring rate! rate is only applied at the end
+	let mut fastest_combo = FastestComboInScoreInfo { length: 0, nps: 0.0 };
+	
+	// Why is the combo counting done as it's done?
+	// Say you have this sequence of hits (y=hit, n=cb): "nnyyyyynn". when evaluating the 5 combo in
+	// there, in reality we're only evaluating the first four hits, _right_ up to a point just
+	// before the fifth hit. That's because the cb notes afterwards might be completely ridiculously
+	// placed notes, maybe just 1ms after the last hit.
+	// Say we have "yyyyn", where the "y"'s have a constant interval of 1 second, while the "n"
+	// comes just 1ms after the last "y".
+	// First y is at 0s, last y is at 3s, last n is at 3.001s. Including the time from last "y" to
+	// "n" would yield nps=4/3.001s=1.33 - which is plainly not true. The have an interval of 1s,
+	// not 1.33s. That's why we only look up to just before the last _hit_ (not cb) - it correctly
+	// yields nps=3/3s=1.
+	// This was a very lengthy explanation that no one except me will ever read.
+	let mut combo_len = 0;
+	let mut combo_start = 0.0;
+	for (&second, &is_cb) in seconds.iter().zip(are_cbs) {
+		if is_cb {
+			combo_len = 0;
+			// combo_start is in an invalid state from here until the next non_cb
+			continue;
+		}
+		
+		if combo_len == 0 {
+			combo_start = second;
+		}
+		
+		if combo_len >= 100 {
+			let nps = combo_len as f64 / (second - combo_start);
+			if nps > fastest_combo.nps {
+				fastest_combo = FastestComboInScoreInfo { length: combo_len, nps };
+			}
+		}
+		
+		combo_len += 1;
+	}
+	
+	fastest_combo.nps *= rate;
+	
+	return fastest_combo;
+}
+
 // Analyze a single score's replay
 fn analyze(path: &str, wifescore: f64, timing_info: &crate::TimingInfo, rate: f64) -> Option<ScoreAnalysis> {
 	let bytes = std::fs::read(path).ok()?;
-	let approx_max_num_lines = bytes.len() / 18; // 18 is a pretty good value for this
+	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good value for this
 	
 	let mut score = ScoreAnalysis::default();
 	
@@ -160,29 +204,8 @@ fn analyze(path: &str, wifescore: f64, timing_info: &crate::TimingInfo, rate: f6
 	// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
 	// the combo late, the calculated nps is higher than deserved
 	let seconds = timing_info.ticks_to_seconds(&ticks);
-	for (is_cb, pairs) in &seconds.iter().zip(are_cbs).group_by(|(_sec, is_cb)| *is_cb) {
-		if is_cb { continue } // we don't wanna have combos of cbs, only combos of actual hits
-		
-		let (first_last_pair, num_notes) = crate::util::first_and_last_and_count(pairs);
-		let combo_duration = match first_last_pair {
-			Some(((first_second, _), (last_second, _))) => last_second - first_second,
-			None => continue, // it's a 0-note or 1-note "combo"
-		};
-		
-		let combo_duration = combo_duration / rate; // apply rate!
-		
-		//~ if num_notes < 20 { continue } // a combo at so few notes is kinda wonky. better ignore
-		if num_notes < 100 { continue }
-		
-		// without -1 a simple <tap><1 sec pause><tap> would be counted as 2 NPS cuz those are 2
-		// taps in one second
-		let num_notes = num_notes - 1;
-		
-		let nps = num_notes as f64 / combo_duration;
-		if nps > score.fastest_combo.nps {
-			score.fastest_combo = FastestComboInScoreInfo { length: num_notes, nps };
-		}
-	}
+	
+	score.fastest_combo = find_fastest_combo_in_score(&seconds, &are_cbs, rate);
 	
 	return Some(score);
 }
