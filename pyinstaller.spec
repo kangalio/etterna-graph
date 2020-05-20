@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['src\\main.py'],
-             pathex=['C:\\Users\\janni\\Desktop\\etterna-graph'],
+             # no pathex here because this file is in root dir, and as such unneeded
              binaries=[],
              datas=[],
              hiddenimports=["dateutil"],
@@ -49,4 +49,5 @@ exe = EXE(pyz,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=True )
+          console=True,
+          icon="assets/icon.ico")

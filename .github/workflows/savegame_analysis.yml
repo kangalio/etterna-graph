@@ -1,4 +1,4 @@
-name: Compile savegame_analysis
+name: Compile and build
 
 on:
   push:
@@ -7,8 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  _: # man this workflow already has a name. I don't need two names for one thing
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
@@ -19,33 +18,63 @@ jobs:
         - os: ubuntu-latest
           LIBRARY_FILENAME: libsavegame_analysis.so
           PYMODULE_FILENAME: savegame_analysis.so
-
+    runs-on: ${{ matrix.os }}
+  
     steps:
-    - uses: hecrj/setup-rust-action@v1
+    # Setup
+    - uses: actions/checkout@v2
+    
+    - name: Setup Rust
+      uses: hecrj/setup-rust-action@v1
       with:
         rust-version: nightly
     
-    - uses: actions/setup-python@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt
     
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
     
-    - uses: actions/checkout@v2
-    
-    - name: Build
-      run: cargo build --release
+    # Build savegame_analysis
+    - name: Build savegame_analysis
+      #~ run: cargo build --release
+      run: cargo build
       working-directory: ./savegame_analysis
     
     - name: Rename Python module file extension and move
-      run: mv savegame_analysis/target/release/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
+      #~ run: mv savegame_analysis/target/release/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
+      run: mv savegame_analysis/target/debug/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
     
     - name: Strip library
       if: startsWith(matrix.os, 'ubuntu')
       run: strip ${{matrix.PYMODULE_FILENAME}}
     
-    - uses: actions/upload-artifact@v2
+    # Bundled exe
+    - name: Copy savegame_analysis module to src
+      run: cp ${{matrix.PYMODULE_FILENAME}} src/${{matrix.PYMODULE_FILENAME}}
+    
+    - name: Bundle exe
+      if: startsWith(matrix.os, 'windows')
+      run: .\bundle.bat
+    
+    # Upload
+    - name: Upload bundled exe
+      uses: actions/upload-artifact@v2
+      if: startsWith(matrix.os, 'windows')
+      with:
+        name: Bundled exe
+        path: EtternaGraph.exe
+    
+    - name: Upload compiled module
+      uses: actions/upload-artifact@v2
       with:
         name: Compiled savegame_analysis modules
         path: ${{matrix.PYMODULE_FILENAME}}
