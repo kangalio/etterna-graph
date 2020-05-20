@@ -286,7 +286,8 @@ class Application:
 		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
 			self.try_detect_etterna()
 		
-		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
+		if any(setting is None for setting in [self._prefs.xml_path, self._prefs.replays_dir,
+				self._prefs.songs_root]
 			if not self.make_user_choose_paths():
 				return
 		
@@ -327,7 +328,7 @@ class Application:
 		if os.path.exists(songs_root):
 			self._prefs.songs_root = songs_root
 		
-		if self._prefs.replays_dir is None or self._prefs.songs_root:
+		if self._prefs.replays_dir is None or self._prefs.songs_root is None:
 			QMessageBox.information(None, "Couldn't locate game data",
 					"The ReplaysV2 directory and/or root songs directory could not be found. "
 					+ "Please select it manually in the following dialog")
