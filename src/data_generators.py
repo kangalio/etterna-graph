@@ -584,13 +584,11 @@ def gen_text_general_info(xml, r):
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
 	
-	grade_strings = []
 	grades = count_nums_grades(xml)
-	for grade_name in util.grade_names[::-1]:
-		num = grades[grade_name] # Number of scores with that grade
-		# ~ grade_strings.append(f"{num}x {grade_name}")
-		grade_strings.append(f"{grade_name}: {num}")
-	grades_string = ", ".join(grade_strings)
+	# ~ grades_string_1 = ", ".join(f"{name}: {grades[name]}" for name in ("AAAA", "AAA", "AA"))
+	# ~ grades_string_2 = ", ".join(f"{name}: {grades[name]}" for name in ("A", "B", "C", "D"))
+	grades_string = ", ".join(f"{name}: {grades[name]}" for name in "AAAA AAA AA A B C D".split())
+	grade_names = list(reversed(util.grade_names))
 	
 	best_aaa = (None, 0)
 	best_aaaa = (None, 0)
@@ -623,6 +621,8 @@ def gen_text_general_info(xml, r):
 		f"Number of scores: {len(scores)}",
 		f"Number of unique files played: {num_charts}",
 		f"Grades: {grades_string}",
+		# ~ f"Grades: {grades_string_1}",
+		# ~ f"{util.gen_padding_from('Grades: ')}{grades_string_2}",
 		f"Total arrows hit: {total_notes_string}",
 		f"Best AAA: {get_score_desc(best_aaa[0], best_aaa[1])}",
 		f"Best AAAA: {get_score_desc(best_aaaa[0], best_aaaa[1])}",
@@ -673,6 +673,22 @@ def gen_text_general_analysis_info(xml, a):
 	total_wifescore = calculate_total_wifescore(xml, months=6)
 	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
 	
+	if a:
+		# ~ return f"{overall:.2f}, {wifescore*100:.2f}% - \"{song}\" ({pack}) - {dt[:10]}"
+		
+		length = a.fastest_combo_length
+		nps = a.fastest_combo_nps
+		score = a.fastest_combo_score
+		chart = util.find_parent_chart(xml, score)
+		pack = chart.get("Pack")
+		song = chart.get("Song")
+		wifescore = float(score.findtext("SSRNormPercent"))
+		dt = score.findtext("DateTime")
+		
+		fastest_combo_string = f"NPS={nps:.2f} ({length} notes) - {wifescore*100:.2f}%, \"{song}\" ({pack})"
+	else:
+		fastest_combo_string = "[please load replay data]"
+	
 	return "<br>".join([
 		f"You spend {play_percentage}% of your sessions in gameplay",
 		f"Total CB percentage per column (left to right): {cbs_string}",
@@ -684,9 +700,10 @@ def gen_text_general_analysis_info(xml, a):
 		f"Average wifescore last 6 months is {total_wifescore_str}",
 		f"Longest combo: {long_combo_str}",
 		f"Longest marvelous combo: {long_mcombo_str}",
+		f"Fastest combo: {fastest_combo_string}",
 	])
 
-def gen_text_most_played_packs(xml, limit=15, months: Optional[int]=None):
+def gen_text_most_played_packs(xml, limit=10, months: Optional[int]=None):
 	likings = generate_pack_likings(xml, months)
 	
 	sorted_packs = sorted(likings, key=likings.get, reverse=True)

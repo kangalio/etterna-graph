@@ -11,11 +11,11 @@ crate-type = ["cdylib"]
 rayon = "1.3" # multithreading in replays analysis
 btoi = "0.4" # fast int parsing in replays analysis
 lexical = "5" # fast float parsing in replays analysis
-itertools = "0.9" # for groupby days in skill timeline
+itertools = "0.9" # various qol stuff
 libm = "0.2" # for erfc
 roxmltree = "0.11" # xml parsing
 anyhow = "1.0" # reasonable error handling
-thiserror = "1.0" # reasonable error handling
+#tokio = { version = "0.2", features = ["fs"] } # async file loading
 walkdir = "2" # recursive directory walking is too hard to diy
 
 [dependencies.pyo3]

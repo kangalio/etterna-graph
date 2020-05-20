@@ -151,18 +151,17 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		label.setOpenExternalLinks(False)
 		label.linkActivated.connect(link_callback)
 	
-	# spaghetti
-	def most_played_packs_textbox(all_time=False):
+	textbox(0, 0, 4, 5, g.gen_text_most_played_charts, xml, read_more_title="Most played charts")
+	def most_played_packs_textbox(all_time=False): # spaghetti
 		read_more_title = "Most played packs (" + ("all time)" if all_time else "last 6 months)")
-		textbox(0, 0, 2, 2, g.gen_text_most_played_packs, xml, months=None if all_time else 6,
+		textbox(4, 0, 8, 3, g.gen_text_most_played_packs, xml, months=None if all_time else 6,
 				read_more_title=read_more_title,
 				link_handler=lambda link: most_played_packs_textbox(all_time=not all_time))
 	most_played_packs_textbox(all_time=False)
-	textbox(0, 2, 1, 1, g.gen_text_skillset_hours, xml)
-	textbox(0, 3, 1, 3, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
-	textbox(0, 6, 1, 2, g.gen_text_most_played_charts, xml, read_more_title="Most played charts")
-	textbox(1, 2, 1, 3, g.gen_text_general_analysis_info, xml, analysis)
-	textbox(1, 5, 1, 3, g.gen_text_general_info, xml, analysis)
+	textbox(0, 5, 4, 2, g.gen_text_skillset_hours, xml)
+	textbox(0, 7, 4, 5, g.gen_text_longest_sessions, xml, read_more_title="Longest sessions")
+	textbox(4, 3, 8, 5, g.gen_text_general_analysis_info, xml, analysis)
+	textbox(4, 8, 8, 4, g.gen_text_general_info, xml, analysis)
 	
 	all_plots = [] # this will be filled in plotbox() and returned at the end
 	

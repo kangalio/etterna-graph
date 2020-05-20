@@ -106,9 +106,12 @@ def find_parent_chart(xml, score):
 # Abbreviates a number, e.g. (with default `min_precision`):
 #  1367897 -> 1367k
 #  47289361 -> 47M
-# The min_precision parameter controls how many digits must be visible
+# The min_precision parameter controls how many digits must be visible minimum
 def abbreviate(n, min_precision=2):
 	num_digits = len(str(n))
 	postfix_index = int((num_digits - min_precision) / 3)
-	postfix = ["", "k", "M", "B"][postfix_index]
+	postfix = ["", "k", "M", "B", "T", "Q"][postfix_index]
 	return str(round(n / 1000**postfix_index)) + postfix
+
+def gen_padding_from(text):
+	return f'<span style="color:{bg_color}">{text}</span>'

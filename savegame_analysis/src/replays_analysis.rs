@@ -1,6 +1,8 @@
-use crate::ok_or_continue;
+use std::path::PathBuf;
+use itertools::{izip, Itertools};
 use rayon::prelude::*;
 use pyo3::prelude::*;
+use crate::ok_or_continue;
 use crate::util::split_newlines;
 
 
@@ -28,6 +30,19 @@ pub struct ReplaysAnalysis {
 	pub sub_93_offset_buckets: Vec<u64>,
 	#[pyo3(get)]
 	pub standard_deviation: f64,
+	#[pyo3(get)]
+	pub fastest_combo: FastestComboInfo,
+}
+
+#[pyclass]
+#[derive(Default, Clone)]
+pub struct FastestComboInfo {
+	#[pyo3(get)]
+	pub length: u64,
+	#[pyo3(get)]
+	pub nps: f64,
+	#[pyo3(get)]
+	pub scorekey: String,
 }
 
 #[derive(Default)]
@@ -50,11 +65,20 @@ struct ScoreAnalysis {
 	offset_buckets: Vec<u64>,
 	// like offset_buckets, but for, well, sub 93% scores only
 	sub_93_offset_buckets: Vec<u64>,
+	
+	fastest_combo: FastestComboInScoreInfo,
+}
+
+#[derive(Default)]
+struct FastestComboInScoreInfo {
+	length: u64,
+	nps: f64,
 }
 
 // Analyze a single score's replay
-fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
+fn analyze(path: &str, wifescore: f64, timing_info: &crate::TimingInfo, rate: f64) -> Option<ScoreAnalysis> {
 	let bytes = std::fs::read(path).ok()?;
+	let approx_max_num_lines = bytes.len() / 18; // 18 is a pretty good value for this
 	
 	let mut score = ScoreAnalysis::default();
 	
@@ -66,6 +90,8 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 	let mut deviation_sum: f64 = 0.0;
 	let mut offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	let mut sub_93_offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
+	let mut ticks = Vec::with_capacity(approx_max_num_lines);
+	let mut are_cbs = Vec::with_capacity(approx_max_num_lines);
 	for line in split_newlines(&bytes, 5) {
 		if line.len() == 0 || line[0usize] == b'H' { continue }
 		
@@ -81,6 +107,8 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 		
 		num_notes += 1;
 		
+		ticks.push(tick);
+		
 		if tick < prev_tick {
 			num_manipped_notes += 1;
 		}
@@ -88,6 +116,9 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 		if deviation.abs() <= 0.09 {
 			deviation_sum += deviation;
 			num_deviation_notes += 1;
+			are_cbs.push(false);
+		} else {
+			are_cbs.push(true);
 		}
 		
 		if column < 4 {
@@ -124,6 +155,34 @@ fn analyze(path: &str, wifescore: f64) -> Option<ScoreAnalysis> {
 	score.manipulation = num_manipped_notes as f64 / num_notes as f64;
 	score.offset_buckets = offset_buckets;
 	score.sub_93_offset_buckets = sub_93_offset_buckets;
+	
+	ticks.sort_unstable(); // need to do this to be able to convert to seconds
+	// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
+	// the combo late, the calculated nps is higher than deserved
+	let seconds = timing_info.ticks_to_seconds(&ticks);
+	for (is_cb, pairs) in &seconds.iter().zip(are_cbs).group_by(|(_sec, is_cb)| *is_cb) {
+		if is_cb { continue } // we don't wanna have combos of cbs, only combos of actual hits
+		
+		let (first_last_pair, num_notes) = crate::util::first_and_last_and_count(pairs);
+		let combo_duration = match first_last_pair {
+			Some(((first_second, _), (last_second, _))) => last_second - first_second,
+			None => continue, // it's a 0-note or 1-note "combo"
+		};
+		
+		let combo_duration = combo_duration / rate; // apply rate!
+		
+		//~ if num_notes < 20 { continue } // a combo at so few notes is kinda wonky. better ignore
+		if num_notes < 100 { continue }
+		
+		// without -1 a simple <tap><1 sec pause><tap> would be counted as 2 NPS cuz those are 2
+		// taps in one second
+		let num_notes = num_notes - 1;
+		
+		let nps = num_notes as f64 / combo_duration;
+		if nps > score.fastest_combo.nps {
+			score.fastest_combo = FastestComboInScoreInfo { length: num_notes, nps };
+		}
+	}
 	
 	return Some(score);
 }
@@ -173,18 +232,27 @@ fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
 #[pymethods]
 impl ReplaysAnalysis {
 	#[new]
-	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>) -> Self {
+	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>,
+			packs: Vec<&str>, songs: Vec<&str>,
+			rates: Vec<f64>,
+			songs_root: &str
+		) -> Self {
+		
 		let mut analysis = Self::default();
 		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		analysis.sub_93_offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		
-		let score_analyses: Vec<_> = scorekeys
+		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(songs_root));
+		
+		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
+		let score_analyses: Vec<_> = tuples
 				.par_iter()
-				.zip(wifescores)
-				.map(|(scorekey, wifescore)| {
+				.filter_map(|(scorekey, wifescore, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;
-					let score_option = analyze(&replay_path, wifescore);
-					return (scorekey, score_option);
+					let song_id = crate::SongId { pack: pack.to_string(), song: song.to_string() };
+					let timing_info = &timing_info_index.get(&song_id)?;
+					let score_option = analyze(&replay_path, *wifescore, &timing_info, *rate);
+					return Some((scorekey, score_option));
 				})
 				.collect();
 		
@@ -197,17 +265,29 @@ impl ReplaysAnalysis {
 			analysis.score_indices.push(i as u64);
 			analysis.manipulations.push(score.manipulation);
 			deviation_mean_sum += score.deviation_mean;
+			
 			for i in 0..4 {
 				analysis.cbs_per_column[i] += score.cbs_per_column[i];
 				analysis.notes_per_column[i] += score.notes_per_column[i];
 			}
+			
+			// TODO use zipped iterators to avoid bounds-checking cost
 			for i in 0..NUM_OFFSET_BUCKETS as usize {
 				analysis.offset_buckets[i] += score.offset_buckets[i];
 				analysis.sub_93_offset_buckets[i] += score.sub_93_offset_buckets[i];
 			}
+			
 			if score.longest_mcombo > longest_mcombo {
 				longest_mcombo = score.longest_mcombo;
 				longest_mcombo_scorekey = scorekey;
+			}
+			
+			if score.fastest_combo.nps > analysis.fastest_combo.nps {
+				analysis.fastest_combo = FastestComboInfo {
+					nps: score.fastest_combo.nps,
+					length: score.fastest_combo.length,
+					scorekey: scorekey.to_string(),
+				}
 			}
 		}
 		let num_scores = analysis.manipulations.len();

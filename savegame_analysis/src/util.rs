@@ -66,3 +66,35 @@ pub fn extract_str<'a>(string: &'a str, before: &str, after: &str) -> Option<&'a
 	
 	return Some(&string[start_index..end_index]);
 }
+
+/// Returns the first element, the last element, and the total number of elements in the given
+/// iterator. In case the iterator is empty or has only one element, None is returned instead of
+/// the first and last element.
+pub fn first_and_last_and_count<I: std::iter::Iterator>(mut iterator: I) -> (Option<(I::Item, I::Item)>, u64) {
+	// exception case handling
+	let first_elem = match iterator.next() {
+		Some(a) => a,
+		None => return (None, 0),
+	};
+	
+	// count elements and keep track of last elem
+	let mut count = 1; // we got one element already
+	let mut last_seen_elem = None;
+	for elem in iterator {
+		last_seen_elem = Some(elem);
+		count += 1;
+	}
+	
+	// exception case handling
+	let last_elem = match last_seen_elem {
+		Some(a) => a,
+		None => return (None, 1),
+	};
+	
+	return (Some((first_elem, last_elem)), count);
+}
+
+/// Does exactly what it says on the box
+pub fn is_sorted<T: Ord>(data: &[T]) -> bool {
+	return data.windows(2).all(|w| w[0] <= w[1]);
+}

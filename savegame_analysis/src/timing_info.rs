@@ -7,8 +7,8 @@ use crate::{some_or_continue, ok_or_continue};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SongId {
-	pack: String,
-	song: String,
+	pub pack: String,
+	pub song: String,
 }
 
 pub type TimingInfoIndex = HashMap<SongId, TimingInfo>;
@@ -48,9 +48,11 @@ impl TimingInfo {
 		
 		return Ok(TimingInfo { changes, first_bpm });
 	}
-	
-	/// Input slice must be sorted! Not sure what happens if not sorted
+
+	/// Input slice must be sorted!
 	pub fn ticks_to_seconds(&self, ticks: &[u64]) -> Vec<f64> {
+		assert!(crate::util::is_sorted(ticks)); // Parameter validation
+		
 		let mut cursor_beat: f64 = 0.0;
 		let mut cursor_second: f64 = 0.0;
 		let mut beat_time = 60.0 / self.first_bpm;
@@ -60,8 +62,6 @@ impl TimingInfo {
 		let mut seconds_vec = Vec::with_capacity(ticks.len());
 		let mut convert_ticks_up_to = |beat: f64, cursor_second: f64, cursor_beat: f64, beat_time: f64| {
 			while ticks_i < ticks.len() && ticks[ticks_i] as f64 / 48.0 < beat {
-				println!("got tick {} with beat_time {} starting at {}", ticks[ticks_i], beat_time, cursor_second);
-				
 				let beat = ticks[ticks_i] as f64 / 48.0;
 				let second = cursor_second + (beat - cursor_beat) * beat_time;
 				seconds_vec.push(second);
@@ -70,24 +70,24 @@ impl TimingInfo {
 			}
 		};
 		
-		for BpmChange { beat: change_beat, bpm: change_bpm } in self.changes {
-			convert_ticks_up_to(change_beat, cursor_second, cursor_beat, beat_time);
+		for BpmChange { beat: change_beat, bpm: change_bpm } in &self.changes {
+			convert_ticks_up_to(*change_beat, cursor_second, cursor_beat, beat_time);
 			
 			cursor_second += beat_time * (change_beat - cursor_beat);
-			cursor_beat = change_beat;
+			cursor_beat = *change_beat;
 			beat_time = 60.0 / change_bpm;
 		}
 		
 		// process all remaining ticks (i.e. all ticks coming after the last bpm change
 		convert_ticks_up_to(f64::INFINITY, cursor_second, cursor_beat, beat_time);
 		
-		assert!(ticks.len() == seconds_vec.len());
+		assert!(ticks.len() == seconds_vec.len()); // If this panics, the above code is wrong
 		
 		return seconds_vec;
 	}
 }
 
-fn find_sm_like_from_root(base: &Path) -> Result<Vec<PathBuf>> {
+fn find_sm_like_from_root(base: &Path) -> Vec<PathBuf> {
 	let mut sm_likes = Vec::new();
 	
 	for chart in WalkDir::new(base)
@@ -104,7 +104,7 @@ fn find_sm_like_from_root(base: &Path) -> Result<Vec<PathBuf>> {
 			sm_likes.push(chart);
 		}
 	}
-	return Ok(sm_likes);
+	return sm_likes;
 }
 
 fn song_id_timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
@@ -138,11 +138,10 @@ pub fn timing_info_from_sm(sm_path: &Path) -> Result<TimingInfo> {
 	return Ok(song_id_timing_info_from_sm(sm_path)?.1);
 }
 
-pub fn build_timing_info_index(songs_root: &Path) -> Result<TimingInfoIndex> {
+pub fn build_timing_info_index(songs_root: &Path) -> TimingInfoIndex {
 	let mut index = TimingInfoIndex::new();
 	
-	let paths = find_sm_like_from_root(&songs_root)
-			.context("Couldn't collect sm-like song paths")?;
+	let paths = find_sm_like_from_root(&songs_root);
 	for path in paths {
 		let (song_id, timing_info) = match song_id_timing_info_from_sm(&path) {
 			Ok(a) => a,
@@ -156,5 +155,5 @@ pub fn build_timing_info_index(songs_root: &Path) -> Result<TimingInfoIndex> {
 		index.insert(song_id, timing_info);
 	}
 	
-	return Ok(index);
+	return index;
 } 
