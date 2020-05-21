@@ -62,10 +62,9 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 				all_scores.append(score)
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	songs_root = "/home/kangalioo/hdd/stepmania-songs" # REMEMBER
 	rustr = savegame_analysis.ReplaysAnalysis(prefix,
 			chartkeys, wifescores, packs, songs, rates,
-			songs_root)
+			app.app.prefs.songs_root)
 	
 	r.fastest_combo_length = rustr.fastest_combo.length
 	r.fastest_combo_nps = rustr.fastest_combo.nps

@@ -113,6 +113,11 @@ class Settings:
 		}
 		with open(path, "w") as f:
 			json.dump(json_data, f)
+	
+	def is_incomplete(self) -> bool:
+		# setting here
+		return any(setting is None for setting in [
+				self.xml_path, self.replays_dir, self.songs_root])
 
 class SettingsDialog(QDialog):
 	def __init__(self):
@@ -283,11 +288,10 @@ class Application:
 		self._ui = UI()
 		self._infobar_link_connection = None
 		
-		if self._prefs.xml_path is None or self._prefs.replays_dir is None:
+		if self._prefs.is_incomplete():
 			self.try_detect_etterna()
 		
-		if any(setting is None for setting in [self._prefs.xml_path, self._prefs.replays_dir,
-				self._prefs.songs_root]):
+		if self._prefs.is_incomplete():
 			if not self.make_user_choose_paths():
 				return
 		

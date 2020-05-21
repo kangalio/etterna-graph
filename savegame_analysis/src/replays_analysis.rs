@@ -264,6 +264,11 @@ impl ReplaysAnalysis {
 			songs_root: &str
 		) -> Self {
 		
+		assert_eq!(scorekeys.len(), wifescore.len());
+		assert_eq!(scorekeys.len(), packs.len());
+		assert_eq!(scorekeys.len(), songs.len());
+		assert_eq!(scorekeys.len(), rates.len());
+		
 		let mut analysis = Self::default();
 		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		analysis.sub_93_offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
