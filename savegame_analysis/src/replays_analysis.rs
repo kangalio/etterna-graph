@@ -66,7 +66,7 @@ struct ScoreAnalysis {
 	// like offset_buckets, but for, well, sub 93% scores only
 	sub_93_offset_buckets: Vec<u64>,
 	
-	fastest_combo: FastestComboInScoreInfo,
+	fastest_combo: Option<FastestComboInScoreInfo>,
 }
 
 #[derive(Default)]
@@ -120,7 +120,9 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> 
 }
 
 // Analyze a single score's replay
-fn analyze(path: &str, wifescore: f64, timing_info: &crate::TimingInfo, rate: f64) -> Option<ScoreAnalysis> {
+fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingInfo>, rate: f64)
+		-> Option<ScoreAnalysis> {
+	
 	let bytes = std::fs::read(path).ok()?;
 	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good value for this
 	
@@ -201,11 +203,14 @@ fn analyze(path: &str, wifescore: f64, timing_info: &crate::TimingInfo, rate: f6
 	score.sub_93_offset_buckets = sub_93_offset_buckets;
 	
 	ticks.sort_unstable(); // need to do this to be able to convert to seconds
-	// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
-	// the combo late, the calculated nps is higher than deserved
-	let seconds = timing_info.ticks_to_seconds(&ticks);
 	
-	score.fastest_combo = find_fastest_combo_in_score(&seconds, &are_cbs, rate);
+	if let Some(timing_info) = timing_info_maybe {
+		// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
+		// the combo late, the calculated nps is higher than deserved
+		let seconds = timing_info.ticks_to_seconds(&ticks);
+		
+		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs, rate));
+	}
 	
 	return Some(score);
 }
@@ -264,7 +269,7 @@ impl ReplaysAnalysis {
 			songs_root: &str
 		) -> Self {
 		
-		assert_eq!(scorekeys.len(), wifescore.len());
+		assert_eq!(scorekeys.len(), wifescores.len());
 		assert_eq!(scorekeys.len(), packs.len());
 		assert_eq!(scorekeys.len(), songs.len());
 		assert_eq!(scorekeys.len(), rates.len());
@@ -281,8 +286,8 @@ impl ReplaysAnalysis {
 				.map(|(scorekey, wifescore, pack, song, rate)| { // must not filter_map here!
 					let replay_path = prefix.to_string() + scorekey;
 					let song_id = crate::SongId { pack: pack.to_string(), song: song.to_string() };
-					let timing_info = &timing_info_index.get(&song_id)?;
-					let score = analyze(&replay_path, *wifescore, &timing_info, *rate)?;
+					let timing_info_maybe = timing_info_index.get(&song_id);
+					let score = analyze(&replay_path, *wifescore, timing_info_maybe, *rate)?;
 					return Some((scorekey, score));
 				})
 				.collect();
@@ -313,11 +318,13 @@ impl ReplaysAnalysis {
 				longest_mcombo_scorekey = scorekey;
 			}
 			
-			if score.fastest_combo.nps > analysis.fastest_combo.nps {
-				analysis.fastest_combo = FastestComboInfo {
-					nps: score.fastest_combo.nps,
-					length: score.fastest_combo.length,
-					scorekey: scorekey.to_string(),
+			if let Some(score_fastest_combo) = &score.fastest_combo {
+				if score_fastest_combo.nps > analysis.fastest_combo.nps {
+					analysis.fastest_combo = FastestComboInfo {
+						nps: score_fastest_combo.nps,
+						length: score_fastest_combo.length,
+						scorekey: scorekey.to_string(),
+					}
 				}
 			}
 		}
