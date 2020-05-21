@@ -674,8 +674,6 @@ def gen_text_general_analysis_info(xml, a):
 	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
 	
 	if a:
-		# ~ return f"{overall:.2f}, {wifescore*100:.2f}% - \"{song}\" ({pack}) - {dt[:10]}"
-		
 		length = a.fastest_combo_length
 		nps = a.fastest_combo_nps
 		score = a.fastest_combo_score
@@ -700,7 +698,7 @@ def gen_text_general_analysis_info(xml, a):
 		f"Average wifescore last 6 months is {total_wifescore_str}",
 		f"Longest combo: {long_combo_str}",
 		f"Longest marvelous combo: {long_mcombo_str}",
-		f"Fastest combo: {fastest_combo_string}",
+		f"Fastest combo >99 notes: {fastest_combo_string}",
 	])
 
 def gen_text_most_played_packs(xml, limit=10, months: Optional[int]=None):

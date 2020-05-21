@@ -1,8 +1,8 @@
 use std::path::PathBuf;
-use itertools::{izip, Itertools};
+use itertools::{izip/*, Itertools*/};
 use rayon::prelude::*;
 use pyo3::prelude::*;
-use crate::ok_or_continue;
+use crate::{ok_or_continue, some_or_continue};
 use crate::util::split_newlines;
 
 
@@ -227,12 +227,15 @@ fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
 				sum(values * weights) / sum(weights)))
 		/
 		sum(weights)
+	)
 	*/
+	
+	assert_eq!(offset_buckets.len() as u64, NUM_OFFSET_BUCKETS);
 	
 	// util function
 	let iter_value_weight_pairs = || offset_buckets.iter()
 			.enumerate()
-			.map(|(i, weight)| ((i - OFFSET_BUCKET_RANGE as usize) as i64, weight));
+			.map(|(i, weight)| (i as i64 - OFFSET_BUCKET_RANGE as i64, weight));
 	
 	let mut value_x_weights_sum = 0;
 	let mut weights_sum = 0;
@@ -270,20 +273,20 @@ impl ReplaysAnalysis {
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples
 				.par_iter()
-				.filter_map(|(scorekey, wifescore, pack, song, rate)| {
+				.map(|(scorekey, wifescore, pack, song, rate)| { // must not filter_map here!
 					let replay_path = prefix.to_string() + scorekey;
 					let song_id = crate::SongId { pack: pack.to_string(), song: song.to_string() };
 					let timing_info = &timing_info_index.get(&song_id)?;
-					let score_option = analyze(&replay_path, *wifescore, &timing_info, *rate);
-					return Some((scorekey, score_option));
+					let score = analyze(&replay_path, *wifescore, &timing_info, *rate)?;
+					return Some((scorekey, score));
 				})
 				.collect();
 		
 		let mut deviation_mean_sum: f64 = 0.0;
 		let mut longest_mcombo: u64 = 0;
 		let mut longest_mcombo_scorekey: &str = "<no chart>";
-		for (i, (scorekey, score_option)) in score_analyses.iter().enumerate() {
-			let score = match score_option { Some(a) => a, None => continue };
+		for (i, score_analysis_option) in score_analyses.iter().enumerate() {
+			let (scorekey, score) = some_or_continue!(score_analysis_option);
 			
 			analysis.score_indices.push(i as u64);
 			analysis.manipulations.push(score.manipulation);

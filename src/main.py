@@ -287,7 +287,7 @@ class Application:
 			self.try_detect_etterna()
 		
 		if any(setting is None for setting in [self._prefs.xml_path, self._prefs.replays_dir,
-				self._prefs.songs_root]
+				self._prefs.songs_root]):
 			if not self.make_user_choose_paths():
 				return
 		

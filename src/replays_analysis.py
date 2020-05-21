@@ -47,17 +47,19 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	packs: List[str] = []
 	songs: List[str] = []
 	rates: List[float] = []
+	all_scores: List[Any] = []
 	for chart in xml.iter("Chart"):
 		pack = chart.get("Pack")
 		song = chart.get("Song")
-		for scoresat in chart.iter("ScoresAt"): # don't need that `iter`
+		for scoresat in chart:
 			rate = float(scoresat.get("Rate"))
-			for score in scoresat.iter("Score"): # here neither
+			for score in scoresat:
 				chartkeys.append(score.get("Key"))
 				wifescores.append(float(score.findtext("SSRNormPercent")))
 				packs.append(pack)
 				songs.append(song)
 				rates.append(rate)
+				all_scores.append(score)
 	
 	prefix = os.path.join(replays, "a")[:-1]
 	songs_root = "/home/kangalioo/hdd/stepmania-songs" # REMEMBER
@@ -89,35 +91,22 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	r.offset_mean = rustr.deviation_mean
 	r.notes_per_column = rustr.notes_per_column
 	r.cbs_per_column = rustr.cbs_per_column
-	r.longest_mcombo = rustr.longest_mcombo
 	r.num_near_hits = sum(r.notes_per_column) / sum(r.cbs_per_column)
 	r.standard_deviation = rustr.standard_deviation
 	
 	for i, num_hits in enumerate(rustr.sub_93_offset_buckets):
 		r.sub_93_offset_buckets[i - 180] = num_hits
 	
-	rust_longest_mcombo = rustr.longest_mcombo
+	r.scores = [all_scores[score_index] for score_index in rustr.score_indices]
+	# ~ r.scores = all_scores
+	r.datetimes = [parsedate(score.findtext("DateTime")) for score in r.scores]
 	
-	score_indices = rustr.score_indices
-	i = -1
-	next_index_index = 0 # this thing is hacky
-	for chart in xml.iter("Chart"):
-		for score in chart.iter("Score"):
-			i += 1
-			if i == score_indices[next_index_index]:
-				next_index_index += 1
-				
-				scorekey = score.get("Key")
-				if scorekey == rust_longest_mcombo[1]:
-					r.longest_mcombo = (rust_longest_mcombo[0], chart)
-				if scorekey == rustr.fastest_combo.scorekey:
-					r.fastest_combo_score = score
-				
-				r.scores.append(score)
-				r.datetimes.append(parsedate(score.findtext("DateTime")))
-				if next_index_index >= len(score_indices): break
-		else:
-			continue
-		break
+	# replace the scorekeys returned from Rust replays analysis with the actual score elements
+	for score in r.scores:
+		scorekey = score.get("Key")
+		if scorekey == rustr.longest_mcombo[1]:
+			r.longest_mcombo = (rustr.longest_mcombo[0], util.find_parent_chart(xml, score))
+		if scorekey == rustr.fastest_combo.scorekey:
+			r.fastest_combo_score = score
 	
 	return r
