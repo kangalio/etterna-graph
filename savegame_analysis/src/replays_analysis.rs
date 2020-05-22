@@ -237,15 +237,10 @@ fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
 	
 	assert_eq!(offset_buckets.len() as u64, NUM_OFFSET_BUCKETS);
 	
-	println!("offset_buckets: len {}", offset_buckets.len());
-	
 	// util function
 	let iter_value_weight_pairs = || offset_buckets.iter()
 			.enumerate()
-			.map(|(i, weight)| {
-				println!("{} - {}", i, OFFSET_BUCKET_RANGE);
-				return (i as i64 - OFFSET_BUCKET_RANGE as i64, weight);
-			});
+			.map(|(i, weight)| (i as i64 - OFFSET_BUCKET_RANGE as i64, weight));
 	
 	let mut value_x_weights_sum = 0;
 	let mut weights_sum = 0;
