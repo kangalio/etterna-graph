@@ -2,7 +2,7 @@ use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 use walkdir::WalkDir;
-use crate::util::extract_str;
+use crate::util::{trim_bstr, extract_bstr};
 use crate::{some_or_continue, ok_or_continue};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -27,14 +27,17 @@ pub struct TimingInfo {
 }
 
 impl TimingInfo {
-	pub fn from_sm_bpm_string(string: &str) -> Result<Self> {
+	pub fn from_sm_bpm_string(string: &[u8]) -> Result<Self> {
 		// rough capacity approximation
 		let mut changes = Vec::with_capacity(string.len() / 13);
 		
-		for pair in string.split(",") {
-			let equal_sign_index = pair.find('=').ok_or(anyhow!("No equals sign in bpms entry"))?;
-			let beat: f64 = pair[..equal_sign_index].trim().parse()?;
-			let bpm: f64 = pair[equal_sign_index+1..].trim().parse()?;
+		for pair in string.split(|&c| c == b',') {
+			let equal_sign_index = pair.iter().position(|&c| c == b'=')
+					.ok_or(anyhow!("No equals sign in bpms entry"))?;
+			let beat: f64 = lexical::parse_lossy(trim_bstr(&pair[..equal_sign_index]))
+					.map_err(|e| anyhow!(format!("{:?}", e)))?;
+			let bpm: f64 = lexical::parse_lossy(trim_bstr(&pair[equal_sign_index+1..]))
+					.map_err(|e| anyhow!(format!("{:?}", e)))?;
 			changes.push(BpmChange { beat, bpm });
 		}
 		
@@ -115,22 +118,21 @@ fn song_id_timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
 	
 	// Read file
 	let contents = std::fs::read(sm_path)
-			.context(format!("Couldn't read sm file {:?}", sm_path))?;
-	let contents = String::from_utf8_lossy(&contents);
-	
+			.with_context(|| format!("Couldn't read sm file {:?}", sm_path))?;
+
 	// Get metadata
 	let pack_name = pack_name_from_sm_path(sm_path)
-			.ok_or(anyhow!(format!("Couldn't get pack name from {:?}", sm_path)))?;
-	let song_name = extract_str(&contents, "#TITLE:", ";")
-			.ok_or(anyhow!("No song name found"))?;
-	let song_id = SongId { pack: pack_name, song: song_name.to_owned() };
-	
+			.ok_or_else(|| anyhow!(format!("Couldn't get pack name from {:?}", sm_path)))?;
+	let song_name = extract_bstr(&contents, b"#TITLE:", b";")
+			.ok_or_else(|| anyhow!("No song name found"))?;
+	let song_id = SongId { pack: pack_name, song: String::from_utf8_lossy(song_name).into() };
+
 	// Get and parse bpm string
-	let sm_bpm_string = extract_str(&contents, "#BPMS:", ";")
-			.ok_or(anyhow!("No bpm string found"))?;
+	let sm_bpm_string = extract_bstr(&contents, b"#BPMS:", b";")
+			.ok_or_else(|| anyhow!("No bpm string found"))?;
 	let timing_info = TimingInfo::from_sm_bpm_string(sm_bpm_string)
-			.context(format!("Failed parsing bpm string {:?}", sm_bpm_string))?;
-	
+			.with_context(|| format!("Failed parsing bpm string {:?}", sm_bpm_string))?;
+
 	return Ok((song_id, timing_info));
 }
 

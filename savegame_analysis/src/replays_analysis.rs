@@ -10,7 +10,7 @@ static OFFSET_BUCKET_RANGE: u64 = 180;
 static NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
 
 #[pyclass]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ReplaysAnalysis {
 	#[pyo3(get)]
 	pub score_indices: Vec<u64>,
@@ -35,7 +35,7 @@ pub struct ReplaysAnalysis {
 }
 
 #[pyclass]
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct FastestComboInfo {
 	#[pyo3(get)]
 	pub length: u64,
@@ -269,10 +269,20 @@ impl ReplaysAnalysis {
 			songs_root: &str
 		) -> Self {
 		
+		// Validate parameters
 		assert_eq!(scorekeys.len(), wifescores.len());
 		assert_eq!(scorekeys.len(), packs.len());
 		assert_eq!(scorekeys.len(), songs.len());
 		assert_eq!(scorekeys.len(), rates.len());
+		
+		// Setup rayon
+		let rayon_config_result = rayon::ThreadPoolBuilder::new()
+				.num_threads(num_cpus::get_physical() * 3) // many threads because of file io
+				.stack_size(262144) // hopefully enough
+				.build_global();
+		if let Err(e) = rayon_config_result {
+			println!("Warning: rayon ThreadPoolBuilder failed: {:?}", e);
+		}
 		
 		let mut analysis = Self::default();
 		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];

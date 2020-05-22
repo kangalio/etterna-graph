@@ -42,6 +42,8 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	
 	r = ReplaysAnalysis()
 	
+	print("Starting collect..")
+	
 	chartkeys: List[str] = []
 	wifescores: List[float] = []
 	packs: List[str] = []
@@ -62,9 +64,11 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 				all_scores.append(score)
 	
 	prefix = os.path.join(replays, "a")[:-1]
+	print("doin the thing")
 	rustr = savegame_analysis.ReplaysAnalysis(prefix,
 			chartkeys, wifescores, packs, songs, rates,
 			app.app.prefs.songs_root)
+	print("done with the thing")
 	
 	r.fastest_combo_length = rustr.fastest_combo.length
 	r.fastest_combo_nps = rustr.fastest_combo.nps
@@ -107,5 +111,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			r.longest_mcombo = (rustr.longest_mcombo[0], util.find_parent_chart(xml, score))
 		if scorekey == rustr.fastest_combo.scorekey:
 			r.fastest_combo_score = score
+	
+	print("finished doing stuffs")
 	
 	return r

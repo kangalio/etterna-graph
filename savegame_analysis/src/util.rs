@@ -57,12 +57,22 @@ pub fn split_newlines<'a>(bytes: &'a [u8], min_line_length: usize) -> SplitNewli
 }
 
 // Extracts a string based on a prefix and a postfix. If prefix or postfix couldn't be found,
-// returns None.
+// returns None. UTF-8 safe too I think, even though it slices on byte indices.
 pub fn extract_str<'a>(string: &'a str, before: &str, after: &str) -> Option<&'a str> {
-	let before_index = string.find(before)?;
+	let before_index = twoway::find_str(string, before)?;
 	let start_index = before_index + before.len();
 	
-	let end_index = start_index + string[start_index..].find(after)?;
+	let end_index = start_index + twoway::find_str(&string[start_index..], after)?;
+	
+	return Some(&string[start_index..end_index]);
+}
+
+// The cooler ~~daniel~~ extract_str
+pub fn extract_bstr<'a>(string: &'a [u8], before: &[u8], after: &[u8]) -> Option<&'a [u8]> {
+	let before_index = twoway::find_bytes(string, before)?;
+	let start_index = before_index + before.len();
+	
+	let end_index = start_index + twoway::find_bytes(&string[start_index..], after)?;
 	
 	return Some(&string[start_index..end_index]);
 }
@@ -97,4 +107,14 @@ pub fn first_and_last_and_count<I: std::iter::Iterator>(mut iterator: I) -> (Opt
 /// Does exactly what it says on the box
 pub fn is_sorted<T: Ord>(data: &[T]) -> bool {
 	return data.windows(2).all(|w| w[0] <= w[1]);
+}
+
+pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
+	let is_not_whitespace = |&c| c != 0x20 && c != 0x09;
+	let start_index = match bstr.iter().position(is_not_whitespace) {
+		Some(a) => a,
+		None => return &bstr[..0], // when there's no non-whitespace char, return empty slice
+	};
+	let end_index = bstr.iter().rposition(is_not_whitespace).unwrap(); // can't panic
+	return &bstr[start_index..=end_index]
 }
