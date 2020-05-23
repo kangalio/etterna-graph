@@ -14,11 +14,9 @@ lexical = "5" # fast float parsing in replays analysis
 itertools = "0.9" # various qol stuff
 libm = "0.2" # for erfc
 anyhow = "1.0" # reasonable error handling
-walkdir = "2" # recursive directory walking is too hard to diy
-#tokio = { version = "0.2", features = ["fs"] } # async file loading
 #roxmltree = "0.11" # xml parsing
 twoway = "0.2" # substring finding for extract_str
-num_cpus = "1" # to find appropiate thread count for rayon
+sqlite = "0.25" # read cache.db file for timing info
 
 [dependencies.pyo3]
 version = "0.9.2"

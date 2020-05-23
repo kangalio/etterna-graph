@@ -266,7 +266,7 @@ impl ReplaysAnalysis {
 	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>,
 			packs: Vec<&str>, songs: Vec<&str>,
 			rates: Vec<f64>,
-			songs_root: &str
+			cache_db_path: &str
 		) -> Self {
 		
 		// Validate parameters
@@ -277,8 +277,7 @@ impl ReplaysAnalysis {
 		
 		// Setup rayon
 		let rayon_config_result = rayon::ThreadPoolBuilder::new()
-				.num_threads(num_cpus::get_physical() * 3) // many threads because of file io
-				.stack_size(262144) // hopefully enough
+				.num_threads(20) // many threads because of file io
 				.build_global();
 		if let Err(e) = rayon_config_result {
 			println!("Warning: rayon ThreadPoolBuilder failed: {:?}", e);
@@ -288,12 +287,13 @@ impl ReplaysAnalysis {
 		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		analysis.sub_93_offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		
-		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(songs_root));
+		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(cache_db_path));
 		
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples
 				.par_iter()
-				.map(|(scorekey, wifescore, pack, song, rate)| { // must not filter_map here!
+				// must not filter_map here (need to keep indices accurate)!
+				.map(|(scorekey, wifescore, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;
 					let song_id = crate::SongId { pack: pack.to_string(), song: song.to_string() };
 					let timing_info_maybe = timing_info_index.get(&song_id);
@@ -305,7 +305,9 @@ impl ReplaysAnalysis {
 		let mut deviation_mean_sum: f64 = 0.0;
 		let mut longest_mcombo: u64 = 0;
 		let mut longest_mcombo_scorekey: &str = "<no chart>";
+		let mut num_score_analyses = 0; // just a value to check programming errors
 		for (i, score_analysis_option) in score_analyses.iter().enumerate() {
+			num_score_analyses += 1;
 			let (scorekey, score) = some_or_continue!(score_analysis_option);
 			
 			analysis.score_indices.push(i as u64);
@@ -339,6 +341,8 @@ impl ReplaysAnalysis {
 			}
 		}
 		let num_scores = analysis.manipulations.len();
+		debug_assert!(num_scores == num_score_analyses);
+		
 		analysis.deviation_mean = deviation_mean_sum / num_scores as f64;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());
 		

@@ -1,8 +1,8 @@
+#![allow(unused_imports)]
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
-use walkdir::WalkDir;
-use crate::util::{trim_bstr, extract_bstr};
+use crate::util::{trim_bstr};
 use crate::{some_or_continue, ok_or_continue};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -90,72 +90,35 @@ impl TimingInfo {
 	}
 }
 
-fn find_sm_like_from_root(base: &Path) -> Vec<PathBuf> {
-	let mut sm_likes = Vec::new();
+fn build_timing_info_index_into(cache_db: &Path, index: &mut TimingInfoIndex) -> Result<()> {
+	let connection = sqlite::open(cache_db)?;
+	let mut statement = connection.prepare("SELECT dir, title, bpms FROM songs")?;
 	
-	for chart in WalkDir::new(base)
-			.follow_links(true)
-			.min_depth(3)
-			.max_depth(3) {
+	while let sqlite::State::Row = statement.next()? {
+		let song_dir: String = ok_or_continue!(statement.read(0));
+		let title: String = ok_or_continue!(statement.read(1));
+		let bpm_string: String = ok_or_continue!(statement.read(2));
 		
-		let chart = ok_or_continue!(chart);
-		if !chart.file_type().is_file() { continue }
+		// Turn `/Songs/mizuki/13kaidou/` into `mizuki`
+		let song_dir = PathBuf::from(song_dir);
+		let pack_name = song_dir.ancestors()
+				.nth(1).expect("song doesn't belong to a pack")
+				.file_name().expect("double dot as a pack name");
+		let pack_name = pack_name.to_string_lossy().into_owned();
 		
-		let chart = chart.into_path();
-		let extension = some_or_continue!(chart.extension());
-		if extension == "sm" { // ssc not supported cuz it has split timing -> it's complicated
-			sm_likes.push(chart);
-		}
-	}
-	return sm_likes;
-}
-
-fn song_id_timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
-	fn pack_name_from_sm_path(sm_path: &Path) -> Option<String> {
-		let pack_name = sm_path.parent()?.parent()?.file_name()?;
-		return Some(pack_name.to_string_lossy().into_owned()); // OsStr to String
-	}
-	
-	// Read file
-	let contents = std::fs::read(sm_path)
-			.with_context(|| format!("Couldn't read sm file {:?}", sm_path))?;
-
-	// Get metadata
-	let pack_name = pack_name_from_sm_path(sm_path)
-			.ok_or_else(|| anyhow!(format!("Couldn't get pack name from {:?}", sm_path)))?;
-	let song_name = extract_bstr(&contents, b"#TITLE:", b";")
-			.ok_or_else(|| anyhow!("No song name found"))?;
-	let song_id = SongId { pack: pack_name, song: String::from_utf8_lossy(song_name).into() };
-
-	// Get and parse bpm string
-	let sm_bpm_string = extract_bstr(&contents, b"#BPMS:", b";")
-			.ok_or_else(|| anyhow!("No bpm string found"))?;
-	let timing_info = TimingInfo::from_sm_bpm_string(sm_bpm_string)
-			.with_context(|| format!("Failed parsing bpm string {:?}", sm_bpm_string))?;
-
-	return Ok((song_id, timing_info));
-}
-
-pub fn timing_info_from_sm(sm_path: &Path) -> Result<TimingInfo> {
-	return Ok(song_id_timing_info_from_sm(sm_path)?.1);
-}
-
-pub fn build_timing_info_index(songs_root: &Path) -> TimingInfoIndex {
-	let mut index = TimingInfoIndex::new();
-	
-	let paths = find_sm_like_from_root(&songs_root);
-	for path in paths {
-		let (song_id, timing_info) = match song_id_timing_info_from_sm(&path) {
-			Ok(a) => a,
-			Err(_e) => {
-				//~ println!("Couldn't get timing info from sm: {:?}", _e);
-				//~ println!();
-				continue;
-			}
-		};
+		let song_id = SongId { pack: pack_name, song: title };
 		
+		let timing_info = ok_or_continue!(TimingInfo::from_sm_bpm_string(bpm_string.as_bytes()));
 		index.insert(song_id, timing_info);
 	}
 	
+	return Ok(());
+}
+
+pub fn build_timing_info_index(cache_db: &Path) -> TimingInfoIndex {
+	let mut index = TimingInfoIndex::new();
+	if let Err(e) = build_timing_info_index_into(cache_db, &mut index) {
+		println!("Couldn't built timing info index: {:?}", e);
+	}
 	return index;
 } 
