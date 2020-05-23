@@ -81,11 +81,16 @@ class Settings:
 	cache_db: str
 	enable_all_plots: bool
 	hide_invalidated: bool
+	bg_color: str
+	text_color: str
+	border_color: str
+	link_color: str
 	
 	@staticmethod
 	def load_from_json(path: str) -> Settings:
 		# setting here
-		settings = Settings(None, None, None, False, True) # default values
+		settings = Settings(None, None, None, False, True,  # default values
+				"#222222", "#DDDDDD", "#777777", "#5193d4") # also change the default values below!
 		
 		if os.path.exists(path):
 			with open(path) as f:
@@ -101,6 +106,14 @@ class Settings:
 						settings.enable_all_plots = value
 					elif key == "hide-invalidated":
 						settings.hide_invalidated = value
+					elif key == "bg-color":
+						settings.bg_color = value
+					elif key == "text-color":
+						settings.text_color = value
+					elif key == "border-color":
+						settings.border_color = value
+					elif key == "link-color":
+						settings.link_color = value
 					else:
 						print(f"unknown settings key-value pair: {key}, {value}")
 		return settings
@@ -112,8 +125,21 @@ class Settings:
 			"replays-dir": self.replays_dir,
 			"cache-db": self.cache_db,
 			"enable-all-plots": self.enable_all_plots,
-			"hide-invalidated": self.hide_invalidated
+			"hide-invalidated": self.hide_invalidated,
 		}
+		
+		# only write color config value if they differ from the default. otherwise all users will
+		# have the color config as of now hard-coded in their settings, and color config changes
+		# in a future update won't be applied
+		for json_name, value, default in [
+				("bg-color", self.bg_color, "#222222"),
+				("text-color", self.text_color, "#DDDDDD"),
+				("border-color", self.border_color, "#777777"),
+				("link-color", self.link_color, "#5193d4"),
+				]:
+			if value.casefold() != default.casefold(): # check equality case-insensitively
+				json_data[json_name] = value
+		
 		with open(path, "w") as f:
 			json.dump(json_data, f)
 	
@@ -121,6 +147,22 @@ class Settings:
 		# setting here
 		return any(setting is None for setting in [
 				self.xml_path, self.replays_dir, self.cache_db])
+
+class ColorPickerButton(QPushButton):
+	def __init__(self, initial_color):
+		super().__init__()
+		self._qcolordialog = QColorDialog()
+		
+		self._qcolordialog.setCurrentColor(QColor(initial_color))
+		self._update_self_color()
+		self._qcolordialog.currentColorChanged.connect(self._update_self_color)
+		self.pressed.connect(lambda: self._qcolordialog.open())
+	
+	def _update_self_color(self):
+		self.setStyleSheet(f"background-color: {self._qcolordialog.currentColor().name()}")
+	
+	def get_qcolor(self) -> QColor:
+		return self._qcolordialog.currentColor()
 
 class SettingsDialog(QDialog):
 	def __init__(self):
@@ -144,59 +186,89 @@ class SettingsDialog(QDialog):
 		restart_info.setAlignment(Qt.AlignCenter | Qt.AlignRight)
 		vbox.addWidget(restart_info)
 		
+		row = 0
+		
 		# setting here
 		
 		self.xml_input = QLineEdit(app.app.prefs.xml_path)
 		def xml_chooser_handler():
 			result = try_select_xml()
 			if result: self.xml_input.setText(result)
-		layout.addWidget(QLabel("Etterna XML path"), 0, 0)
-		layout.addWidget(self.xml_input, 0, 1)
+		layout.addWidget(QLabel("Etterna XML path"), row, 0)
+		layout.addWidget(self.xml_input, row, 1)
 		btn = QPushButton()
 		btn.setIcon(QIcon.fromTheme("document-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
 		btn.pressed.connect(xml_chooser_handler)
-		layout.addWidget(btn, 0, 2)
+		layout.addWidget(btn, row, 2)
+		row += 1
 		
 		self.replays_input = QLineEdit(app.app.prefs.replays_dir)
 		def replays_chooser_handler():
 			result = try_choose_replays()
 			if result: self.replays_input.setText(result)
-		layout.addWidget(QLabel("ReplaysV2 directory path"), 1, 0)
-		layout.addWidget(self.replays_input, 1, 1)
+		layout.addWidget(QLabel("ReplaysV2 directory path"), row, 0)
+		layout.addWidget(self.replays_input, row, 1)
 		btn = QPushButton()
 		btn.setIcon(QIcon.fromTheme("folder-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
 		btn.pressed.connect(replays_chooser_handler)
-		layout.addWidget(btn, 1, 2)
+		layout.addWidget(btn, row, 2)
+		row += 1
 		
 		self.cache_db_input = QLineEdit(app.app.prefs.cache_db)
 		def cache_db_choose_handler():
 			result = try_choose_cache_db()
 			if result: self.cache_db_input.setText(result)
-		layout.addWidget(QLabel("Cache database path"), 2, 0)
-		layout.addWidget(self.cache_db_input, 2, 1)
+		layout.addWidget(QLabel("Cache database path"), row, 0)
+		layout.addWidget(self.cache_db_input, row, 1)
 		btn = QPushButton()
 		btn.setIcon(QIcon.fromTheme("document-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
 		btn.pressed.connect(cache_db_choose_handler)
-		layout.addWidget(btn, 2, 2)
+		layout.addWidget(btn, row, 2)
+		row += 1
+		
+		self.bg_color = ColorPickerButton(app.app.prefs.bg_color)
+		layout.addWidget(QLabel("Background color"), row, 0)
+		layout.addWidget(self.bg_color, row, 1)
+		row += 1
+		
+		self.text_color = ColorPickerButton(app.app.prefs.text_color)
+		layout.addWidget(QLabel("Text color"), row, 0)
+		layout.addWidget(self.text_color, row, 1)
+		row += 1
+		
+		self.border_color = ColorPickerButton(app.app.prefs.border_color)
+		layout.addWidget(QLabel("Border color"), row, 0)
+		layout.addWidget(self.border_color, row, 1)
+		row += 1
+		
+		self.link_color = ColorPickerButton(app.app.prefs.link_color)
+		layout.addWidget(QLabel("Link color"), row, 0)
+		layout.addWidget(self.link_color, row, 1)
+		row += 1
 		
 		self.enable_all = QCheckBox()
 		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
-		layout.addWidget(QLabel("Enable old boring plots"), 3, 0)
-		layout.addWidget(self.enable_all, 3, 1, 1, 2)
+		layout.addWidget(QLabel("Enable old boring plots"), row, 0)
+		layout.addWidget(self.enable_all, row, 1, 1, 2)
+		row += 1
 		
 		self.hide_invalidated = QCheckBox()
 		self.hide_invalidated.setChecked(app.app.prefs.hide_invalidated)
-		layout.addWidget(QLabel("Hide invalidated scores"), 4, 0)
-		layout.addWidget(self.hide_invalidated, 4, 1, 1, 2)
+		layout.addWidget(QLabel("Hide invalidated scores"), row, 0)
+		layout.addWidget(self.hide_invalidated, row, 1, 1, 2)
+		row += 1
 		
 		self.setMinimumWidth(600)
 	
 	def try_save(self):
 		missing_inputs = []
+		# setting here
 		if not os.path.exists(self.xml_input.text()): # includes blank input
 			missing_inputs.append("Etterna.xml path")
 		if not os.path.exists(self.replays_input.text()): # includes blank input
 			missing_inputs.append("ReplaysV2 directory")
+		if not os.path.exists(self.cache_db_input.text()): # includes blank input
+			missing_inputs.append("Cache database")
 		if len(missing_inputs) >= 1:
 			QMessageBox.information(None, "Missing or invalid fields",
 					"Please fill in valid values for: " + ", ".join(missing_inputs))
@@ -208,6 +280,10 @@ class SettingsDialog(QDialog):
 		app.app.prefs.cache_db = self.cache_db_input.text()
 		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
 		app.app.prefs.hide_invalidated = self.hide_invalidated.isChecked()
+		app.app.prefs.bg_color = self.bg_color.get_qcolor().name()
+		app.app.prefs.text_color = self.text_color.get_qcolor().name()
+		app.app.prefs.border_color = self.border_color.get_qcolor().name()
+		app.app.prefs.link_color = self.link_color.get_qcolor().name()
 		print("Saving prefs to json...")
 		app.app.prefs.save_to_json(SETTINGS_PATH)
 		
@@ -225,11 +301,11 @@ class UI:
 		
 		# setup style
 		root.setStyleSheet(f"""
-			background-color: {util.bg_color};
-			color: {util.text_color};
+			background-color: {util.bg_color()};
+			color: {util.text_color()};
 		""")
-		pg.setConfigOption("background", util.bg_color)
-		pg.setConfigOption("foreground", util.text_color)
+		pg.setConfigOption("background", util.bg_color())
+		pg.setConfigOption("foreground", util.text_color())
 		
 		main_menu = window.menuBar().addMenu("File")
 		main_menu.addAction("Settings").triggered.connect(lambda: SettingsDialog().exec_())

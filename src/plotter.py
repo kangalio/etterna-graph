@@ -46,7 +46,7 @@ def show_score_info(xml, score) -> None:
 	else:
 		util.logger.warning("Selected scatter point doesn't have SkillsetSSRs data")
 	text += f'"{pack}" -> "{song}"'
-	text += '    <a href="read-more" style="color: {util.link_color}">Show more</a>'
+	text += f'    <a href="read-more" style="color: {util.link_color()}">Show more</a>'
 	
 	def show_all():
 		lines = [
@@ -132,7 +132,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 		label.setTextInteractionFlags(label.textInteractionFlags() | Qt.TextSelectableByMouse);
 		label.setStyleSheet(f"""
-			border: 1px solid {util.border_color};
+			border: 1px solid {util.border_color()};
 			padding: 5px;
 			font-size: 13px;
 		""")
@@ -176,7 +176,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		all_plots.append(plot)
 		
 		container_widget = QWidget()
-		container_widget.setStyleSheet(f"border: 1px solid {util.border_color}")
+		container_widget.setStyleSheet(f"border: 1px solid {util.border_color()}")
 		plotbox_grid.addWidget(container_widget, cur_row, cur_col, 1, colspan)
 		container = QVBoxLayout(container_widget)
 		container.setSpacing(0)
