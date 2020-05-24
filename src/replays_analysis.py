@@ -1,11 +1,19 @@
 from typing import *
 
 import os
+from dataclasses import dataclass
 
 import util
 from util import parsedate
 import app
 
+@dataclass
+class FastestCombo:
+	length: int
+	nps: float
+	start_second: float
+	end_second: float
+	score: Any
 
 class ReplaysAnalysis:
 	def __init__(self):
@@ -18,9 +26,7 @@ class ReplaysAnalysis:
 		self.longest_mcombo = (0, None)
 		self.sub_93_offset_buckets = {}
 		self.standard_deviation = 0
-		self.fastest_combo_length = 0
-		self.fastest_combo_nps = 0
-		self.fastest_combo_score = None
+		self.fastest_combo = None
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -69,9 +75,13 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			app.app.prefs.cache_db)
 	print("done with the thing")
 	
-	r.fastest_combo_length = rustr.fastest_combo.length
-	r.fastest_combo_nps = rustr.fastest_combo.nps
-	# r.fastest_combo_score is set below, in the score xml iteration
+	r.fastest_combo = FastestCombo(
+			length=rustr.fastest_combo.length,
+			nps=rustr.fastest_combo.nps,
+			start_second=rustr.fastest_combo.start_second,
+			end_second=rustr.fastest_combo.end_second,
+			score=None)
+	# r.fastest_combo.score is set below, in the score xml iteration
 	
 	r.manipulations = rustr.manipulations
 	
@@ -99,8 +109,8 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		scorekey = score.get("Key")
 		if scorekey == rustr.longest_mcombo[1]:
 			r.longest_mcombo = (rustr.longest_mcombo[0], util.find_parent_chart(xml, score))
-		if scorekey == rustr.fastest_combo.scorekey:
-			r.fastest_combo_score = score
+		if scorekey == rustr.fastest_combo_scorekey:
+			r.fastest_combo.score = score
 	
 	print("finished doing stuffs")
 	

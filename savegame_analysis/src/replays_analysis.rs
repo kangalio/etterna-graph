@@ -32,17 +32,21 @@ pub struct ReplaysAnalysis {
 	pub standard_deviation: f64,
 	#[pyo3(get)]
 	pub fastest_combo: FastestComboInfo,
+	#[pyo3(get)]
+	pub fastest_combo_scorekey: String,
 }
 
 #[pyclass]
 #[derive(Default, Debug, Clone)]
 pub struct FastestComboInfo {
 	#[pyo3(get)]
-	pub length: u64,
+	start_second: f64,
 	#[pyo3(get)]
-	pub nps: f64,
+	end_second: f64,
 	#[pyo3(get)]
-	pub scorekey: String,
+	length: u64,
+	#[pyo3(get)]
+	nps: f64,
 }
 
 #[derive(Default)]
@@ -66,21 +70,12 @@ struct ScoreAnalysis {
 	// like offset_buckets, but for, well, sub 93% scores only
 	sub_93_offset_buckets: Vec<u64>,
 	
-	fastest_combo: Option<FastestComboInScoreInfo>,
-}
-
-#[derive(Default, Debug)]
-struct FastestComboInScoreInfo {
-	start_second: f64,
-	end_second: f64,
-	length: u64,
-	nps: f64,
+	fastest_combo: Option<FastestComboInfo>,
 }
 
 // The caller still has to scale the returned nps by the music rate
-fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInScoreInfo {
-	//~ println!("Starting new combo n={}", seconds.len());
-	let mut fastest = FastestComboInScoreInfo {
+fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInfo {
+	let mut fastest = FastestComboInfo {
 		start_second: 0.0, end_second: 0.0, length: 0, // dummy values
 		nps: 0.0,
 	};
@@ -95,66 +90,21 @@ fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInScoreInfo {
 				fastest.start_second = seconds[i];
 				fastest.end_second = seconds[end_i];
 				fastest.nps = nps;
-				//~ println!("Found new max nps (={:02.2}) from {:.2}s - {:.2}s (n={})", max_nps, second_range.0, second_range.1, n);
 			}
 		}
 	}
-	//~ println!();
 	
 	return fastest;
 }
 
-/*fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> FastestComboInScoreInfo {
+fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> FastestComboInfo {
 	// The nps track-keeping here is ignoring rate! rate is only applied at the end
-	let mut fastest_combo = FastestComboInScoreInfo { length: 0, nps: 0.0 };
-	
-	// Why is the combo counting done as it's done?
-	// Say you have this sequence of hits (y=hit, n=cb): "nnyyyyynn". when evaluating the 5 combo in
-	// there, in reality we're only evaluating the first four hits, _right_ up to a point just
-	// before the fifth hit. That's because the cb notes afterwards might be completely ridiculously
-	// placed notes, maybe just 1ms after the last hit.
-	// Say we have "yyyyn", where the "y"'s have a constant interval of 1 second, while the "n"
-	// comes just 1ms after the last "y".
-	// First y is at 0s, last y is at 3s, last n is at 3.001s. Including the time from last "y" to
-	// "n" would yield nps=4/3.001s=1.33 - which is plainly not true. The have an interval of 1s,
-	// not 1.33s. That's why we only look up to just before the last _hit_ (not cb) - it correctly
-	// yields nps=3/3s=1.
-	// This was a very lengthy explanation that no one except me will ever read.
-	let mut combo_len = 0;
-	let mut combo_start = 0.0;
-	for (&second, &is_cb) in seconds.iter().zip(are_cbs) {
-		if is_cb {
-			combo_len = 0;
-			// combo_start is in an invalid state from here until the next non_cb
-			continue;
-		}
-		
-		if combo_len == 0 {
-			combo_start = second;
-		}
-		
-		if combo_len >= 100 {
-			let nps = combo_len as f64 / (second - combo_start);
-			if nps > fastest_combo.nps {
-				fastest_combo = FastestComboInScoreInfo { length: combo_len, nps };
-			}
-		}
-		
-		combo_len += 1;
-	}
-	
-	fastest_combo.nps *= rate;
-	
-	return fastest_combo;
-}*/
-fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> FastestComboInScoreInfo {
-	// The nps track-keeping here is ignoring rate! rate is only applied at the end
-	let mut fastest_combo = FastestComboInScoreInfo::default();
-	
-	//~ println!("New score");
+	let mut fastest_combo = FastestComboInfo::default();
 	
 	let mut combo_start_i: Option<usize> = Some(0);
-	let mut initiate_combo_end = |combo_end_i| { // is called on every cb and at the end
+	
+	// is called on every cb (cuz that ends a combo) and at the end (cuz that also ends a combo)
+	let mut trigger_combo_end = |combo_end_i| {
 		if let Some(combo_start_i) = combo_start_i {
 			// the position of all notes, in seconds, within a full combo
 			let combo = &seconds[combo_start_i..combo_end_i];
@@ -168,12 +118,10 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> 
 	
 	for (i, &is_cb) in are_cbs.iter().enumerate() {
 		if is_cb {
-			initiate_combo_end(i);
+			trigger_combo_end(i);
 		}
 	}
-	initiate_combo_end(seconds.len());
-	
-	//~ println!();
+	trigger_combo_end(seconds.len());
 	
 	fastest_combo.nps *= rate;
 	
@@ -366,7 +314,7 @@ impl ReplaysAnalysis {
 		let mut deviation_mean_sum: f64 = 0.0;
 		let mut longest_mcombo: u64 = 0;
 		let mut longest_mcombo_scorekey: &str = "<no chart>";
-		for (i, score_analysis_option) in score_analyses.iter().enumerate() {
+		for (i, score_analysis_option) in score_analyses.into_iter().enumerate() {
 			let (scorekey, score) = some_or_continue!(score_analysis_option);
 			
 			analysis.score_indices.push(i as u64);
@@ -389,13 +337,10 @@ impl ReplaysAnalysis {
 				longest_mcombo_scorekey = scorekey;
 			}
 			
-			if let Some(score_fastest_combo) = &score.fastest_combo {
+			if let Some(score_fastest_combo) = score.fastest_combo {
 				if score_fastest_combo.nps > analysis.fastest_combo.nps {
-					analysis.fastest_combo = FastestComboInfo {
-						nps: score_fastest_combo.nps,
-						length: score_fastest_combo.length,
-						scorekey: scorekey.to_string(),
-					}
+					analysis.fastest_combo = score_fastest_combo;
+					analysis.fastest_combo_scorekey = scorekey.to_string();
 				}
 			}
 		}

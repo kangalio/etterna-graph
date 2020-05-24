@@ -684,19 +684,19 @@ def gen_text_general_analysis_info(xml, a):
 	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
 	
 	if a:
-		if a.fastest_combo_score is None:
+		if a.fastest_combo.score is None:
 			fastest_combo_string = "[couldn't access cache.db]"
 		else:
-			length = a.fastest_combo_length
-			nps = a.fastest_combo_nps
-			score = a.fastest_combo_score
-			chart = util.find_parent_chart(xml, score)
+			cmb = a.fastest_combo
+			chart = util.find_parent_chart(xml, cmb.score)
 			pack = chart.get("Pack")
 			song = chart.get("Song")
-			wifescore = float(score.findtext("SSRNormPercent"))
-			dt = score.findtext("DateTime")
+			wifescore = float(cmb.score.findtext("SSRNormPercent"))
+			dt = cmb.score.findtext("DateTime")
 			
-			fastest_combo_string = f"NPS={nps:.2f} ({length} notes) on \"{song}\" ({pack}), {wifescore*100:.2f}%"
+			fastest_combo_string = (f"NPS={cmb.nps:.2f} ({cmb.length} notes, from "
+					f"{cmb.start_second:.1f}s to {cmb.end_second:.1f}s) on \"{song}\" "
+					f"({pack}), {wifescore*100:.2f}%")
 	else:
 		fastest_combo_string = "[please load replay data]"
 	
