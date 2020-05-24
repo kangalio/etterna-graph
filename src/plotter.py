@@ -274,6 +274,15 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	)
 	plotbox(plot, "Number of play-hours each week")
 	
+	qapp.processEvents()
+	plot = plot_frame.draw(
+		type_="bar",
+		color=cmap[6],
+		flags="align_to_whole",
+		data=g.gen_wifescore_frequencies(xml),
+	)
+	plotbox(plot, "Number of scores per wifescore percent")
+	
 	if prefs.enable_all_plots:
 		qapp.processEvents()
 		plot = plot_frame.draw(

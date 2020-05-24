@@ -156,7 +156,8 @@ def draw(data,
 		if type_ == "scatter":
 			item = pg.ScatterPlotItem(x, y, pen=None, size=8, brush=color, data=ids)
 		elif type_ == "bar":
-			item = pg.BarGraphItem(x=x, height=y, width=width, pen=(200, 200, 200), brush=color)
+			x_values = [v + 0.5 for v in x] if "align_to_whole" in flags else x
+			item = pg.BarGraphItem(x=x_values, height=y, width=width, pen=(200, 200, 200), brush=color)
 		elif type_ == "bubble":
 			item = pg.ScatterPlotItem(x, y, pen=None, size=sizes, brush=color, data=ids)
 		elif type_ == "line":

@@ -103,6 +103,17 @@ def divide_into_sessions(xml):
 	
 	return cache("sessions_division_cache", sessions)
 
+def gen_wifescore_frequencies(xml):
+	# e.g. the 0.70 bucket corresponds to all scores between 0.70 and 0.71 (not 0.695 and 0.705!)
+	frequencies = {percent: 0 for percent in range(70, 100)}
+	
+	for score in iter_scores(xml):
+		wifescore = float(score.findtext("SSRNormPercent"))
+		percent = round(wifescore * 100)
+		if percent in frequencies:
+			frequencies[percent] += 1
+	return list(frequencies.keys()), list(frequencies.values())
+
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_week_skillsets(xml):
 	# Divide scores into weeks
@@ -151,7 +162,7 @@ def gen_plays_by_hour(xml):
 	# it doesn't play nicely with matplotlib, so we need to use an
 	# integer to represent the hour of the day.
 	#return {time(hour=i): num_plays[i] for i in range(24)}
-	return zip(*[(i, num_plays[i]) for i in range(24)])
+	return list(range(24)), num_plays
 
 def gen_most_played_charts(xml, num_charts):
 	charts_num_plays = []
