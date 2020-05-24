@@ -21,7 +21,7 @@ class TimeAxisItem(pg.AxisItem):
 		self.setLabel(units=None)
 		self.enableAutoSIPrefix(False)
 
-	def tickStrings(self, values, scale, spacing):
+	def tickStrings(self, values, _scale, _spacing):
 		# Cap timestamp to 32 bit to prevent crash on Windows from
 		# out-of-bounds dates
 		capmin = 0
@@ -43,7 +43,7 @@ class DIYLogAxisItem(pg.AxisItem):
 		self.decimal_places = decimal_places
 		self.postfix = postfix
 
-	def tickStrings(self, values, scale, spacing):
+	def tickStrings(self, values, _scale, _spacing):
 		result = []
 		for value in values:
 			if self.accuracy:

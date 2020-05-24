@@ -3,7 +3,6 @@ from typing import *
 
 import json, os, glob
 from dataclasses import dataclass
-from copy import copy
 
 import pyqtgraph as pg
 from PyQt5.QtGui import *
@@ -41,13 +40,6 @@ individual files within and don't choose a different directory. This
 program requires you to select the ReplaysV2 folder as a whole.
 </p>"""
 
-SONGS_ROOT_CHOOSER_INFO_MSG = """<p>
-In the following dialog please select your songs folder (typically Songs/) and click OK.
-Important: don't try to select individual files within and don't choose a different directory. This
-program requires you to select your root songs folder as a whole.
-</p>"""
-
-XML_CANCEL_MSG = "You need to provide an Etterna.xml file for this program to work"
 SETTINGS_PATH = "etterna-graph-settings.json"
 
 _keep_storage: List[Any] = []
@@ -317,7 +309,7 @@ class UI:
 		# QScrollArea wrapper with scroll wheel scrolling disabled on plots. I did this to prevent
 		# simultaneous scrolling and panning when hovering a plot while scrolling
 		class ScrollArea(QScrollArea):
-			def eventFilter(self, obj, event) -> bool:
+			def eventFilter(self, _obj, event) -> bool:
 				if event.type() == QEvent.Wheel and any(w.underMouse() for w in app.app.get_pg_plots()):
 					return True
 				return False

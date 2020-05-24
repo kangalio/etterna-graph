@@ -2,7 +2,6 @@ from typing import *
 
 import os, logging, json, math
 from datetime import datetime, timedelta
-from urllib.request import urlopen
 
 import app
 
@@ -42,7 +41,6 @@ def wifescore_to_grade_string(wifescore: float) -> str:
 	for grade_name, grade_threshold in zip(grade_names, grade_thresholds):
 		if wifescore >= grade_threshold:
 			return grade_name
-	return "huh?"
 	logger.exception("this shouldn't happen")
 
 # Parses date in Etterna.xml format
@@ -74,20 +72,6 @@ def is_score_valid(score):
 def iter_scores(xml_element):
 	return filter(is_score_valid, xml_element.iter("Score"))
 
-def get_latest_release():
-	with urlopen("https://api.github.com/repos/kangalioo/etterna-graph/releases") as response:
-		return json.loads(response.read())[0]
-		
-
-# Rarameters: replays = ReplaysV2 directory path  ;  key = Chart key
-# Returns list of the files' lines
-def read_replay(replays, key):
-	path = os.path.join(replays, key)
-	if os.path.exists(path):
-		with open(path) as f: return f.readlines()
-	else:
-		return None
-
 # Convert a float of hours to a string, e.g. "5h 35min"
 def timespan_str(hours):
 	minutes_total = round(hours * 60)
@@ -103,11 +87,6 @@ def cache(key, data=None):
 		cache_data[key] = data
 	return cache_data.get(key) # Return cached data
 
-def clear_cache():
-	global cache_data
-	
-	cache_data = {}
-
 def find_parent_chart(xml, score):
 	score_key = score.get("Key")
 	return xml.find(f".//Score[@Key=\"{score_key}\"]/../..")
@@ -121,6 +100,3 @@ def abbreviate(n, min_precision=2):
 	postfix_index = int((num_digits - min_precision) / 3)
 	postfix = ["", "k", "M", "B", "T", "Q"][postfix_index]
 	return str(round(n / 1000**postfix_index)) + postfix
-
-def gen_padding_from(text):
-	return f'<span style="color:{bg_color}">{text}</span>'

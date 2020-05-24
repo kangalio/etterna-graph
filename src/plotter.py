@@ -88,7 +88,7 @@ def show_score_info(xml, score) -> None:
 		
 		show_scrollable_msgbox("<br/>".join(lines), "Score info", word_wrap=True)
 	
-	app.app.set_infobar(text, lambda link_name: show_all())
+	app.app.set_infobar(text, lambda _link_name: show_all())
 
 def show_session_info(data) -> None:
 	(prev_rating, then_rating, num_scores, length) = data

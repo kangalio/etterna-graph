@@ -86,20 +86,19 @@ def divide_into_sessions(xml):
 	zipped = zip(scores, datetimes)
 	zipped = sorted(zipped, key=lambda pair: pair[1])
 	
-	# zipped is a list of sessions, where every session is a tuple of `List[score objects]`
-	#  and `List[datetimes]`
+	# zipped is a list of chronologically sorted (score object, datetime) tuples
 	
-	s_start = zipped[0][1]
-	current_session = [zipped[0]]
-	sessions = []
-	for i in range(1, len(zipped)):
-		datetime = zipped[i][1]
-		idle_time = zipped[i][1] - zipped[i - 1][1]
-		if idle_time > session_end_threshold:
+	prev_score_datetime = zipped[0][1] # first datetime
+	current_session = [zipped[0]] # list of (score object, datetime) tuples in current session
+	sessions = [] # list of sessions where every session is like `current_session`
+	for score, score_datetime in zipped[1:]:
+		score_interval = score_datetime - prev_score_datetime
+		# check if timedelta between two scores is too high
+		if score_interval > session_end_threshold:
 			sessions.append(current_session)
 			current_session = []
-			s_start = zipped[i][1]
-		current_session.append(zipped[i])
+		current_session.append((score, score_datetime))
+		prev_score_datetime = score_datetime
 	sessions.append(current_session)
 	
 	return cache("sessions_division_cache", sessions)
