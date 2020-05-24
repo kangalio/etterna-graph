@@ -598,9 +598,9 @@ def gen_text_general_info(xml, r):
 		if skillset_ssrs is None: continue
 		overall = float(skillset_ssrs.findtext("Overall"))
 
-		if wifescore < 0.9975:
+		if wifescore < util.AAA_THRESHOLD:
 			pass # we don't care about sub-AAA scores
-		elif wifescore < 0.9997:
+		elif wifescore < util.AAAA_THRESHOLD:
 			if overall > best_aaa[1]:
 				best_aaa = (score, overall)
 		else:

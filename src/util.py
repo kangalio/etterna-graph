@@ -17,8 +17,17 @@ logger = logging.getLogger()
 # Modified (saturated) EO colors
 skillset_colors = ["333399", "6666ff", "cc33ff", "ff99cc", "009933", "66ff66", "808080"]
 
-grade_names = "D C B A AA AAA AAAA".split(" ")
-grade_thresholds = [-math.inf, 0.6, 0.7, 0.8, 0.93, 0.9975, 0.9997]
+grade_names = "D C B A AA AAA AAAA AAAAA".split(" ")
+grade_thresholds = [-math.inf, 0.6, 0.7, 0.8, 0.93, 0.997, 0.99955, 0.99996]
+D_THRESHOLD = grade_thresholds[0]
+C_THRESHOLD = grade_thresholds[1]
+B_THRESHOLD = grade_thresholds[2]
+A_THRESHOLD = grade_thresholds[3]
+AA_THRESHOLD = grade_thresholds[4]
+AAA_THRESHOLD = grade_thresholds[5]
+AAAA_THRESHOLD = grade_thresholds[6]
+AAAAA_THRESHOLD = grade_thresholds[7]
+
 
 def bg_color(): return app.app.prefs.bg_color
 def text_color(): return app.app.prefs.text_color
