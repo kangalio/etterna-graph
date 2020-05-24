@@ -212,6 +212,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	qapp.processEvents()
 	plot = plot_frame.draw(
 		flags="time_xaxis manip_yaxis",
+		log_axis_max_shown_value=99,
 		color=cmap[3],
 		click_callback=score_info_callback,
 		data=g.gen_manip(xml, analysis),
@@ -222,6 +223,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	accuracy_data, brushes = g.gen_accuracy(xml, cmap[1])
 	plot = plot_frame.draw(
 		flags="time_xaxis accuracy_yaxis",
+		log_axis_min_shown_value=-99,
 		color=brushes,
 		click_callback=score_info_callback,
 		data=accuracy_data,
@@ -231,6 +233,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	qapp.processEvents()
 	plot = plot_frame.draw(
 		flags="time_xaxis ma_yaxis",
+		log_axis_max_shown_value=99,
 		color=cmap[6],
 		click_callback=score_info_callback,
 		data=g.gen_ma(xml),

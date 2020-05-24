@@ -34,7 +34,9 @@ class TimeAxisItem(pg.AxisItem):
 		return strings
 
 class DIYLogAxisItem(pg.AxisItem):
-	def __init__(self, accuracy, decimal_places, postfix="", *args, **kwargs):
+	def __init__(self, accuracy, decimal_places, postfix="", max_shown_value=float("inf"),
+			min_shown_value=float("-inf"), *args, **kwargs):
+		
 		super().__init__(*args, **kwargs)
 		self.setLabel(units=None)
 		self.enableAutoSIPrefix(False)
@@ -42,6 +44,8 @@ class DIYLogAxisItem(pg.AxisItem):
 		self.accuracy = accuracy
 		self.decimal_places = decimal_places
 		self.postfix = postfix
+		self.max_shown_value = max_shown_value
+		self.min_shown_value = min_shown_value
 
 	def tickStrings(self, values, _scale, _spacing):
 		result = []
@@ -50,8 +54,15 @@ class DIYLogAxisItem(pg.AxisItem):
 				value = 100 - 10 ** -value
 			else:
 				value = 10 ** value
-			value = round(value, self.decimal_places)
-			result.append(str(value) + self.postfix)
+			
+			if value > self.max_shown_value:
+				string = str(round(self.max_shown_value, self.decimal_places)) + self.postfix + "+"
+			elif value < self.min_shown_value:
+				string = "less than " + str(round(self.min_shown_value, self.decimal_places)) + self.postfix
+			else:
+				string = str(round(value, self.decimal_places)) + self.postfix
+			
+			result.append(string)
 		return result
 
 # mapper: function that turns xml into data points
@@ -67,25 +78,33 @@ class DIYLogAxisItem(pg.AxisItem):
 def draw(data,
 		flags="", title=None,
 		color="white", alpha=0.4, legend=None,
+		log_axis_max_shown_value=None,
+		log_axis_min_shown_value=None,
 		click_callback=None, type_="scatter", width=0.8):
+	
+	log_axis_kwargs = {}
+	if log_axis_max_shown_value:
+		log_axis_kwargs["max_shown_value"] = log_axis_max_shown_value
+	if log_axis_min_shown_value:
+		log_axis_kwargs["min_shown_value"] = log_axis_min_shown_value
 	
 	axisItems = {}
 	if "time_xaxis" in flags:
 		axisItems["bottom"] = TimeAxisItem(orientation="bottom")
 	if "accuracy_yaxis" in flags:
 		axisItems["left"] = DIYLogAxisItem(accuracy=True, decimal_places=3, postfix="%",
-				orientation="left")
+				orientation="left", **log_axis_kwargs)
 	elif "manip_yaxis" in flags:
 		axisItems["left"] = DIYLogAxisItem(accuracy=False, decimal_places=1, postfix="%",
-				orientation="left")
+				orientation="left", **log_axis_kwargs)
 	elif "ma_yaxis" in flags:
 		axisItems["left"] = DIYLogAxisItem(accuracy=False, decimal_places=1,
-				orientation="left")
+				orientation="left", **log_axis_kwargs)
 	
 	plot_widget = pg.PlotWidget(axisItems=axisItems)
 	plot = plot_widget.getPlotItem()
 	plot.setTitle(title)
-	if "log" in flags: plot.setLogMode(x=False, y=True)
+	if "log" in flags: plot.setLogMode(x=False, y=True) # does this do anything? idk
 	
 	def click_handler(_, points):
 		if len(points) > 1:
