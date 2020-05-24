@@ -42,6 +42,7 @@ def wifescore_to_grade_string(wifescore: float) -> str:
 		if wifescore >= grade_threshold:
 			return grade_name
 	logger.exception("this shouldn't happen")
+	return "aaaaaaaaaaaaaaaa"
 
 # Parses date in Etterna.xml format
 def parsedate(s):

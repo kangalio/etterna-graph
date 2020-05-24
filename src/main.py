@@ -145,8 +145,8 @@ class ColorPickerButton(QPushButton):
 		super().__init__()
 		self._qcolordialog = QColorDialog()
 		
-		self._qcolordialog.setCurrentColor(QColor(initial_color))
-		self._update_self_color()
+		self._initial_color = initial_color
+		self.set_color(initial_color)
 		self._qcolordialog.currentColorChanged.connect(self._update_self_color)
 		self.pressed.connect(lambda: self._qcolordialog.open())
 	
@@ -155,6 +155,13 @@ class ColorPickerButton(QPushButton):
 	
 	def get_qcolor(self) -> QColor:
 		return self._qcolordialog.currentColor()
+	
+	def set_color(self, color) -> None:
+		self._qcolordialog.setCurrentColor(QColor(color))
+		self._update_self_color()
+	
+	def reset(self) -> None: # reset to initial color
+		self.set_color(self._initial_color)
 
 class SettingsDialog(QDialog):
 	def __init__(self):
@@ -189,7 +196,8 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("Etterna XML path"), row, 0)
 		layout.addWidget(self.xml_input, row, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("document-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
+		btn.setIcon(QIcon.fromTheme("document-open",
+				QApplication.style().standardIcon(QStyle.SP_FileIcon))) # fallback icon
 		btn.pressed.connect(xml_chooser_handler)
 		layout.addWidget(btn, row, 2)
 		row += 1
@@ -201,7 +209,8 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("ReplaysV2 directory path"), row, 0)
 		layout.addWidget(self.replays_input, row, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("folder-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
+		btn.setIcon(QIcon.fromTheme("folder-open",
+				QApplication.style().standardIcon(QStyle.SP_DirIcon))) # fallback icon
 		btn.pressed.connect(replays_chooser_handler)
 		layout.addWidget(btn, row, 2)
 		row += 1
@@ -213,30 +222,42 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("Cache database path"), row, 0)
 		layout.addWidget(self.cache_db_input, row, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("document-open", QApplication.style().standardIcon(QStyle.SP_DirIcon)))
+		btn.setIcon(QIcon.fromTheme("document-open",
+				QApplication.style().standardIcon(QStyle.SP_FileIcon))) # fallback icon
 		btn.pressed.connect(cache_db_choose_handler)
 		layout.addWidget(btn, row, 2)
 		row += 1
 		
-		self.bg_color = ColorPickerButton(app.app.prefs.bg_color)
-		layout.addWidget(QLabel("Background color"), row, 0)
-		layout.addWidget(self.bg_color, row, 1)
-		row += 1
+		def make_color_picker_buttons(specs):
+			nonlocal row
+			
+			color_picker_buttons = []
+			for spec in specs:
+				initial_color, label = spec
+				color_picker_button = ColorPickerButton(initial_color)
+				color_picker_button.setToolTip("Press this button to select a color")
+				reset_button = QPushButton()
+				reset_button.setIcon(QIcon.fromTheme("view-refresh",
+						QApplication.style().standardIcon(QStyle.SP_BrowserReload))) # fallback icon
+				reset_button.pressed.connect(color_picker_button.reset)
+				reset_button.setToolTip("Reset color to default")
+				
+				layout.addWidget(QLabel(label), row, 0)
+				layout.addWidget(color_picker_button, row, 1)
+				layout.addWidget(reset_button, row, 2)
+				
+				color_picker_buttons.append(color_picker_button)
+				row += 1
+			
+			return color_picker_buttons
 		
-		self.text_color = ColorPickerButton(app.app.prefs.text_color)
-		layout.addWidget(QLabel("Text color"), row, 0)
-		layout.addWidget(self.text_color, row, 1)
-		row += 1
-		
-		self.border_color = ColorPickerButton(app.app.prefs.border_color)
-		layout.addWidget(QLabel("Border color"), row, 0)
-		layout.addWidget(self.border_color, row, 1)
-		row += 1
-		
-		self.link_color = ColorPickerButton(app.app.prefs.link_color)
-		layout.addWidget(QLabel("Link color"), row, 0)
-		layout.addWidget(self.link_color, row, 1)
-		row += 1
+		[self.bg_color, self.text_color, self.border_color, self.link_color] = \
+				make_color_picker_buttons([
+					(app.app.prefs.bg_color, "Background color"),
+					(app.app.prefs.text_color, "Text color"),
+					(app.app.prefs.border_color, "Border color"),
+					(app.app.prefs.link_color, "Link color"),
+				])
 		
 		self.enable_all = QCheckBox()
 		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
