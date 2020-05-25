@@ -683,22 +683,20 @@ def gen_text_general_analysis_info(xml, a):
 	total_wifescore = calculate_total_wifescore(xml, months=6)
 	total_wifescore_str = f"{round(total_wifescore * 100, 2)}%"
 	
-	if a:
-		if a.fastest_combo.score is None:
-			fastest_combo_string = "[couldn't access cache.db]"
-		else:
-			cmb = a.fastest_combo
-			chart = util.find_parent_chart(xml, cmb.score)
-			pack = chart.get("Pack")
-			song = chart.get("Song")
-			wifescore = float(cmb.score.findtext("SSRNormPercent"))
-			dt = cmb.score.findtext("DateTime")
-			
-			fastest_combo_string = (f"NPS={cmb.nps:.2f} ({cmb.length} notes, from "
-					f"{cmb.start_second:.1f}s to {cmb.end_second:.1f}s) on \"{song}\" "
-					f"({pack}), {wifescore*100:.2f}%")
-	else:
-		fastest_combo_string = "[please load replay data]"
+	def gen_fastest_combo_string(cmb):
+		if cmb is None:
+			return "[please load replay data]"
+		elif cmb.score is None:
+			return "[couldn't access cache.db]"
+		chart = util.find_parent_chart(xml, cmb.score)
+		pack = chart.get("Pack")
+		song = chart.get("Song")
+		wifescore = float(cmb.score.findtext("SSRNormPercent"))
+		dt = cmb.score.findtext("DateTime")
+		
+		return (f"NPS={cmb.nps:.2f} ({cmb.length} notes, from "
+				f"{cmb.start_second:.1f}s to {cmb.end_second:.1f}s) on \"{song}\" "
+				f"({pack}), {wifescore*100:.2f}%")
 	
 	return "<br>".join([
 		f"You spend {play_percentage}% of your sessions in gameplay",
@@ -711,7 +709,8 @@ def gen_text_general_analysis_info(xml, a):
 		f"Average wifescore last 6 months is {total_wifescore_str}",
 		f"Longest combo: {long_combo_str}",
 		f"Longest marvelous combo: {long_mcombo_str}",
-		f"Fastest combo >99 notes: {fastest_combo_string}",
+		f"Fastest combo 100+ notes: {gen_fastest_combo_string(a and a.fastest_combo)}",
+		f"Fastest jack 30 notes: {gen_fastest_combo_string(a and a.fastest_jack)}",
 	])
 
 def gen_text_most_played_packs(xml, limit=10, months: Optional[int]=None):

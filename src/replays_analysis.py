@@ -26,7 +26,8 @@ class ReplaysAnalysis:
 		self.longest_mcombo = (0, None)
 		self.sub_93_offset_buckets = {}
 		self.standard_deviation = 0
-		self.fastest_combo = None
+		self.fastest_combo: FastestCombo = None
+		self.fastest_jack: FastestCombo = None
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -69,19 +70,24 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 				all_scores.append(score)
 	
 	prefix = os.path.join(replays, "a")[:-1]
-	print("doin the thing")
+	print("Starting replays analysis...")
 	rustr = savegame_analysis.ReplaysAnalysis(prefix,
 			chartkeys, wifescores, packs, songs, rates,
 			app.app.prefs.cache_db)
-	print("done with the thing")
+	print("Done with replays analysis")
 	
 	r.fastest_combo = FastestCombo(
 			length=rustr.fastest_combo.length,
 			nps=rustr.fastest_combo.nps,
 			start_second=rustr.fastest_combo.start_second,
 			end_second=rustr.fastest_combo.end_second,
-			score=None)
-	# r.fastest_combo.score is set below, in the score xml iteration
+			score=None) # this field is set below, in the score xml iteration
+	r.fastest_jack = FastestCombo(
+			length=rustr.fastest_jack.length,
+			nps=rustr.fastest_jack.nps,
+			start_second=rustr.fastest_jack.start_second,
+			end_second=rustr.fastest_jack.end_second,
+			score=None) # this field is set below, in the score xml iteration
 	
 	r.manipulations = rustr.manipulations
 	
@@ -101,7 +107,6 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		r.sub_93_offset_buckets[i - 180] = num_hits
 	
 	r.scores = [all_scores[score_index] for score_index in rustr.score_indices]
-	# ~ r.scores = all_scores
 	r.datetimes = [parsedate(score.findtext("DateTime")) for score in r.scores]
 	
 	# replace the scorekeys returned from Rust replays analysis with the actual score elements
@@ -111,7 +116,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			r.longest_mcombo = (rustr.longest_mcombo[0], util.find_parent_chart(xml, score))
 		if scorekey == rustr.fastest_combo_scorekey:
 			r.fastest_combo.score = score
-	
-	print("finished doing stuffs")
+		if scorekey == rustr.fastest_jack_scorekey:
+			r.fastest_jack.score = score
 	
 	return r

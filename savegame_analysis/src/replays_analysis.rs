@@ -9,6 +9,8 @@ use crate::util::split_newlines;
 static OFFSET_BUCKET_RANGE: u64 = 180;
 static NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
 
+static FASTEST_JACK_WINDOW_SIZE: u64 = 30;
+
 #[pyclass]
 #[derive(Default, Debug)]
 pub struct ReplaysAnalysis {
@@ -34,6 +36,10 @@ pub struct ReplaysAnalysis {
 	pub fastest_combo: FastestComboInfo,
 	#[pyo3(get)]
 	pub fastest_combo_scorekey: String,
+	#[pyo3(get)]
+	pub fastest_jack: FastestComboInfo,
+	#[pyo3(get)]
+	pub fastest_jack_scorekey: String,
 }
 
 #[pyclass]
@@ -71,6 +77,7 @@ struct ScoreAnalysis {
 	sub_93_offset_buckets: Vec<u64>,
 	
 	fastest_combo: Option<FastestComboInfo>,
+	fastest_jack: Option<FastestComboInfo>,
 }
 
 // The caller still has to scale the returned nps by the music rate
@@ -147,6 +154,44 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 	
 	let mut score = ScoreAnalysis::default();
 	
+	// tuple of vectors; first value is tick, first value is deviation
+	let mut fastest_jack = FastestComboInfo::default();
+	let mut finger_hits: [(Vec<u64>, Vec<f64>); 4] =
+			[(vec![], vec![]), (vec![], vec![]), (vec![], vec![]), (vec![], vec![])];
+	let mut trigger_finger_jack_end = |(ticks, deviations): &mut (Vec<_>, Vec<_>)| {
+		let timing_info = match timing_info_maybe {
+			Some(a) => a,
+			None => return, // this score doesn't have timing info, no point in trying to measure jacks
+		};
+		
+		ticks.sort();
+		let mut seconds = timing_info.ticks_to_seconds(ticks);
+		
+		// Apply hit deviation to hit seconds
+		for (deviation, second_ref) in deviations.iter().zip(&mut seconds) {
+			*second_ref += deviation;
+		}
+		let seconds = seconds;
+		
+		for window in seconds.windows(FASTEST_JACK_WINDOW_SIZE as usize + 1) {
+			let nps = FASTEST_JACK_WINDOW_SIZE as f64 / (window[FASTEST_JACK_WINDOW_SIZE as usize] - window[0]);
+			if nps > fastest_jack.nps {
+				fastest_jack = FastestComboInfo {
+					start_second: window[0],
+					end_second: window[FASTEST_JACK_WINDOW_SIZE as usize],
+					nps: nps,
+					length: FASTEST_JACK_WINDOW_SIZE as u64,
+				}
+			}
+		}
+				
+		// STUB: find fastest 5-note sequence in `seconds` and check if that's faster than the
+		// known fastest so far (no variable for that yet)
+		
+		ticks.clear();
+		deviations.clear();
+	};
+	
 	let mut prev_tick: u64 = 0;
 	let mut mcombo: u64 = 0;
 	let mut num_notes: u64 = 0; // we can't derive this from notes_per_column cuz those exclude 5k+
@@ -167,9 +212,13 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		let tick: u64 = ok_or_continue!(btoi::btou(tick));
 		let deviation = token_iter.next().expect("Missing tick token");
 		let deviation: f64 = ok_or_continue!(lexical::parse_lossy(&deviation));
-		// "column" has the remainer of the string, luckily we just care about the first column
-		let column = token_iter.next().expect("Missing tick token");
-		let column: u64 = (column[0] - b'0') as u64;
+		// remainder has the rest of the string in one slice, without any whitespace info or such.
+		// luckily we know the points of interest's exact positions, so we can just directly index
+		// into the remainder string to get what we need
+		let remainder = token_iter.next().expect("Missing tick token");
+		let column: u64 = (remainder[0] - b'0') as u64;
+		let note_type: u64 = if remainder.len() >= 3 { (remainder[2] - b'0') as u64 } else { 1 };
+		if note_type != 1 { continue } // We don't want hold ends, mines, lifts etc
 		
 		num_notes += 1;
 		
@@ -189,6 +238,13 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
+			
+			if deviation.abs() <= 0.180 {
+				finger_hits[column as usize].0.push(tick);
+				finger_hits[column as usize].1.push(deviation);
+			} else {
+				trigger_finger_jack_end(&mut finger_hits[column as usize]);
+			}
 			
 			if deviation.abs() > 0.09 {
 				score.cbs_per_column[column as usize] += 1;
@@ -215,6 +271,15 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		
 		prev_tick = tick;
 	}
+	trigger_finger_jack_end(&mut finger_hits[0]);
+	trigger_finger_jack_end(&mut finger_hits[1]);
+	trigger_finger_jack_end(&mut finger_hits[2]);
+	trigger_finger_jack_end(&mut finger_hits[3]);
+	
+	fastest_jack.nps *= rate; // !
+	// If the recorded fastest jack speed is 0nps then... there was nothing recorded at all and we
+	// shouldn't return anything either
+	score.fastest_jack = if fastest_jack.nps == 0.0 { None } else { Some(fastest_jack) };
 	
 	score.num_deviation_notes = num_deviation_notes;
 	score.deviation_mean = deviation_sum / num_deviation_notes as f64;
@@ -352,6 +417,13 @@ impl ReplaysAnalysis {
 				if score_fastest_combo.nps > analysis.fastest_combo.nps {
 					analysis.fastest_combo = score_fastest_combo;
 					analysis.fastest_combo_scorekey = scorekey.to_string();
+				}
+			}
+			
+			if let Some(score_fastest_jack) = score.fastest_jack {
+				if score_fastest_jack.nps > analysis.fastest_jack.nps {
+					analysis.fastest_jack = score_fastest_jack;
+					analysis.fastest_jack_scorekey = scorekey.to_string();
 				}
 			}
 		}
