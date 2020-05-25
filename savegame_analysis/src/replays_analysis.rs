@@ -80,13 +80,19 @@ fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInfo {
 		nps: 0.0,
 	};
 	
+	if seconds.len() <= 100 { return fastest }
+	
 	// Do a moving average for every possible subset length
-	for n in 100..=seconds.len() {
-		for i in 0..=(seconds.len() - n) {
-			let end_i = i + n - 1; // inclusive end index
+	for n in 100..=(seconds.len() - 1) {
+		for i in 0..=(seconds.len() - n - 1) {
+			let end_i = i + n;
 			let nps = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
+			//~ if i == 449 {
+				//~ println!("Got combo {}..{}, {:.2} - {:.2}, nps={:.2} with n={}",
+						//~ i, end_i, seconds[end_i], seconds[i], nps, n);
+			//~ }
 			if nps > fastest.nps {
-				fastest.length = n as u64; // = end_i - i + 1
+				fastest.length = n as u64;
 				fastest.start_second = seconds[i];
 				fastest.end_second = seconds[end_i];
 				fastest.nps = nps;
@@ -132,6 +138,10 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> 
 fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingInfo>, rate: f64)
 		-> Option<ScoreAnalysis> {
 	
+	//~ if path != "/home/kangalioo/.etterna/Save/ReplaysV2/S91eb16d4c95874509b52426eb38c33d2da2286ac" {
+		//~ return None;
+	//~ }
+	
 	let bytes = std::fs::read(path).ok()?;
 	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good value for this
 	
@@ -147,6 +157,7 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 	let mut sub_93_offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	let mut ticks = Vec::with_capacity(approx_max_num_lines);
 	let mut are_cbs = Vec::with_capacity(approx_max_num_lines);
+	
 	for line in split_newlines(&bytes, 5) {
 		if line.len() == 0 || line[0usize] == b'H' { continue }
 		
