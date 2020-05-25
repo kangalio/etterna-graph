@@ -4,7 +4,11 @@ use rayon::prelude::*;
 use pyo3::prelude::*;
 use crate::{ok_or_continue, some_or_continue};
 use crate::util::split_newlines;
+use crate::wife::wife3;
 
+
+// IMPORTANT ANNOUNCE FOR WIFE POINTS:
+// In this crate, wife points are scaled to a maximum of 1 (not 2 like in the Etterna source code)!
 
 static OFFSET_BUCKET_RANGE: u64 = 180;
 static NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
@@ -40,6 +44,10 @@ pub struct ReplaysAnalysis {
 	pub fastest_jack: FastestComboInfo,
 	#[pyo3(get)]
 	pub fastest_jack_scorekey: String,
+	#[pyo3(get)]
+	pub fastest_acc: FastestComboInfo,
+	#[pyo3(get)]
+	pub fastest_acc_scorekey: String,
 }
 
 #[pyclass]
@@ -52,7 +60,7 @@ pub struct FastestComboInfo {
 	#[pyo3(get)]
 	length: u64,
 	#[pyo3(get)]
-	nps: f64,
+	speed: f64,
 }
 
 #[derive(Default)]
@@ -75,34 +83,48 @@ struct ScoreAnalysis {
 	offset_buckets: Vec<u64>,
 	// like offset_buckets, but for, well, sub 93% scores only
 	sub_93_offset_buckets: Vec<u64>,
-	
+	// the note subset (with >= 100 notes) with the highest nps (`speed` = nps)
 	fastest_combo: Option<FastestComboInfo>,
+	// like fastest_combo, but it's only for a single finger, and with a different window -
+	// FASTEST_JACK_WINDOW_SIZE - too
 	fastest_jack: Option<FastestComboInfo>,
+	// like fastest_combo, but `speed` is not simply nps but nps*(wifescore in that window) instead.
+	// For example, if you played 10 nps with an accuracy equivalent to 98%, `speed` would be 9.8
+	fastest_acc: Option<FastestComboInfo>,
 }
 
 // The caller still has to scale the returned nps by the music rate
-fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInfo {
+fn find_fastest_note_subset(seconds: &[f64],
+		min_num_notes: u64,
+		wife_pts: Option<&[f64]>, // if this is provided, the nps will be multiplied by wife pts
+	) -> FastestComboInfo {
+	
 	let mut fastest = FastestComboInfo {
 		start_second: 0.0, end_second: 0.0, length: 0, // dummy values
-		nps: 0.0,
+		speed: 0.0,
 	};
 	
-	if seconds.len() <= 100 { return fastest }
+	if seconds.len() <= min_num_notes as usize { return fastest }
 	
 	// Do a moving average for every possible subset length
-	for n in 100..=(seconds.len() - 1) {
+	for n in (min_num_notes as usize)..=(seconds.len() - 1) {
 		for i in 0..=(seconds.len() - n - 1) {
 			let end_i = i + n;
-			let nps = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
-			//~ if i == 449 {
-				//~ println!("Got combo {}..{}, {:.2} - {:.2}, nps={:.2} with n={}",
-						//~ i, end_i, seconds[end_i], seconds[i], nps, n);
-			//~ }
-			if nps > fastest.nps {
+			let mut nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
+			
+			if let Some(wife_pts) = wife_pts {
+				let wife_pts = &wife_pts[i..end_i]; // cut out the part relavant for this subset
+				let wife_pts_sum: f64 = wife_pts.iter().sum();
+				let wife_pts_mean = wife_pts_sum / wife_pts.len() as f64;
+				
+				nps *= wife_pts_mean; // multiply by wife points
+			}
+			
+			if nps > fastest.speed {
 				fastest.length = n as u64;
 				fastest.start_second = seconds[i];
 				fastest.end_second = seconds[end_i];
-				fastest.nps = nps;
+				fastest.speed = nps;
 			}
 		}
 	}
@@ -110,7 +132,12 @@ fn find_fastest_note_subset(seconds: &[f64]) -> FastestComboInfo {
 	return fastest;
 }
 
-fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> FastestComboInfo {
+fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool],
+		min_num_notes: u64,
+		wife_pts: Option<&[f64]>, // if this is provided, the nps will be multiplied by wife pts
+		rate: f64,
+	) -> FastestComboInfo {
+	
 	// The nps track-keeping here is ignoring rate! rate is only applied at the end
 	let mut fastest_combo = FastestComboInfo::default();
 	
@@ -121,8 +148,8 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> 
 		if let Some(combo_start_i) = combo_start_i {
 			// the position of all notes, in seconds, within a full combo
 			let combo = &seconds[combo_start_i..combo_end_i];
-			let fastest_note_subset = find_fastest_note_subset(combo);
-			if fastest_note_subset.nps > fastest_combo.nps {
+			let fastest_note_subset = find_fastest_note_subset(combo, min_num_notes, wife_pts);
+			if fastest_note_subset.speed > fastest_combo.speed {
 				fastest_combo = fastest_note_subset;
 			}
 		}
@@ -136,7 +163,7 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool], rate: f64) -> 
 	}
 	trigger_combo_end(seconds.len());
 	
-	fastest_combo.nps *= rate;
+	fastest_combo.speed *= rate;
 	
 	return fastest_combo;
 }
@@ -175,18 +202,15 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		
 		for window in seconds.windows(FASTEST_JACK_WINDOW_SIZE as usize + 1) {
 			let nps = FASTEST_JACK_WINDOW_SIZE as f64 / (window[FASTEST_JACK_WINDOW_SIZE as usize] - window[0]);
-			if nps > fastest_jack.nps {
+			if nps > fastest_jack.speed {
 				fastest_jack = FastestComboInfo {
 					start_second: window[0],
 					end_second: window[FASTEST_JACK_WINDOW_SIZE as usize],
-					nps: nps,
+					speed: nps,
 					length: FASTEST_JACK_WINDOW_SIZE as u64,
 				}
 			}
 		}
-				
-		// STUB: find fastest 5-note sequence in `seconds` and check if that's faster than the
-		// known fastest so far (no variable for that yet)
 		
 		ticks.clear();
 		deviations.clear();
@@ -202,6 +226,7 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 	let mut sub_93_offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	let mut ticks = Vec::with_capacity(approx_max_num_lines);
 	let mut are_cbs = Vec::with_capacity(approx_max_num_lines);
+	let mut wife_pts = Vec::with_capacity(approx_max_num_lines); // wife points, scaled to max=1
 	
 	for line in split_newlines(&bytes, 5) {
 		if line.len() == 0 || line[0usize] == b'H' { continue }
@@ -235,10 +260,12 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		} else {
 			are_cbs.push(true);
 		}
+		wife_pts.push(wife3(deviation));
 		
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
 			
+			// Fastest jack statistic
 			if deviation.abs() <= 0.180 {
 				finger_hits[column as usize].0.push(tick);
 				finger_hits[column as usize].1.push(deviation);
@@ -276,10 +303,10 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 	trigger_finger_jack_end(&mut finger_hits[2]);
 	trigger_finger_jack_end(&mut finger_hits[3]);
 	
-	fastest_jack.nps *= rate; // !
-	// If the recorded fastest jack speed is 0nps then... there was nothing recorded at all and we
+	fastest_jack.speed *= rate; // !
+	// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
 	// shouldn't return anything either
-	score.fastest_jack = if fastest_jack.nps == 0.0 { None } else { Some(fastest_jack) };
+	score.fastest_jack = if fastest_jack.speed == 0.0 { None } else { Some(fastest_jack) };
 	
 	score.num_deviation_notes = num_deviation_notes;
 	score.deviation_mean = deviation_sum / num_deviation_notes as f64;
@@ -294,7 +321,8 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		// the combo late, the calculated nps is higher than deserved
 		let seconds = timing_info.ticks_to_seconds(&ticks);
 		
-		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs, rate));
+		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs, 100, None, rate));
+		score.fastest_acc = Some(find_fastest_combo_in_score(&seconds, &are_cbs, 100, Some(&wife_pts), rate));
 	}
 	
 	return Some(score);
@@ -414,14 +442,21 @@ impl ReplaysAnalysis {
 			}
 			
 			if let Some(score_fastest_combo) = score.fastest_combo {
-				if score_fastest_combo.nps > analysis.fastest_combo.nps {
+				if score_fastest_combo.speed > analysis.fastest_combo.speed {
 					analysis.fastest_combo = score_fastest_combo;
 					analysis.fastest_combo_scorekey = scorekey.to_string();
 				}
 			}
 			
+			if let Some(score_fastest_acc) = score.fastest_acc {
+				if score_fastest_acc.speed > analysis.fastest_acc.speed {
+					analysis.fastest_acc = score_fastest_acc;
+					analysis.fastest_acc_scorekey = scorekey.to_string();
+				}
+			}
+			
 			if let Some(score_fastest_jack) = score.fastest_jack {
-				if score_fastest_jack.nps > analysis.fastest_jack.nps {
+				if score_fastest_jack.speed > analysis.fastest_jack.speed {
 					analysis.fastest_jack = score_fastest_jack;
 					analysis.fastest_jack_scorekey = scorekey.to_string();
 				}

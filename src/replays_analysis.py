@@ -10,7 +10,7 @@ import app
 @dataclass
 class FastestCombo:
 	length: int
-	nps: float
+	speed: float
 	start_second: float
 	end_second: float
 	score: Any
@@ -28,6 +28,7 @@ class ReplaysAnalysis:
 		self.standard_deviation = 0
 		self.fastest_combo: FastestCombo = None
 		self.fastest_jack: FastestCombo = None
+		self.fastest_acc: FastestCombo = None
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -47,8 +48,6 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	"""
 	
 	r = ReplaysAnalysis()
-	
-	print("Starting collect..")
 	
 	chartkeys: List[str] = []
 	wifescores: List[float] = []
@@ -76,18 +75,16 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			app.app.prefs.cache_db)
 	print("Done with replays analysis")
 	
-	r.fastest_combo = FastestCombo(
-			length=rustr.fastest_combo.length,
-			nps=rustr.fastest_combo.nps,
-			start_second=rustr.fastest_combo.start_second,
-			end_second=rustr.fastest_combo.end_second,
-			score=None) # this field is set below, in the score xml iteration
-	r.fastest_jack = FastestCombo(
-			length=rustr.fastest_jack.length,
-			nps=rustr.fastest_jack.nps,
-			start_second=rustr.fastest_jack.start_second,
-			end_second=rustr.fastest_jack.end_second,
-			score=None) # this field is set below, in the score xml iteration
+	def convert_combo_info(rust_combo_info):
+		return FastestCombo(
+				length=rust_combo_info.length,
+				speed=rust_combo_info.speed,
+				start_second=rust_combo_info.start_second,
+				end_second=rust_combo_info.end_second,
+				score=None) # this field is set below, in the score xml iteration
+	r.fastest_combo = convert_combo_info(rustr.fastest_combo)
+	r.fastest_jack = convert_combo_info(rustr.fastest_jack)
+	r.fastest_acc = convert_combo_info(rustr.fastest_acc)
 	
 	r.manipulations = rustr.manipulations
 	
@@ -118,5 +115,10 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			r.fastest_combo.score = score
 		if scorekey == rustr.fastest_jack_scorekey:
 			r.fastest_jack.score = score
+		if scorekey == rustr.fastest_acc_scorekey:
+			r.fastest_acc.score = score
+	
+	print(r.fastest_acc)
+	print(rustr.fastest_acc_scorekey)
 	
 	return r

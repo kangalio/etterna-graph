@@ -694,7 +694,7 @@ def gen_text_general_analysis_info(xml, a):
 		wifescore = float(cmb.score.findtext("SSRNormPercent"))
 		dt = cmb.score.findtext("DateTime")
 		
-		return (f"NPS={cmb.nps:.2f} ({cmb.length} notes, from "
+		return (f"NPS={cmb.speed:.2f} ({cmb.length} notes, from "
 				f"{cmb.start_second:.1f}s to {cmb.end_second:.1f}s) on \"{song}\" "
 				f"({pack}), {wifescore*100:.2f}%")
 	
@@ -711,6 +711,7 @@ def gen_text_general_analysis_info(xml, a):
 		f"Longest marvelous combo: {long_mcombo_str}",
 		f"Fastest combo 100+ notes: {gen_fastest_combo_string(a and a.fastest_combo)}",
 		f"Fastest jack 30 notes: {gen_fastest_combo_string(a and a.fastest_jack)}",
+		f"Fastest accurate combo 100+ notes: {gen_fastest_combo_string(a and a.fastest_acc)}",
 	])
 
 def gen_text_most_played_packs(xml, limit=10, months: Optional[int]=None):
