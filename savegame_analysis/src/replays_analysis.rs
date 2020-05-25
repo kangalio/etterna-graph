@@ -108,16 +108,19 @@ fn find_fastest_note_subset(seconds: &[f64],
 	
 	// Do a moving average for every possible subset length
 	for n in (min_num_notes as usize)..=(seconds.len() - 1) {
+		// Instead of calculating the sum of the local wife_pts window for every iteration, we keep
+		// a variable to it and simply update it on every iteration instead -> that's faster
+		let mut wife_pts_sum: f64 = 0.0; // that default value won't be used
+		if let Some(wife_pts) = wife_pts {
+			wife_pts_sum = wife_pts[0..n].iter().sum();
+		}
+		
 		for i in 0..=(seconds.len() - n - 1) {
 			let end_i = i + n;
 			let mut nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
 			
 			if let Some(wife_pts) = wife_pts {
-				let wife_pts = &wife_pts[i..end_i]; // cut out the part relavant for this subset
-				let wife_pts_sum: f64 = wife_pts.iter().sum();
-				let wife_pts_mean = wife_pts_sum / wife_pts.len() as f64;
-				
-				nps *= wife_pts_mean; // multiply by wife points
+				nps *= wife_pts_sum / wife_pts.len() as f64; // multiply by wife points
 			}
 			
 			if nps > fastest.speed {
@@ -125,6 +128,12 @@ fn find_fastest_note_subset(seconds: &[f64],
 				fastest.start_second = seconds[i];
 				fastest.end_second = seconds[end_i];
 				fastest.speed = nps;
+			}
+			
+			if let Some(wife_pts) = wife_pts {
+				// Move the wife_pts_sum window one place forward
+				wife_pts_sum -= wife_pts[i];
+				wife_pts_sum += wife_pts[end_i];
 			}
 		}
 	}
@@ -405,6 +414,7 @@ impl ReplaysAnalysis {
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples
 				.par_iter()
+				//~ .iter()
 				// must not filter_map here (need to keep indices accurate)!
 				.map(|(scorekey, wifescore, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;
