@@ -3,23 +3,28 @@ use itertools::{izip/*, Itertools*/};
 use rayon::prelude::*;
 use pyo3::prelude::*;
 use crate::{ok_or_continue, some_or_continue};
-use crate::util::split_newlines;
+use crate::util;
 use crate::wife::wife3;
 
 
 // IMPORTANT ANNOUNCE FOR WIFE POINTS:
 // In this crate, wife points are scaled to a maximum of 1 (not 2 like in the Etterna source code)!
 
-static OFFSET_BUCKET_RANGE: u64 = 180;
-static NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
+const OFFSET_BUCKET_RANGE: u64 = 180;
+const NUM_OFFSET_BUCKETS: u64 = 2 * OFFSET_BUCKET_RANGE + 1;
 
-static FASTEST_JACK_WINDOW_SIZE: u64 = 30;
+const FASTEST_JACK_WINDOW_SIZE: u64 = 30;
+
+// Note subsets will not be searched above size min_num_notes + NOTE_SUBSET_SEARCH_SPACE_SIZE will
+// be searched. The reason we can get away doing this is because it's very unlikely that a, say,
+// 120 combo is gonna have a faster nps than a 100 combo
+const NOTE_SUBSET_SEARCH_SPACE_SIZE: u64 = 20;
 
 #[pyclass]
 #[derive(Default, Debug)]
 pub struct ReplaysAnalysis {
 	#[pyo3(get)]
-	pub score_indices: Vec<u64>,
+	pub score_indices: Vec<u64>, // the indices of the scores whose analysis didn't fail
 	#[pyo3(get)]
 	pub manipulations: Vec<f64>,
 	#[pyo3(get)]
@@ -81,8 +86,6 @@ struct ScoreAnalysis {
 	// for example the middle entry is for (-0.5ms - 0.5ms). each number stands for the number of
 	// hits in the respective timing window
 	offset_buckets: Vec<u64>,
-	// like offset_buckets, but for, well, sub 93% scores only
-	sub_93_offset_buckets: Vec<u64>,
 	// the note subset (with >= 100 notes) with the highest nps (`speed` = nps)
 	fastest_combo: Option<FastestComboInfo>,
 	// like fastest_combo, but it's only for a single finger, and with a different window -
@@ -96,7 +99,6 @@ struct ScoreAnalysis {
 // The caller still has to scale the returned nps by the music rate
 fn find_fastest_note_subset(seconds: &[f64],
 		min_num_notes: u64,
-		wife_pts: Option<&[f64]>, // if this is provided, the nps will be multiplied by wife pts
 	) -> FastestComboInfo {
 	
 	let mut fastest = FastestComboInfo {
@@ -106,22 +108,57 @@ fn find_fastest_note_subset(seconds: &[f64],
 	
 	if seconds.len() <= min_num_notes as usize { return fastest }
 	
+	// Do a moving average for every possible subset length (except the large lengths cuz it's
+	// unlikely that there'll be something relevant there)
+	let end_n = std::cmp::min(seconds.len(), (min_num_notes + NOTE_SUBSET_SEARCH_SPACE_SIZE) as usize);
+	for n in (min_num_notes as usize)..end_n {
+		for i in 0..=(seconds.len() - n - 1) {
+			let end_i = i + n;
+			let nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
+			
+			if nps > fastest.speed {
+				fastest.length = n as u64;
+				fastest.start_second = seconds[i];
+				fastest.end_second = seconds[end_i];
+				fastest.speed = nps;
+			}
+		}
+	}
+	
+	return fastest;
+}
+
+// The caller still has to scale the returned nps by the music rate
+fn find_fastest_note_subset_wife_pts(seconds: &[f64],
+		min_num_notes: u64,
+		wife_pts: &[f64],
+	) -> FastestComboInfo {
+	
+	assert!(wife_pts.len() == seconds.len());
+	
+	let mut fastest = FastestComboInfo {
+		start_second: 0.0, end_second: 0.0, length: 0, // dummy values
+		speed: 0.0,
+	};
+	if seconds.len() <= min_num_notes as usize {
+		// If the combo is too short to detect any subset in, return default
+		return fastest;
+	}
+	
+	let mut wife_pts_sum_start = wife_pts[0..min_num_notes as usize].iter().sum();
+	
 	// Do a moving average for every possible subset length
-	for n in (min_num_notes as usize)..=(seconds.len() - 1) {
+	let end_n = std::cmp::min(seconds.len(), (min_num_notes + NOTE_SUBSET_SEARCH_SPACE_SIZE) as usize);
+	for n in (min_num_notes as usize)..end_n {
 		// Instead of calculating the sum of the local wife_pts window for every iteration, we keep
 		// a variable to it and simply update it on every iteration instead -> that's faster
-		let mut wife_pts_sum: f64 = 0.0; // that default value won't be used
-		if let Some(wife_pts) = wife_pts {
-			wife_pts_sum = wife_pts[0..n].iter().sum();
-		}
+		let mut wife_pts_sum: f64 = wife_pts_sum_start;
 		
 		for i in 0..=(seconds.len() - n - 1) {
 			let end_i = i + n;
 			let mut nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
 			
-			if let Some(wife_pts) = wife_pts {
-				nps *= wife_pts_sum / wife_pts.len() as f64; // multiply by wife points
-			}
+			nps *= wife_pts_sum / n as f64; // multiply by wife points
 			
 			if nps > fastest.speed {
 				fastest.length = n as u64;
@@ -130,12 +167,13 @@ fn find_fastest_note_subset(seconds: &[f64],
 				fastest.speed = nps;
 			}
 			
-			if let Some(wife_pts) = wife_pts {
-				// Move the wife_pts_sum window one place forward
-				wife_pts_sum -= wife_pts[i];
-				wife_pts_sum += wife_pts[end_i];
-			}
+			// Move the wife_pts_sum window one place forward
+			wife_pts_sum -= wife_pts[i];
+			wife_pts_sum += wife_pts[end_i];
 		}
+		
+		// Update the initial window sum
+		wife_pts_sum_start += wife_pts[n];
 	}
 	
 	return fastest;
@@ -157,7 +195,15 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool],
 		if let Some(combo_start_i) = combo_start_i {
 			// the position of all notes, in seconds, within a full combo
 			let combo = &seconds[combo_start_i..combo_end_i];
-			let fastest_note_subset = find_fastest_note_subset(combo, min_num_notes, wife_pts);
+			
+			let fastest_note_subset;
+			if let Some(wife_pts) = wife_pts {
+				let wife_pts_slice = &wife_pts[combo_start_i..combo_end_i];
+				fastest_note_subset = find_fastest_note_subset_wife_pts(combo, min_num_notes, wife_pts_slice);
+			} else {
+				fastest_note_subset = find_fastest_note_subset(combo, min_num_notes);
+			}
+			
 			if fastest_note_subset.speed > fastest_combo.speed {
 				fastest_combo = fastest_note_subset;
 			}
@@ -177,16 +223,64 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool],
 	return fastest_combo;
 }
 
-// Analyze a single score's replay
-fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingInfo>, rate: f64)
-		-> Option<ScoreAnalysis> {
+fn put_deviations_into_buckets(deviations: &[f64]) -> Vec<u64> {
+	let mut offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	
-	//~ if path != "/home/kangalioo/.etterna/Save/ReplaysV2/S91eb16d4c95874509b52426eb38c33d2da2286ac" {
-		//~ return None;
-	//~ }
+	for deviation in deviations {
+		let deviation_ms_rounded = (deviation * 1000f64).round() as i64;
+		let bucket_index = deviation_ms_rounded + OFFSET_BUCKET_RANGE as i64;
+		
+		if bucket_index >= 0 && bucket_index < offset_buckets.len() as i64 {
+			offset_buckets[bucket_index as usize] += 1;
+		}
+	}
 	
+	return offset_buckets;
+}
+
+fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f64>, Vec<u8>)> {
 	let bytes = std::fs::read(path).ok()?;
-	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good value for this
+	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good appproximation	
+	
+	let mut ticks = Vec::with_capacity(approx_max_num_lines);
+	let mut deviations = Vec::with_capacity(approx_max_num_lines);
+	let mut columns = Vec::with_capacity(approx_max_num_lines);
+	for line in util::split_newlines(&bytes, 5) {
+		if line.len() == 0 || line[0usize] == b'H' { continue }
+		
+		let mut token_iter = line.splitn(3, |&c| c == b' ');
+		
+		let tick = token_iter.next().expect("Missing tick token");
+		let tick: u64 = ok_or_continue!(btoi::btou(tick));
+		let deviation = token_iter.next().expect("Missing tick token");
+		let deviation = &deviation[..deviation.len()-1]; // cut off last digit to speed up float parsing
+		let deviation: f64 = ok_or_continue!(lexical::parse_lossy(deviation));
+		// remainder has the rest of the string in one slice, without any whitespace info or such.
+		// luckily we know the points of interest's exact positions, so we can just directly index
+		// into the remainder string to get what we need
+		let remainder = token_iter.next().expect("Missing tick token");
+		let column: u8 = remainder[0] - b'0';
+		let note_type: u8 = if remainder.len() >= 3 { remainder[2] - b'0' } else { 1 };
+		
+		// We don't want hold ends, mines, lifts etc
+		if note_type != 1 { continue }
+		
+		ticks.push(tick);
+		deviations.push(deviation);
+		columns.push(column);
+	}
+	
+	return Some((ticks, deviations, columns));
+}
+
+// Analyze a single score's replay
+fn analyze(path: &str,
+		timing_info_maybe: Option<&crate::TimingInfo>,
+		rate: f64
+	) -> Option<ScoreAnalysis> {
+	
+	// ticks is mutable because it needs to be sorted later
+	let (mut ticks, deviations, columns) = parse_replay_file(path)?;
 	
 	let mut score = ScoreAnalysis::default();
 	
@@ -225,52 +319,9 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		deviations.clear();
 	};
 	
-	let mut prev_tick: u64 = 0;
 	let mut mcombo: u64 = 0;
-	let mut num_notes: u64 = 0; // we can't derive this from notes_per_column cuz those exclude 5k+
-	let mut num_deviation_notes: u64 = 0; // number of notes used in deviation calculation
-	let mut num_manipped_notes: u64 = 0;
-	let mut deviation_sum: f64 = 0.0;
-	let mut offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
-	let mut sub_93_offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
-	let mut ticks = Vec::with_capacity(approx_max_num_lines);
-	let mut are_cbs = Vec::with_capacity(approx_max_num_lines);
-	let mut wife_pts = Vec::with_capacity(approx_max_num_lines); // wife points, scaled to max=1
 	
-	for line in split_newlines(&bytes, 5) {
-		if line.len() == 0 || line[0usize] == b'H' { continue }
-		
-		let mut token_iter = line.splitn(3, |&c| c == b' ');
-		
-		let tick = token_iter.next().expect("Missing tick token");
-		let tick: u64 = ok_or_continue!(btoi::btou(tick));
-		let deviation = token_iter.next().expect("Missing tick token");
-		let deviation: f64 = ok_or_continue!(lexical::parse_lossy(&deviation));
-		// remainder has the rest of the string in one slice, without any whitespace info or such.
-		// luckily we know the points of interest's exact positions, so we can just directly index
-		// into the remainder string to get what we need
-		let remainder = token_iter.next().expect("Missing tick token");
-		let column: u64 = (remainder[0] - b'0') as u64;
-		let note_type: u64 = if remainder.len() >= 3 { (remainder[2] - b'0') as u64 } else { 1 };
-		if note_type != 1 { continue } // We don't want hold ends, mines, lifts etc
-		
-		num_notes += 1;
-		
-		ticks.push(tick);
-		
-		if tick < prev_tick {
-			num_manipped_notes += 1;
-		}
-		
-		if deviation.abs() <= 0.09 {
-			deviation_sum += deviation;
-			num_deviation_notes += 1;
-			are_cbs.push(false);
-		} else {
-			are_cbs.push(true);
-		}
-		wife_pts.push(wife3(deviation));
-		
+	for (&tick, &deviation, &column) in izip!(&ticks, &deviations, &columns) {
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
 			
@@ -295,17 +346,6 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 			}
 			mcombo = 0;
 		}
-		
-		let deviation_ms_rounded = (deviation * 1000f64).round() as i64;
-		let bucket_index = deviation_ms_rounded + OFFSET_BUCKET_RANGE as i64;
-		if bucket_index >= 0 && bucket_index < sub_93_offset_buckets.len() as i64 {
-			offset_buckets[bucket_index as usize] += 1;
-			if wifescore < 0.93 {
-				sub_93_offset_buckets[bucket_index as usize] += 1;
-			}
-		}
-		
-		prev_tick = tick;
 	}
 	trigger_finger_jack_end(&mut finger_hits[0]);
 	trigger_finger_jack_end(&mut finger_hits[1]);
@@ -313,15 +353,18 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 	trigger_finger_jack_end(&mut finger_hits[3]);
 	
 	fastest_jack.speed *= rate; // !
+	
+	let num_notes: u64 = ticks.len() as u64;
+	let wife_pts: Vec<f64> = deviations.iter().map(|&d| wife3(d)).collect();
+	let are_cbs: Vec<bool> = deviations.iter().map(|d| d.abs() > 0.09).collect();
+	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] < window[1]).count();
+	
+	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
 	// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
 	// shouldn't return anything either
 	score.fastest_jack = if fastest_jack.speed == 0.0 { None } else { Some(fastest_jack) };
-	
-	score.num_deviation_notes = num_deviation_notes;
-	score.deviation_mean = deviation_sum / num_deviation_notes as f64;
 	score.manipulation = num_manipped_notes as f64 / num_notes as f64;
-	score.offset_buckets = offset_buckets;
-	score.sub_93_offset_buckets = sub_93_offset_buckets;
+	score.offset_buckets = put_deviations_into_buckets(&deviations);
 	
 	ticks.sort_unstable(); // need to do this to be able to convert to seconds
 	
@@ -330,6 +373,7 @@ fn analyze(path: &str, wifescore: f64, timing_info_maybe: Option<&crate::TimingI
 		// the combo late, the calculated nps is higher than deserved
 		let seconds = timing_info.ticks_to_seconds(&ticks);
 		
+		drop((&wife_pts, &seconds, &are_cbs));
 		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs, 100, None, rate));
 		score.fastest_acc = Some(find_fastest_combo_in_score(&seconds, &are_cbs, 100, Some(&wife_pts), rate));
 	}
@@ -413,15 +457,15 @@ impl ReplaysAnalysis {
 		
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples
-				.par_iter()
-				//~ .iter()
+				//~ .par_iter()
+				.iter()
 				// must not filter_map here (need to keep indices accurate)!
-				.map(|(scorekey, wifescore, pack, song, rate)| {
+				.map(|(scorekey, wifescore_ref, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;
 					let song_id = crate::SongId { pack: pack.to_string(), song: song.to_string() };
 					let timing_info_maybe = timing_info_index.get(&song_id);
-					let score = analyze(&replay_path, *wifescore, timing_info_maybe, *rate)?;
-					return Some((scorekey, score));
+					let score = analyze(&replay_path, timing_info_maybe, *rate)?;
+					return Some((scorekey, score, *wifescore_ref));
 				})
 				.collect();
 		
@@ -429,7 +473,7 @@ impl ReplaysAnalysis {
 		let mut longest_mcombo: u64 = 0;
 		let mut longest_mcombo_scorekey: &str = "<no chart>";
 		for (i, score_analysis_option) in score_analyses.into_iter().enumerate() {
-			let (scorekey, score) = some_or_continue!(score_analysis_option);
+			let (scorekey, score, wifescore) = some_or_continue!(score_analysis_option);
 			
 			analysis.score_indices.push(i as u64);
 			analysis.manipulations.push(score.manipulation);
@@ -443,7 +487,9 @@ impl ReplaysAnalysis {
 			// TODO use zipped iterators to avoid bounds-checking cost
 			for i in 0..NUM_OFFSET_BUCKETS as usize {
 				analysis.offset_buckets[i] += score.offset_buckets[i];
-				analysis.sub_93_offset_buckets[i] += score.sub_93_offset_buckets[i];
+				if wifescore < 0.93 {
+					analysis.sub_93_offset_buckets[i] += score.offset_buckets[i];
+				}
 			}
 			
 			if score.longest_mcombo > longest_mcombo {

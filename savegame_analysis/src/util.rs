@@ -118,3 +118,16 @@ pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
 	let end_index = bstr.iter().rposition(is_not_whitespace).unwrap(); // can't panic
 	return &bstr[start_index..=end_index]
 }
+
+// I wish I knew how to make this properly generic, over arbitrary number types
+pub fn mean<I: Iterator>(iterator: I) -> f64
+		where I::Item: std::ops::Deref<Target=f64> {
+	
+	let mut sum = 0.0;
+	let mut count = 0;
+	for value in iterator {
+		sum += *value;
+		count += 1;
+	}
+	return sum / count as f64;
+}
