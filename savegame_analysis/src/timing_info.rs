@@ -15,13 +15,13 @@ pub type TimingInfoIndex = HashMap<SongId, TimingInfo>;
 
 #[derive(Debug)]
 pub struct BpmChange {
-	beat: f64,
-	bpm: f64,
+	beat: f32,
+	bpm: f32,
 }
 
 #[derive(Debug)]
 pub struct TimingInfo {
-	first_bpm: f64,
+	first_bpm: f32,
 	// Must be chronologically ordered!
 	changes: Vec<BpmChange>,
 }
@@ -34,9 +34,9 @@ impl TimingInfo {
 		for pair in string.split(|&c| c == b',') {
 			let equal_sign_index = pair.iter().position(|&c| c == b'=')
 					.ok_or(anyhow!("No equals sign in bpms entry"))?;
-			let beat: f64 = lexical_core::parse_lossy(trim_bstr(&pair[..equal_sign_index]))
+			let beat: f32 = lexical_core::parse_lossy(trim_bstr(&pair[..equal_sign_index]))
 					.map_err(|e| anyhow!(format!("{:?}", e)))?;
-			let bpm: f64 = lexical_core::parse_lossy(trim_bstr(&pair[equal_sign_index+1..]))
+			let bpm: f32 = lexical_core::parse_lossy(trim_bstr(&pair[equal_sign_index+1..]))
 					.map_err(|e| anyhow!(format!("{:?}", e)))?;
 			changes.push(BpmChange { beat, bpm });
 		}
@@ -53,19 +53,19 @@ impl TimingInfo {
 	}
 
 	/// Input slice must be sorted!
-	pub fn ticks_to_seconds(&self, ticks: &[u64]) -> Vec<f64> {
+	pub fn ticks_to_seconds(&self, ticks: &[u64]) -> Vec<f32> {
 		assert!(crate::util::is_sorted(ticks)); // Parameter validation
 		
-		let mut cursor_beat: f64 = 0.0;
-		let mut cursor_second: f64 = 0.0;
+		let mut cursor_beat: f32 = 0.0;
+		let mut cursor_second: f32 = 0.0;
 		let mut beat_time = 60.0 / self.first_bpm;
 		
 		// if a tick lies exactly on the boundary, if will _not_ be processed
 		let mut ticks_i = 0;
 		let mut seconds_vec = Vec::with_capacity(ticks.len());
-		let mut convert_ticks_up_to = |beat: f64, cursor_second: f64, cursor_beat: f64, beat_time: f64| {
-			while ticks_i < ticks.len() && ticks[ticks_i] as f64 / 48.0 < beat {
-				let beat = ticks[ticks_i] as f64 / 48.0;
+		let mut convert_ticks_up_to = |beat: f32, cursor_second: f32, cursor_beat: f32, beat_time: f32| {
+			while ticks_i < ticks.len() && ticks[ticks_i] as f32 / 48.0 < beat {
+				let beat = ticks[ticks_i] as f32 / 48.0;
 				let second = cursor_second + (beat - cursor_beat) * beat_time;
 				seconds_vec.push(second);
 				
@@ -82,7 +82,7 @@ impl TimingInfo {
 		}
 		
 		// process all remaining ticks (i.e. all ticks coming after the last bpm change
-		convert_ticks_up_to(f64::INFINITY, cursor_second, cursor_beat, beat_time);
+		convert_ticks_up_to(f32::INFINITY, cursor_second, cursor_beat, beat_time);
 		
 		assert!(ticks.len() == seconds_vec.len()); // If this panics, the above code is wrong
 		

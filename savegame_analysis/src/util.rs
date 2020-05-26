@@ -120,8 +120,8 @@ pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
 }
 
 // I wish I knew how to make this properly generic, over arbitrary number types
-pub fn mean<I: Iterator>(iterator: I) -> f64
-		where I::Item: std::ops::Deref<Target=f64> {
+pub fn mean<I: Iterator>(iterator: I) -> f32
+		where I::Item: std::ops::Deref<Target=f32> {
 	
 	let mut sum = 0.0;
 	let mut count = 0;
@@ -129,5 +129,5 @@ pub fn mean<I: Iterator>(iterator: I) -> f64
 		sum += *value;
 		count += 1;
 	}
-	return sum / count as f64;
+	return sum / count as f32;
 }

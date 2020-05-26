@@ -26,9 +26,9 @@ pub struct ReplaysAnalysis {
 	#[pyo3(get)]
 	pub score_indices: Vec<u64>, // the indices of the scores whose analysis didn't fail
 	#[pyo3(get)]
-	pub manipulations: Vec<f64>,
+	pub manipulations: Vec<f32>,
 	#[pyo3(get)]
-	pub deviation_mean: f64, // mean of all non-cb offsets
+	pub deviation_mean: f32, // mean of all non-cb offsets
 	#[pyo3(get)]
 	pub notes_per_column: [u64; 4],
 	#[pyo3(get)]
@@ -40,7 +40,7 @@ pub struct ReplaysAnalysis {
 	#[pyo3(get)]
 	pub sub_93_offset_buckets: Vec<u64>,
 	#[pyo3(get)]
-	pub standard_deviation: f64,
+	pub standard_deviation: f32,
 	#[pyo3(get)]
 	pub fastest_combo: FastestComboInfo,
 	#[pyo3(get)]
@@ -59,21 +59,21 @@ pub struct ReplaysAnalysis {
 #[derive(Default, Debug, Clone)]
 pub struct FastestComboInfo {
 	#[pyo3(get)]
-	start_second: f64,
+	start_second: f32,
 	#[pyo3(get)]
-	end_second: f64,
+	end_second: f32,
 	#[pyo3(get)]
 	length: u64,
 	#[pyo3(get)]
-	speed: f64,
+	speed: f32,
 }
 
 #[derive(Default)]
 struct ScoreAnalysis {
 	// a percentage (from 0.0 to 1.0) that says how many notes were hit out of order
-	manipulation: f64,
+	manipulation: f32,
 	// the thing that's called "mean" in Etterna eval screen, except that it only counts non-CBs
-	deviation_mean: f64,
+	deviation_mean: f32,
 	// the number of notes counted for the deviation_mean
 	num_deviation_notes: u64,
 	// number of total notes for each column
@@ -128,7 +128,7 @@ pub fn parse_sm_float(string: &[u8]) -> Option<f32> {
 }
 
 // The caller still has to scale the returned nps by the music rate
-fn find_fastest_note_subset(seconds: &[f64],
+fn find_fastest_note_subset(seconds: &[f32],
 		min_num_notes: u64,
 	) -> FastestComboInfo {
 	
@@ -145,7 +145,7 @@ fn find_fastest_note_subset(seconds: &[f64],
 	for n in (min_num_notes as usize)..end_n {
 		for i in 0..=(seconds.len() - n - 1) {
 			let end_i = i + n;
-			let nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
+			let nps: f32 = (end_i - i) as f32 / (seconds[end_i] - seconds[i]);
 			
 			if nps > fastest.speed {
 				fastest.length = n as u64;
@@ -160,9 +160,9 @@ fn find_fastest_note_subset(seconds: &[f64],
 }
 
 // The caller still has to scale the returned nps by the music rate
-fn find_fastest_note_subset_wife_pts(seconds: &[f64],
+fn find_fastest_note_subset_wife_pts(seconds: &[f32],
 		min_num_notes: u64,
-		wife_pts: &[f64],
+		wife_pts: &[f32],
 	) -> FastestComboInfo {
 	
 	assert!(wife_pts.len() == seconds.len());
@@ -183,13 +183,13 @@ fn find_fastest_note_subset_wife_pts(seconds: &[f64],
 	for n in (min_num_notes as usize)..end_n {
 		// Instead of calculating the sum of the local wife_pts window for every iteration, we keep
 		// a variable to it and simply update it on every iteration instead -> that's faster
-		let mut wife_pts_sum: f64 = wife_pts_sum_start;
+		let mut wife_pts_sum: f32 = wife_pts_sum_start;
 		
 		for i in 0..=(seconds.len() - n - 1) {
 			let end_i = i + n;
-			let mut nps: f64 = (end_i - i) as f64 / (seconds[end_i] - seconds[i]);
+			let mut nps: f32 = (end_i - i) as f32 / (seconds[end_i] - seconds[i]);
 			
-			nps *= wife_pts_sum / n as f64; // multiply by wife points
+			nps *= wife_pts_sum / n as f32; // multiply by wife points
 			
 			if nps > fastest.speed {
 				fastest.length = n as u64;
@@ -210,10 +210,10 @@ fn find_fastest_note_subset_wife_pts(seconds: &[f64],
 	return fastest;
 }
 
-fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool],
+fn find_fastest_combo_in_score(seconds: &[f32], are_cbs: &[bool],
 		min_num_notes: u64,
-		wife_pts: Option<&[f64]>, // if this is provided, the nps will be multiplied by wife pts
-		rate: f64,
+		wife_pts: Option<&[f32]>, // if this is provided, the nps will be multiplied by wife pts
+		rate: f32,
 	) -> FastestComboInfo {
 	
 	// The nps track-keeping here is ignoring rate! rate is only applied at the end
@@ -254,11 +254,11 @@ fn find_fastest_combo_in_score(seconds: &[f64], are_cbs: &[bool],
 	return fastest_combo;
 }
 
-fn put_deviations_into_buckets(deviations: &[f64]) -> Vec<u64> {
+fn put_deviations_into_buckets(deviations: &[f32]) -> Vec<u64> {
 	let mut offset_buckets = vec![0u64; NUM_OFFSET_BUCKETS as usize];
 	
 	for deviation in deviations {
-		let deviation_ms_rounded = (deviation * 1000f64).round() as i64;
+		let deviation_ms_rounded = (deviation * 1000f32).round() as i64;
 		let bucket_index = deviation_ms_rounded + OFFSET_BUCKET_RANGE as i64;
 		
 		if bucket_index >= 0 && bucket_index < offset_buckets.len() as i64 {
@@ -269,7 +269,7 @@ fn put_deviations_into_buckets(deviations: &[f64]) -> Vec<u64> {
 	return offset_buckets;
 }
 
-fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f64>, Vec<u8>)> {
+fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f32>, Vec<u8>)> {
 	let bytes = std::fs::read(path).ok()?;
 	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good appproximation	
 	
@@ -284,7 +284,7 @@ fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f64>, Vec<u8>)> {
 		let tick = token_iter.next().expect("Missing tick token");
 		let tick: u64 = ok_or_continue!(btoi::btou(tick));
 		let deviation = token_iter.next().expect("Missing tick token");
-		let deviation = some_or_continue!(parse_sm_float(deviation)) as f64;
+		let deviation = some_or_continue!(parse_sm_float(deviation)) as f32;
 		// remainder has the rest of the string in one slice, without any whitespace info or such.
 		// luckily we know the points of interest's exact positions, so we can just directly index
 		// into the remainder string to get what we need
@@ -306,7 +306,7 @@ fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f64>, Vec<u8>)> {
 // Analyze a single score's replay
 fn analyze(path: &str,
 		timing_info_maybe: Option<&crate::TimingInfo>,
-		rate: f64
+		rate: f32
 	) -> Option<ScoreAnalysis> {
 	
 	// ticks is mutable because it needs to be sorted later
@@ -316,7 +316,7 @@ fn analyze(path: &str,
 	
 	// tuple of vectors; first value is tick, first value is deviation
 	let mut fastest_jack = FastestComboInfo::default();
-	let mut finger_hits: [(Vec<u64>, Vec<f64>); 4] =
+	let mut finger_hits: [(Vec<u64>, Vec<f32>); 4] =
 			[(vec![], vec![]), (vec![], vec![]), (vec![], vec![]), (vec![], vec![])];
 	let mut trigger_finger_jack_end = |(ticks, deviations): &mut (Vec<_>, Vec<_>)| {
 		let timing_info = match timing_info_maybe {
@@ -334,7 +334,7 @@ fn analyze(path: &str,
 		let seconds = seconds;
 		
 		for window in seconds.windows(FASTEST_JACK_WINDOW_SIZE as usize + 1) {
-			let nps = FASTEST_JACK_WINDOW_SIZE as f64 / (window[FASTEST_JACK_WINDOW_SIZE as usize] - window[0]);
+			let nps = FASTEST_JACK_WINDOW_SIZE as f32 / (window[FASTEST_JACK_WINDOW_SIZE as usize] - window[0]);
 			if nps > fastest_jack.speed {
 				fastest_jack = FastestComboInfo {
 					start_second: window[0],
@@ -385,7 +385,7 @@ fn analyze(path: &str,
 	fastest_jack.speed *= rate; // !
 	
 	let num_notes: u64 = ticks.len() as u64;
-	let wife_pts: Vec<f64> = deviations.iter().map(|&d| wife3(d as f32) as f64).collect();
+	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d as f32) as f32).collect();
 	let are_cbs: Vec<bool> = deviations.iter().map(|d| d.abs() > 0.09).collect();
 	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] < window[1]).count();
 	
@@ -393,7 +393,7 @@ fn analyze(path: &str,
 	// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
 	// shouldn't return anything either
 	score.fastest_jack = if fastest_jack.speed == 0.0 { None } else { Some(fastest_jack) };
-	score.manipulation = num_manipped_notes as f64 / num_notes as f64;
+	score.manipulation = num_manipped_notes as f32 / num_notes as f32;
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
 	
 	ticks.sort_unstable(); // need to do this to be able to convert to seconds
@@ -411,7 +411,7 @@ fn analyze(path: &str,
 	return Some(score);
 }
 
-fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
+fn calculate_standard_deviation(offset_buckets: &[u64]) -> f32 {
 	/*
 	standard deviation is `sqrt(mean(square(values - mean(values)))`
 	modified version with weights:
@@ -452,16 +452,16 @@ fn calculate_standard_deviation(offset_buckets: &[u64]) -> f64 {
 		temp_sum += weight as i64 * (value - temp_value).pow(2);
 	}
 	
-	let standard_deviation = (temp_sum as f64 / weights_sum as f64).sqrt();
+	let standard_deviation = (temp_sum as f32 / weights_sum as f32).sqrt();
 	return standard_deviation;
 }
 
 #[pymethods]
 impl ReplaysAnalysis {
 	#[new]
-	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>,
+	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f32>,
 			packs: Vec<&str>, songs: Vec<&str>,
-			rates: Vec<f64>,
+			rates: Vec<f32>,
 			cache_db_path: &str
 		) -> Self {
 		
@@ -499,7 +499,7 @@ impl ReplaysAnalysis {
 				})
 				.collect();
 		
-		let mut deviation_mean_sum: f64 = 0.0;
+		let mut deviation_mean_sum: f32 = 0.0;
 		let mut longest_mcombo: u64 = 0;
 		let mut longest_mcombo_scorekey: &str = "<no chart>";
 		for (i, score_analysis_option) in score_analyses.into_iter().enumerate() {
@@ -551,7 +551,7 @@ impl ReplaysAnalysis {
 		debug_assert!(analysis.manipulations.len() == analysis.score_indices.len());
 		let num_scores = analysis.manipulations.len();
 		
-		analysis.deviation_mean = deviation_mean_sum / num_scores as f64;
+		analysis.deviation_mean = deviation_mean_sum / num_scores as f32;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());
 		
 		analysis.standard_deviation = calculate_standard_deviation(&analysis.offset_buckets);
