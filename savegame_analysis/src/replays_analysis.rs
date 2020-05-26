@@ -148,10 +148,12 @@ fn find_fastest_note_subset(seconds: &[f32],
 			let nps: f32 = (end_i - i) as f32 / (seconds[end_i] - seconds[i]);
 			
 			if nps > fastest.speed {
-				fastest.length = n as u64;
-				fastest.start_second = seconds[i];
-				fastest.end_second = seconds[end_i];
-				fastest.speed = nps;
+				fastest = FastestComboInfo {
+					length: n as u64,
+					start_second: seconds[i],
+					end_second: seconds[end_i],
+					speed: nps,
+				};
 			}
 		}
 	}
@@ -171,8 +173,9 @@ fn find_fastest_note_subset_wife_pts(seconds: &[f32],
 		start_second: 0.0, end_second: 0.0, length: 0, // dummy values
 		speed: 0.0,
 	};
+	
 	if seconds.len() <= min_num_notes as usize {
-		// If the combo is too short to detect any subset in, return default
+		// If the combo is too short to detect any subsets, we return early
 		return fastest;
 	}
 	
@@ -192,10 +195,12 @@ fn find_fastest_note_subset_wife_pts(seconds: &[f32],
 			nps *= wife_pts_sum / n as f32; // multiply by wife points
 			
 			if nps > fastest.speed {
-				fastest.length = n as u64;
-				fastest.start_second = seconds[i];
-				fastest.end_second = seconds[end_i];
-				fastest.speed = nps;
+				fastest = FastestComboInfo {
+					length: n as u64,
+					start_second: seconds[i],
+					end_second: seconds[end_i],
+					speed: nps,
+				};
 			}
 			
 			// Move the wife_pts_sum window one place forward
@@ -387,7 +392,7 @@ fn analyze(path: &str,
 	let num_notes: u64 = ticks.len() as u64;
 	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d as f32) as f32).collect();
 	let are_cbs: Vec<bool> = deviations.iter().map(|d| d.abs() > 0.09).collect();
-	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] < window[1]).count();
+	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] > window[1]).count();
 	
 	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
 	// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
@@ -396,7 +401,9 @@ fn analyze(path: &str,
 	score.manipulation = num_manipped_notes as f32 / num_notes as f32;
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
 	
-	ticks.sort_unstable(); // need to do this to be able to convert to seconds
+	// need to do this to be able to convert to seconds. this must not be done too early though,
+	// because part of the analysis depends on the unsorted-ness of the ticks!
+	ticks.sort_unstable();
 	
 	if let Some(timing_info) = timing_info_maybe {
 		// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
@@ -487,8 +494,7 @@ impl ReplaysAnalysis {
 		
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples
-				//~ .par_iter()
-				.iter()
+				.par_iter()
 				// must not filter_map here (need to keep indices accurate)!
 				.map(|(scorekey, wifescore_ref, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;

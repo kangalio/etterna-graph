@@ -25,7 +25,7 @@ fn ett_erf(x: f32) -> f32 {
 // Takes a hit deviation in sseconds and returns the wife3 score, scaled to max=1. This is a Rust
 // translation of
 // https://github.com/etternagame/etterna/blob/develop/src/RageUtil/Utils/RageUtil.h#L163
-pub fn wife3(deviation: f32/*, ts: f32*/) -> f32 {
+fn wife3_inner(deviation: f32/*, ts: f32*/) -> f32 {
 	const TS: f32 = 1.0; // Timing scale = 1 = J4
 	
 	// so judge scaling isn't so extreme
@@ -60,5 +60,9 @@ pub fn wife3(deviation: f32/*, ts: f32*/) -> f32 {
 		WIFE3_MISS_WEIGHT
 	};
 	
-	return score / 2.0; // Revert the max=2 scaling
-} 
+	return score;
+}
+
+pub fn wife3(deviation: f32) -> f32 {
+	 return wife3_inner(deviation) / 2.0; // Divide by two to revert the max=2 scaling
+}
