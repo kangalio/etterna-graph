@@ -22,10 +22,12 @@ fn ett_erf(x: f32) -> f32 {
 	return sign * y;
 }
 
-// Takes a hit deviation in sseconds and returns the wife3 score, scaled to max=1. This is a Rust
-// translation of
+// Takes a hit deviation in seconds and returns the wife3 score, scaled to max=1. Parameter must be
+// positive. This is a Rust translation of
 // https://github.com/etternagame/etterna/blob/develop/src/RageUtil/Utils/RageUtil.h#L163
 fn wife3_inner(deviation: f32/*, ts: f32*/) -> f32 {
+	assert!(deviation >= 0.0);
+	
 	const TS: f32 = 1.0; // Timing scale = 1 = J4
 	
 	// so judge scaling isn't so extreme
@@ -65,4 +67,43 @@ fn wife3_inner(deviation: f32/*, ts: f32*/) -> f32 {
 
 pub fn wife3(deviation: f32) -> f32 {
 	 return wife3_inner(deviation) / 2.0; // Divide by two to revert the max=2 scaling
+}
+
+
+#[cfg(test)]
+mod tests {
+	use super::*; // Use all functions above
+	use crate::assert_float_eq;
+	
+	#[test]
+	fn test_ett_erf() {
+		for (x, expected_value) in [
+				(-2.0, -0.995322265019),
+				(-1.0, -0.84270079295),
+				(0.0, 0.0),
+				(1.0, 0.84270079295),
+				(1.5, 0.966105146475),
+				(2.0, 0.995322265019),
+				(4.0, 0.999999984583)].iter() {
+			
+			assert_float_eq!(ett_erf(*x), *expected_value; epsilon=0.0001);
+		}
+	}
+	
+	#[test]
+	fn test_wife3() {
+		for (x, expected_value) in [
+				(0.004, 1.0000000000),
+				(0.014, 0.9985134006),
+				(0.024, 0.9893599749),
+				(0.054, 0.5068465471),
+				(0.064, 0.0496764779),
+				(0.074, -0.2152173966),
+				(0.174, -2.6065220833),
+				(0.184, -2.7500000000),
+				(0.194, -2.7500000000)].iter() {
+			
+			assert_float_eq!(wife3(*x), *expected_value; epsilon=0.0001);
+		}
+	}
 }

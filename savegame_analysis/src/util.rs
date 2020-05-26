@@ -51,7 +51,9 @@ impl<'a> Iterator for SplitNewlines<'a> {
 	}
 }
 
-// like slice.split(b'\n'), but with optimizations based on a minimum line length assumption
+// Like slice.split(b'\n'), but with optimizations based on a minimum line length assumption
+// When min_line_length is zero, the expected result for "xxx\n" would be ["xxx", ""]. However,
+// the result is gonna be just ["xxx"]. I know it's unintuitive, but I dunno how to fix
 pub fn split_newlines<'a>(bytes: &'a [u8], min_line_length: usize) -> SplitNewlines<'a> {
 	return SplitNewlines { bytes, min_line_length, current_pos: 0 };
 }
@@ -110,12 +112,11 @@ pub fn is_sorted<T: Ord>(data: &[T]) -> bool {
 }
 
 pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
-	let is_not_whitespace = |&c| c != 0x20 && c != 0x09;
-	let start_index = match bstr.iter().position(is_not_whitespace) {
+	let start_index = match bstr.iter().position(|&c| !is_ascii_whitespace(c)) {
 		Some(a) => a,
 		None => return &bstr[..0], // when there's no non-whitespace char, return empty slice
 	};
-	let end_index = bstr.iter().rposition(is_not_whitespace).unwrap(); // can't panic
+	let end_index = bstr.iter().rposition(|&c| !is_ascii_whitespace(c)).unwrap(); // can't panic
 	return &bstr[start_index..=end_index]
 }
 
@@ -123,11 +124,110 @@ pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
 pub fn mean<I: Iterator>(iterator: I) -> f32
 		where I::Item: std::ops::Deref<Target=f32> {
 	
-	let mut sum = 0.0;
+	let mut sum: f64 = 0.0; // higher precision to avoid lossiness
 	let mut count = 0;
-	for value in iterator {
-		sum += *value;
+	for value_ref in iterator {
+		sum += *value_ref as f64;
 		count += 1;
 	}
-	return sum / count as f32;
+	println!("Sum is {}, count {}", sum, count);
+	return (sum / count as f64) as f32;
+}
+
+pub fn is_ascii_whitespace(c: u8) -> bool {
+	return c == b' ' || c == b'\t' || c == b'\n' || c == b'\r'
+			|| c == 0x0c // form feed; an ASCII control symbol for a page break
+			|| c == 0x0b; // vertical tab
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*; // Use all functions above
+	
+	// Util function, other tests use this
+	#[macro_export]
+	macro_rules! assert_float_eq {
+		($left: expr, $right: expr; epsilon = $epsilon: expr) => (
+			// Evaluate expressions
+			let left = $left;
+			let right = $right;
+			let delta = (right - left).abs();
+			
+			if delta > $epsilon {
+				panic!("assertion failed: `(left =~ right)`
+						  left: `{:?}`
+						 right: `{:?}`
+						 delta: `{:?}`",
+						&left, &right, &delta);
+			}
+		)
+	}
+	
+	#[test]
+	fn test_split_newlines() {
+		let text = b"10charssss\n6chars\n10charssss\n6chars\n";
+		let lines: Vec<_> = split_newlines(text as &[u8], 6).collect();
+		assert_eq!(lines, vec![b"10charssss" as &[u8], b"6chars" as &[u8], b"10charssss" as &[u8],
+							   b"6chars" as &[u8]]);
+		
+		let lines: Vec<&[u8]> = split_newlines(text as &[u8], 7).collect();
+		assert_eq!(lines, vec![b"10charssss" as &[u8], b"6chars\n10charssss" as &[u8],
+							   b"6chars\n" as &[u8]]); // we have the \n in here because it's
+													   // covered by the skip-ahead length of 7
+	}
+	
+	#[test]
+	fn test_extract_str_and_bstr() {
+		for (string, before, after, expected_outcome) in [
+				("#TITLE:helo;", "#TITLE:", ";", Some("helo")),
+				("#TITLE::::#TITLE:;", "#TITLE:", ";", Some(":::#TITLE:")),
+				("#TITLE:helo:", "#TITLE:", ";", None),
+				("#TITLE helo;", "#TITLE:", ";", None),
+				].iter() {
+			
+			assert_eq!(extract_str(string, before, after), *expected_outcome);
+			assert_eq!(extract_bstr(string.as_bytes(), before.as_bytes(), after.as_bytes()),
+					expected_outcome.map(|s| s.as_bytes()));
+		}
+	}
+	
+	#[test]
+	fn test_first_and_last_and_count() {
+		assert_eq!(first_and_last_and_count("2357".chars()), (Some(('2', '7')), 4));
+		assert_eq!(first_and_last_and_count("2".chars()), (None, 1));
+		assert_eq!(first_and_last_and_count("".chars()), (None, 0));
+	}
+	
+	#[test]
+	fn test_is_sorted() {
+		assert_eq!(is_sorted(&[1, 2, 3, 2]), false);
+		assert_eq!(is_sorted(&[1, 2, 2, 3]), true);
+	}
+	
+	#[test]
+	fn test_trim_bstr() {
+		assert_eq!(trim_bstr(b" hello world   "), b"hello world");
+		assert_eq!(trim_bstr(b"hello world   "), b"hello world");
+		assert_eq!(trim_bstr(b" hello world"), b"hello world");
+		assert_eq!(trim_bstr(b"hello world"), b"hello world");
+		assert_eq!(trim_bstr(b" hello world \n\n \t"), b"hello world");
+	}
+	
+	#[test]
+	fn test_mean() {
+		assert_float_eq!(mean([0.0, 6.0, 1.0, 2.0].iter()), 2.25;
+				epsilon=0.0001);
+		assert_float_eq!(mean([0.0, 6.0, 1.0, 3.0].iter()), 2.5;
+				epsilon=0.0001);
+		assert_float_eq!(mean([-897193848.0, 69.0, 893784444.0, 211122.0, 422.0].iter()), -639558.2;
+				epsilon=10.0); // heh, what a large epsilon value. needed though
+	}
+	
+	#[test]
+	fn test_is_ascii_whitespace() {
+		let whitespace_chars: &[u8] = b" \t\n\r\x0c\x0b";
+		for char_code in 0..=255u8 {
+			assert_eq!(is_ascii_whitespace(char_code), whitespace_chars.contains(&char_code));
+		}
+	}
 }

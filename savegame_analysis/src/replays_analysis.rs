@@ -96,7 +96,6 @@ struct ScoreAnalysis {
 	fastest_acc: Option<FastestComboInfo>,
 }
 
-#[inline(always)]
 pub fn parse_sm_float(string: &[u8]) -> Option<f32> {
 	let string = &string[..string.len()-1]; // cut off last digit to speed up float parsing
 	return lexical_core::parse_lossy(string).ok();
@@ -418,7 +417,8 @@ fn analyze(path: &str,
 	return Some(score);
 }
 
-fn calculate_standard_deviation(offset_buckets: &[u64]) -> f32 {
+// This standard deviation function adheres Bessler's correction! (see comment inside)
+fn calculate_standard_deviation(offset_buckets: &[u64], offset_bucket_range: u64) -> f32 {
 	/*
 	standard deviation is `sqrt(mean(square(values - mean(values)))`
 	modified version with weights:
@@ -438,28 +438,33 @@ fn calculate_standard_deviation(offset_buckets: &[u64]) -> f32 {
 	)
 	*/
 	
-	assert_eq!(offset_buckets.len() as u64, NUM_OFFSET_BUCKETS);
+	assert_eq!(offset_buckets.len() as u64, 2 * offset_bucket_range + 1);
 	
 	// util function
-	let iter_value_weight_pairs = || offset_buckets.iter()
+	let iter_bucket_contents_and_sizes = || offset_buckets.iter()
 			.enumerate()
-			.map(|(i, weight)| (i as i64 - OFFSET_BUCKET_RANGE as i64, weight));
+			.map(|(i, num_values_in_bucket)| (i as i64 - offset_bucket_range as i64, num_values_in_bucket));
 	
-	let mut value_x_weights_sum = 0;
-	let mut weights_sum = 0;
-	for (value, &weight) in iter_value_weight_pairs() {
-		value_x_weights_sum += value * weight as i64;
-		weights_sum += weight;
+	let mut values_sum = 0;
+	let mut num_values = 0;
+	for (value, &num_values_in_bucket) in iter_bucket_contents_and_sizes() {
+		values_sum += value * num_values_in_bucket as i64;
+		num_values += num_values_in_bucket;
 	}
 	
-	let temp_value = value_x_weights_sum / weights_sum as i64;
+	let mean = values_sum / (num_values - 1) as i64;
 	
-	let mut temp_sum = 0;
-	for (value, &weight) in iter_value_weight_pairs() {
-		temp_sum += weight as i64 * (value - temp_value).pow(2);
+	let mut squared_differences_sum = 0;
+	for (value, &num_values_in_bucket) in iter_bucket_contents_and_sizes() {
+		let squared_difference = (value - mean).pow(2);
+		squared_differences_sum += num_values_in_bucket as i64 * squared_difference;
 	}
 	
-	let standard_deviation = (temp_sum as f32 / weights_sum as f32).sqrt();
+	// Why are we calculating mean by dividing by `n-1` instead of `n`? This practice is called
+	// "Bessel's correction". Explanation here: https://stats.stackexchange.com/q/3931
+	let squared_differences_mean = squared_differences_sum as f32 / (num_values - 1) as f32;
+	
+	let standard_deviation = squared_differences_mean.sqrt();
 	return standard_deviation;
 }
 
@@ -560,8 +565,43 @@ impl ReplaysAnalysis {
 		analysis.deviation_mean = deviation_mean_sum / num_scores as f32;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());
 		
-		analysis.standard_deviation = calculate_standard_deviation(&analysis.offset_buckets);
+		analysis.standard_deviation = calculate_standard_deviation(&analysis.offset_buckets,
+				OFFSET_BUCKET_RANGE);
 		
 		return analysis;
 	}
 } 
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::assert_float_eq;
+	
+	#[test]
+	fn test_sm_float_parsing() {
+		assert_float_eq!(parse_sm_float(b"-0.018477").unwrap(), -0.018477;
+				epsilon=0.00001);
+		assert_float_eq!(parse_sm_float(b"1.000000").unwrap(), 1.000000;
+				epsilon=0.00001);
+		assert_float_eq!(parse_sm_float(b"0.919191").unwrap(), 0.919191;
+				epsilon=0.00001);
+	}
+	
+	#[test]
+	fn test_calculate_standard_deviation() {
+		let buckets = [1, 0, 1];
+		assert_float_eq!(calculate_standard_deviation(&buckets, 1), 1.4142135623730951;
+				epsilon=0.000001);
+		
+		// taking the values out of the buckets: [-2, -1, -1, 0, 0, 0, 1, 1, 2]
+		let buckets = [1, 2, 3, 2, 1];
+		assert_float_eq!(calculate_standard_deviation(&buckets, 2), 1.224744871391589;
+				epsilon=0.000001);
+		
+		// these buckets were randomly generated according to a gaussian distribution with sigma=3
+		let buckets = [7, 20, 32, 93, 178, 333, 517, 829, 1050, 1230, 1363, 1253, 1072, 807, 558, 319, 178, 94, 43, 17, 4];
+		assert_float_eq!(calculate_standard_deviation(&buckets, 10), 3.00175403186607;
+				epsilon=0.0001);
+	}
+}
