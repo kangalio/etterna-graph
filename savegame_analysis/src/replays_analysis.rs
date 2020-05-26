@@ -96,6 +96,37 @@ struct ScoreAnalysis {
 	fastest_acc: Option<FastestComboInfo>,
 }
 
+#[inline(always)]
+pub fn parse_sm_float(string: &[u8]) -> Option<f32> {
+	let string = &string[..string.len()-1]; // cut off last digit to speed up float parsing
+	return lexical_core::parse_lossy(string).ok();
+	
+	/*
+	// For performance reasons, this assumes that the passed-in bytestring is in the format
+	// -?[01]\.\d{6} (optionally a minus, then 0 or 1, a dot, and then 6 floating point digits. (This
+	// function only parses 5 of those floating point digits though). Example:
+	// "-0.010371"
+	let is_negative = string[0] == b'-';
+	let string = if is_negative { &string[1..] } else { string }; // Strip minus
+	
+	let mut digits_part: u32 = 0;
+	digits_part += (string[6] - b'0') as u32 * 1;
+	digits_part += (string[5] - b'0') as u32 * 10;
+	digits_part += (string[4] - b'0') as u32 * 100;
+	digits_part += (string[3] - b'0') as u32 * 1000;
+	digits_part += (string[2] - b'0') as u32 * 10000;
+	digits_part += (string[0] - b'0') as u32 * 100000;
+	
+	let mut number = digits_part as f32 / 100000 as f32;
+	
+	if is_negative {
+		number = -number;
+	}
+	
+	return Some(number);
+	*/
+}
+
 // The caller still has to scale the returned nps by the music rate
 fn find_fastest_note_subset(seconds: &[f64],
 		min_num_notes: u64,
@@ -253,8 +284,7 @@ fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f64>, Vec<u8>)> {
 		let tick = token_iter.next().expect("Missing tick token");
 		let tick: u64 = ok_or_continue!(btoi::btou(tick));
 		let deviation = token_iter.next().expect("Missing tick token");
-		let deviation = &deviation[..deviation.len()-1]; // cut off last digit to speed up float parsing
-		let deviation: f64 = ok_or_continue!(lexical::parse_lossy(deviation));
+		let deviation = some_or_continue!(parse_sm_float(deviation)) as f64;
 		// remainder has the rest of the string in one slice, without any whitespace info or such.
 		// luckily we know the points of interest's exact positions, so we can just directly index
 		// into the remainder string to get what we need
@@ -355,7 +385,7 @@ fn analyze(path: &str,
 	fastest_jack.speed *= rate; // !
 	
 	let num_notes: u64 = ticks.len() as u64;
-	let wife_pts: Vec<f64> = deviations.iter().map(|&d| wife3(d)).collect();
+	let wife_pts: Vec<f64> = deviations.iter().map(|&d| wife3(d as f32) as f64).collect();
 	let are_cbs: Vec<bool> = deviations.iter().map(|d| d.abs() > 0.09).collect();
 	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] < window[1]).count();
 	

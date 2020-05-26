@@ -1,17 +1,37 @@
-static WIFE3_MINE_HIT_WEIGHT: f64 = -7.0;
-static WIFE3_HOLD_DROP_WEIGHT: f64 = -4.5;
-static WIFE3_MISS_WEIGHT: f64 = -5.5;
+static WIFE3_MINE_HIT_WEIGHT: f32 = -7.0;
+static WIFE3_HOLD_DROP_WEIGHT: f32 = -4.5;
+static WIFE3_MISS_WEIGHT: f32 = -5.5;
+
+// erf approxmation function, as used in Etterna (same file as in the link below)
+fn ett_erf(x: f32) -> f32 {
+	let exp = |x| std::f32::consts::E.powf(x);
+	
+	const A1: f32 = 0.254829592;
+	const A2: f32 = -0.284496736;
+	const A3: f32 = 1.421413741;
+	const A4: f32 = -1.453152027;
+	const A5: f32 = 1.061405429;
+	const P: f32 = 0.3275911;
+
+	let sign = if x < 0.0 { -1.0 } else { 1.0 };
+	let x = x.abs();
+
+	let t = 1.0 / (1.0 + P * x);
+	let y = 1.0 - (((((A5 * t + A4) * t) + A3) * t + A2) * t + A1) * t * exp(-x * x);
+
+	return sign * y;
+}
 
 // Takes a hit deviation in sseconds and returns the wife3 score, scaled to max=1. This is a Rust
 // translation of
 // https://github.com/etternagame/etterna/blob/develop/src/RageUtil/Utils/RageUtil.h#L163
-pub fn wife3(deviation: f64/*, ts: f64*/) -> f64 {
-	static TS: f64 = 1.0; // Timing scale = 1 = J4
+pub fn wife3(deviation: f32/*, ts: f32*/) -> f32 {
+	const TS: f32 = 1.0; // Timing scale = 1 = J4
 	
 	// so judge scaling isn't so extreme
-	static J_POW: f64 = 0.75;
+	const J_POW: f32 = 0.75;
 	// min/max points
-	static MAX_POINTS: f64 = 2.0;
+	const MAX_POINTS: f32 = 2.0;
 	// offset at which points starts decreasing(ms)
 	let ridic = 5.0 * TS;
 
@@ -33,7 +53,7 @@ pub fn wife3(deviation: f64/*, ts: f64*/) -> f64 {
 	let dev = 22.7 * TS.powf(J_POW);
 
 	let score = if maxms <= zero {
-		MAX_POINTS * libm::erfc((zero - maxms) / dev)
+		MAX_POINTS * ett_erf((zero - maxms) / dev)
 	} else if maxms <= max_boo_weight {
 		(maxms - zero) * WIFE3_MISS_WEIGHT / (max_boo_weight - zero)
 	} else {
