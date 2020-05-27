@@ -7,6 +7,7 @@ use permutation::permutation;
 use crate::{ok_or_continue, some_or_continue};
 use crate::util;
 use crate::wife::wife3;
+use crate::rescore;
 
 
 // IMPORTANT ANNOUNCE FOR WIFE POINTS:
@@ -55,6 +56,10 @@ pub struct ReplaysAnalysis {
 	pub fastest_acc: FastestComboInfo,
 	#[pyo3(get)]
 	pub fastest_acc_scorekey: String,
+	#[pyo3(get)]
+	pub current_wifescores: Vec<f32>,
+	#[pyo3(get)]
+	pub new_wifescores: Vec<f32>,
 }
 
 #[pyclass]
@@ -88,18 +93,27 @@ struct ScoreAnalysis {
 	// for example the middle entry is for (-0.5ms - 0.5ms). each number stands for the number of
 	// hits in the respective timing window
 	offset_buckets: Vec<u64>,
+	
+	timing_info_dependant_analysis: Option<TimingInfoDependantAnalysis>,
+}
+
+// This is the part of score analysis that's dependant on timing info and therefore may not be
+// available for every score
+struct TimingInfoDependantAnalysis {
 	// the note subset (with >= 100 notes) with the highest nps (`speed` = nps)
-	fastest_combo: Option<FastestComboInfo>,
+	fastest_combo: FastestComboInfo,
 	// like fastest_combo, but it's only for a single finger, and with a different window -
 	// FASTEST_JACK_WINDOW_SIZE - too
-	fastest_jack: Option<FastestComboInfo>,
+	fastest_jack: FastestComboInfo,
 	// like fastest_combo, but `speed` is not simply nps but nps*(wifescore in that window) instead.
 	// For example, if you played 10 nps with an accuracy equivalent to 98%, `speed` would be 9.8
-	fastest_acc: Option<FastestComboInfo>,
+	fastest_acc: FastestComboInfo,
+	// new wifescore, according to my custom scoring implementation
+	new_wifescore: f32,
 }
 
 pub fn parse_sm_float(string: &[u8]) -> Option<f32> {
-	let string = &string[..string.len()-1]; // cut off last digit to speed up float parsing
+	//~ let string = &string[..string.len()-1]; // cut off last digit to speed up float parsing # REMEMBER
 	return lexical_core::parse_lossy(string).ok();
 	
 	/*
@@ -319,8 +333,8 @@ fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f32>, Vec<u8>)> {
 		let column: u8 = remainder[0] - b'0';
 		let note_type: u8 = if remainder.len() >= 3 { remainder[2] - b'0' } else { 1 };
 		
-		// We don't want hold ends, mines, lifts etc
-		if note_type != 1 { continue }
+		// We only want tap notes and hold heads
+		if !(note_type == 1 || note_type == 2) { continue }
 		
 		ticks.push(tick);
 		deviations.push(deviation);
@@ -336,13 +350,14 @@ fn analyze(path: &str,
 		rate: f32
 	) -> Option<ScoreAnalysis> {
 	
-	let (ticks, deviations, columns) = parse_replay_file(path)?;
+	let (unsorted_ticks, unsorted_deviations, unsorted_columns) = parse_replay_file(path)?;
+	let num_notes = unsorted_ticks.len() as u64;
 	
+	// Construct empty score analysis object into which all the data will be put in
 	let mut score = ScoreAnalysis::default();
 	
 	let mut mcombo: u64 = 0;
-	
-	for (&_tick, &deviation, &column) in izip!(&ticks, &deviations, &columns) {
+	for (&_tick, &deviation, &column) in izip!(&unsorted_ticks, &unsorted_deviations, &unsorted_columns) {
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
 			
@@ -360,60 +375,64 @@ fn analyze(path: &str,
 			mcombo = 0;
 		}
 	}
+	drop(mcombo);
 	
-	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] > window[1]).count();
+	// count out of out-of-order note pairs (those were the first hit note comes _later_ in the song
+	// than the second-hit note)
+	let num_manipped_notes = unsorted_ticks.windows(2).filter(|window| window[0] > window[1]).count();
+	score.manipulation = num_manipped_notes as f32 / num_notes as f32;
 	
-	// Sort the hit data. Need to do this to be able to convert to seconds. Don't do this before
-	// manipulation calculation; it depends on the unsorted-ness of the ticks!
-	let permutation = permutation::sort(&ticks[..]);
-	let ticks = permutation.apply_slice(&ticks[..]);
-	let deviations = permutation.apply_slice(&deviations[..]);
-	let columns = permutation.apply_slice(&columns[..]);
+	// Sort the hit data. Need to do this to be able to convert to seconds.
+	let permutation = permutation::sort(&unsorted_ticks[..]);
+	let ticks = permutation.apply_slice(&unsorted_ticks[..]);
+	let deviations = permutation.apply_slice(&unsorted_deviations[..]);
+	let columns = permutation.apply_slice(&unsorted_columns[..]);
 	
-	let num_notes: u64 = ticks.len() as u64;
 	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d)).collect();
 	let are_cbs: Vec<bool> = deviations.iter().map(|&d| d.abs() > 0.09).collect();
 	
 	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
-	score.manipulation = num_manipped_notes as f32 / num_notes as f32;
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
 	
 	if let Some(timing_info) = timing_info_maybe {
-		// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
-		// the combo late, the calculated nps is higher than deserved
-		let seconds = timing_info.ticks_to_seconds(&ticks);
+		// timing of the notes (ticks is already sorted => automatically sorted as well)
+		let note_seconds = timing_info.ticks_to_seconds(&ticks);
+		let unsorted_note_seconds = permutation.apply_inv_slice(&note_seconds[..]);
+		// timing of player hits
+		//~ let unsorted_hit_seconds: Vec<f32> = izip!(&unsorted_note_seconds, &unsorted_deviations)
+				//~ .map(|(&s, &d)| s + d).collect();
+		let hit_seconds: Vec<f32> = izip!(&note_seconds, &deviations)
+				.map(|(&s, &d)| s + d).collect();
 		
-		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs,
-				100, 130, None, rate));
-		score.fastest_acc = Some(find_fastest_combo_in_score(&seconds, &are_cbs,
-				100, 130, Some(&wife_pts), rate));
+		// In the following two statements, we _don't_ use hit_seconds
+		let fastest_combo = find_fastest_combo_in_score(&note_seconds, &are_cbs,
+				100, 130, None, rate);
+		let fastest_acc = find_fastest_combo_in_score(&note_seconds, &are_cbs,
+				100, 130, Some(&wife_pts), rate);
 		
 		let mut fastest_jack_so_far = FastestComboInfo::default();
 		for column in 0..4 {
-			let mut column_seconds = Vec::with_capacity(ticks.len() / 3);
-			let mut column_are_cbs = Vec::with_capacity(ticks.len() / 3);
-			for (second, &is_cb, deviation, &hit_column) in izip!(&seconds, &are_cbs, &deviations, &columns) {
-				if hit_column == column {
+			let mut column_seconds = Vec::with_capacity((num_notes / 3) as usize);
+			for (&second, &deviation, &hit_column) in izip!(&note_seconds, &deviations, &columns) {
+				if hit_column == column && deviation <= 0.180 {
 					column_seconds.push(second + deviation);
-					column_are_cbs.push(is_cb);
 				}
 			}
 			
-			let fastest_jack = find_fastest_combo_in_score(&column_seconds, &column_are_cbs,
-					30, 30, None, rate);
+			let mut fastest_jack = find_fastest_note_subset(&column_seconds, 30, 30);
+			fastest_jack.speed *= rate; // !
 			
 			if fastest_jack.speed > fastest_jack_so_far.speed {
 				fastest_jack_so_far = fastest_jack;
 			}
 		}
+		let fastest_jack = fastest_jack_so_far;
 		
-		// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
-		// shouldn't return anything either
-		score.fastest_jack = if fastest_jack_so_far.speed == 0.0 {
-			None
-		} else {
-			Some(fastest_jack_so_far)
-		};
+		let new_wifescore = rescore::rescore(&note_seconds, &hit_seconds, &deviations);
+		
+		score.timing_info_dependant_analysis = Some(TimingInfoDependantAnalysis {
+			fastest_combo, fastest_acc, fastest_jack, new_wifescore
+		});
 	}
 	
 	return Some(score);
@@ -527,11 +546,13 @@ impl ReplaysAnalysis {
 				analysis.notes_per_column[i] += score.notes_per_column[i];
 			}
 			
-			// TODO use zipped iterators to avoid bounds-checking cost
-			for i in 0..NUM_OFFSET_BUCKETS as usize {
-				analysis.offset_buckets[i] += score.offset_buckets[i];
+			for (analysis_bucket, analysis_sub_93_bucket, score_bucket) in
+					izip!(&mut analysis.offset_buckets, &mut analysis.sub_93_offset_buckets,
+						  &score.offset_buckets) {
+				
+				*analysis_bucket += score_bucket;
 				if wifescore < 0.93 {
-					analysis.sub_93_offset_buckets[i] += score.offset_buckets[i];
+					*analysis_sub_93_bucket += score_bucket;
 				}
 			}
 			
@@ -540,29 +561,30 @@ impl ReplaysAnalysis {
 				longest_mcombo_scorekey = scorekey;
 			}
 			
-			if let Some(score_fastest_combo) = score.fastest_combo {
-				if score_fastest_combo.speed > analysis.fastest_combo.speed {
-					analysis.fastest_combo = score_fastest_combo;
+			if let Some(score_analysis) = score.timing_info_dependant_analysis {
+				analysis.current_wifescores.push(wifescore);
+				analysis.new_wifescores.push(score_analysis.new_wifescore);
+				
+				if score_analysis.fastest_combo.speed > analysis.fastest_combo.speed {
+					analysis.fastest_combo = score_analysis.fastest_combo;
 					analysis.fastest_combo_scorekey = scorekey.to_string();
 				}
-			}
-			
-			if let Some(score_fastest_acc) = score.fastest_acc {
-				if score_fastest_acc.speed > analysis.fastest_acc.speed {
-					analysis.fastest_acc = score_fastest_acc;
+				
+				if score_analysis.fastest_acc.speed > analysis.fastest_acc.speed {
+					analysis.fastest_acc = score_analysis.fastest_acc;
 					analysis.fastest_acc_scorekey = scorekey.to_string();
 				}
-			}
-			
-			if let Some(score_fastest_jack) = score.fastest_jack {
-				if score_fastest_jack.speed > analysis.fastest_jack.speed {
-					analysis.fastest_jack = score_fastest_jack;
+				
+				if score_analysis.fastest_jack.speed > analysis.fastest_jack.speed {
+					analysis.fastest_jack = score_analysis.fastest_jack;
 					analysis.fastest_jack_scorekey = scorekey.to_string();
 				}
 			}
 		}
-		debug_assert!(analysis.manipulations.len() == analysis.score_indices.len());
+		assert_eq!(analysis.manipulations.len(), analysis.score_indices.len());
 		let num_scores = analysis.manipulations.len();
+		
+		assert_eq!(analysis.current_wifescores.len(), analysis.new_wifescores.len());
 		
 		analysis.deviation_mean = deviation_mean_sum / num_scores as f32;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());

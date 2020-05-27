@@ -29,6 +29,8 @@ class ReplaysAnalysis:
 		self.fastest_combo: FastestCombo = None
 		self.fastest_jack: FastestCombo = None
 		self.fastest_acc: FastestCombo = None
+		self.current_wifescores: List[float] = None
+		self.new_wifescores: List[float] = None
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -42,7 +44,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	import savegame_analysis
 	
 	"""
-	create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f64>,
+	create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f32>,
 			packs: Vec<&str>, songs: Vec<&str>,
 			songs_root: &str
 	"""
@@ -64,6 +66,9 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		for scoresat in chart:
 			rate = float(scoresat.get("Rate"))
 			for score in scoresat:
+				if score.findtext("wv") != "3": continue # REMEMBER
+				# ~ if score.get("Key") != "Sa9cd4fc7c81ca67cdb1854c79d54bb7862158a5a": continue # REMEMBER
+				
 				chartkeys.append(score.get("Key"))
 				wifescores.append(float(score.findtext("SSRNormPercent")))
 				packs.append(pack)
@@ -105,6 +110,12 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	
 	for i, num_hits in enumerate(rustr.sub_93_offset_buckets):
 		r.sub_93_offset_buckets[i - 180] = num_hits
+	
+	r.current_wifescores = rustr.current_wifescores
+	r.new_wifescores = rustr.new_wifescores
+	
+	# REMEMBER
+	# ~ r.wifescore_scores = [score for (wife, score) in zip(wifescores, all_scores) if wife in r.current_wifescores]
 	
 	r.scores = [all_scores[score_index] for score_index in rustr.score_indices]
 	r.datetimes = [parsedate(score.findtext("DateTime")) for score in r.scores]

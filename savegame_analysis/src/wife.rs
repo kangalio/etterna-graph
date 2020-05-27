@@ -22,8 +22,8 @@ fn ett_erf(x: f32) -> f32 {
 	return sign * y;
 }
 
-// Takes a hit deviation in seconds and returns the wife3 score, scaled to max=1. Sign of parameter
-// doesn't matter. This is a Rust translation of
+// Takes a hit deviation in seconds and returns the wife3 score, scaled to max=2 (!). Sign of
+// parameter doesn't matter. This is a Rust translation of
 // https://github.com/etternagame/etterna/blob/develop/src/RageUtil/Utils/RageUtil.h#L163
 fn wife3_inner(deviation: f32/*, ts: f32*/) -> f32 {
 	const TS: f32 = 1.0; // Timing scale = 1 = J4

@@ -86,6 +86,8 @@ def show_score_info(xml, score) -> None:
 				if skillset_elem.tag == "Overall": continue # we already showed that
 				lines.append(f"=> {skillset_elem.tag}: <b>{skillset_elem.text}</b>")
 		
+		lines.append("Scorekey: " + score.get("Key"))
+		
 		show_scrollable_msgbox("<br/>".join(lines), "Score info", word_wrap=True)
 	
 	app.app.set_infobar(text, lambda _link_name: show_all())
@@ -287,6 +289,16 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Number of scores per wifescore percent")
 	
 	if prefs.enable_all_plots:
+		qapp.processEvents()
+		plot = plot_frame.draw(
+			type_="scatter",
+			color=cmap[0],
+			# ~ data=((analysis.current_wifescores, analysis.new_wifescores), analysis.wifescore_scores),
+			data=(analysis.current_wifescores, analysis.new_wifescores),
+			# ~ click_callback=score_info_callback,
+		)
+		plotbox(plot, "My rescoring impl (for developer purposes)")
+		
 		qapp.processEvents()
 		plot = plot_frame.draw(
 			type_="bar",
