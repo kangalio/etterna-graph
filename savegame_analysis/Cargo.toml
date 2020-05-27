@@ -20,6 +20,7 @@ anyhow = "1.0" # reasonable error handling
 twoway = "0.2" # substring finding for extract_str
 sqlite = "0.25" # read cache.db file for timing info
 pyo3 = "0.10"
+permutation = "0.2"
 
 [features]
 extension-module = ["pyo3/extension-module"]

@@ -1,7 +1,9 @@
 use std::path::PathBuf;
+use std::ops::Deref;
 use itertools::{izip/*, Itertools*/};
 use rayon::prelude::*;
 use pyo3::prelude::*;
+use permutation::permutation;
 use crate::{ok_or_continue, some_or_continue};
 use crate::util;
 use crate::wife::wife3;
@@ -220,16 +222,18 @@ fn find_fastest_note_subset_wife_pts(seconds: &[f32],
 	return fastest;
 }
 
-fn find_fastest_combo_in_score(seconds: &[f32], are_cbs: &[bool],
+fn find_fastest_combo_in_score<I, T>(seconds: &[f32], are_cbs: I,
 		min_num_notes: u64,
 		max_num_notes: u64,
 		// if this is provided, the nps will be multiplied by wife pts. the 'nps' is practically
 		// 'wife points per second' then
 		wife_pts: Option<&[f32]>,
 		rate: f32,
-	) -> FastestComboInfo {
+	) -> FastestComboInfo
+		where I: IntoIterator<Item=T>,
+		T: Deref<Target=bool> {
 	
-	assert_eq!(seconds.len(), are_cbs.len());
+	//~ assert_eq!(seconds.len(), are_cbs.len());
 	if let Some(wife_pts) = wife_pts {
 		assert_eq!(seconds.len(), wife_pts.len());
 	}
@@ -265,8 +269,8 @@ fn find_fastest_combo_in_score(seconds: &[f32], are_cbs: &[bool],
 		combo_start_i = None; // Combo is handled now, a new combo yet has to begin
 	};
 	
-	for (i, &is_cb) in are_cbs.iter().enumerate() {
-		if is_cb {
+	for (i, is_cb) in are_cbs.into_iter().enumerate() {
+		if *is_cb {
 			trigger_combo_end(i);
 		}
 	}
@@ -332,59 +336,15 @@ fn analyze(path: &str,
 		rate: f32
 	) -> Option<ScoreAnalysis> {
 	
-	// ticks is mutable because it needs to be sorted later
-	let (mut ticks, deviations, columns) = parse_replay_file(path)?;
+	let (ticks, deviations, columns) = parse_replay_file(path)?;
 	
 	let mut score = ScoreAnalysis::default();
 	
-	// tuple of vectors; first value is tick, first value is deviation
-	let mut fastest_jack = FastestComboInfo::default();
-	let mut finger_hits: [(Vec<u64>, Vec<f32>); 4] =
-			[(vec![], vec![]), (vec![], vec![]), (vec![], vec![]), (vec![], vec![])];
-	let mut trigger_finger_jack_end = |(ticks, deviations): &mut (Vec<_>, Vec<_>)| {
-		let timing_info = match timing_info_maybe {
-			Some(a) => a,
-			None => return, // this score doesn't have timing info, no point in trying to measure jacks
-		};
-		
-		ticks.sort();
-		let mut seconds = timing_info.ticks_to_seconds(ticks);
-		
-		// Apply hit deviation to hit seconds
-		for (deviation, second_ref) in deviations.iter().zip(&mut seconds) {
-			*second_ref += deviation;
-		}
-		let seconds = seconds;
-		
-		for window in seconds.windows(FASTEST_JACK_WINDOW_SIZE as usize + 1) {
-			let nps = FASTEST_JACK_WINDOW_SIZE as f32 / (window[FASTEST_JACK_WINDOW_SIZE as usize] - window[0]);
-			if nps > fastest_jack.speed {
-				fastest_jack = FastestComboInfo {
-					start_second: window[0],
-					end_second: window[FASTEST_JACK_WINDOW_SIZE as usize],
-					speed: nps,
-					length: FASTEST_JACK_WINDOW_SIZE as u64,
-				}
-			}
-		}
-		
-		ticks.clear();
-		deviations.clear();
-	};
-	
 	let mut mcombo: u64 = 0;
 	
-	for (&tick, &deviation, &column) in izip!(&ticks, &deviations, &columns) {
+	for (&_tick, &deviation, &column) in izip!(&ticks, &deviations, &columns) {
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
-			
-			// Fastest jack statistic
-			if deviation.abs() <= 0.180 {
-				finger_hits[column as usize].0.push(tick);
-				finger_hits[column as usize].1.push(deviation);
-			} else {
-				trigger_finger_jack_end(&mut finger_hits[column as usize]);
-			}
 			
 			if deviation.abs() > 0.09 {
 				score.cbs_per_column[column as usize] += 1;
@@ -400,39 +360,60 @@ fn analyze(path: &str,
 			mcombo = 0;
 		}
 	}
-	trigger_finger_jack_end(&mut finger_hits[0]);
-	trigger_finger_jack_end(&mut finger_hits[1]);
-	trigger_finger_jack_end(&mut finger_hits[2]);
-	trigger_finger_jack_end(&mut finger_hits[3]);
 	
-	fastest_jack.speed *= rate; // !
-	
-	let num_notes: u64 = ticks.len() as u64;
-	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d as f32) as f32).collect();
-	let are_cbs: Vec<bool> = deviations.iter().map(|d| d.abs() > 0.09).collect();
 	let num_manipped_notes = ticks.windows(2).filter(|window| window[0] > window[1]).count();
 	
+	// Sort the hit data. Need to do this to be able to convert to seconds. Don't do this before
+	// manipulation calculation; it depends on the unsorted-ness of the ticks!
+	let permutation = permutation::sort(&ticks[..]);
+	let ticks = permutation.apply_slice(&ticks[..]);
+	let deviations = permutation.apply_slice(&deviations[..]);
+	let columns = permutation.apply_slice(&columns[..]);
+	
+	let num_notes: u64 = ticks.len() as u64;
+	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d)).collect();
+	let are_cbs: Vec<bool> = deviations.iter().map(|&d| d.abs() > 0.09).collect();
+	
 	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
-	// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
-	// shouldn't return anything either
-	score.fastest_jack = if fastest_jack.speed == 0.0 { None } else { Some(fastest_jack) };
 	score.manipulation = num_manipped_notes as f32 / num_notes as f32;
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
-	
-	// need to do this to be able to convert to seconds. this must not be done too early though,
-	// because part of the analysis depends on the unsorted-ness of the ticks!
-	ticks.sort_unstable();
 	
 	if let Some(timing_info) = timing_info_maybe {
 		// TODO the deviance is not applied yet. E.g. when the player starts tapping early and ending
 		// the combo late, the calculated nps is higher than deserved
 		let seconds = timing_info.ticks_to_seconds(&ticks);
 		
-		drop((&wife_pts, &seconds, &are_cbs));
 		score.fastest_combo = Some(find_fastest_combo_in_score(&seconds, &are_cbs,
 				100, 130, None, rate));
 		score.fastest_acc = Some(find_fastest_combo_in_score(&seconds, &are_cbs,
 				100, 130, Some(&wife_pts), rate));
+		
+		let mut fastest_jack_so_far = FastestComboInfo::default();
+		for column in 0..4 {
+			let mut column_seconds = Vec::with_capacity(ticks.len() / 3);
+			let mut column_are_cbs = Vec::with_capacity(ticks.len() / 3);
+			for (second, &is_cb, deviation, &hit_column) in izip!(&seconds, &are_cbs, &deviations, &columns) {
+				if hit_column == column {
+					column_seconds.push(second + deviation);
+					column_are_cbs.push(is_cb);
+				}
+			}
+			
+			let fastest_jack = find_fastest_combo_in_score(&column_seconds, &column_are_cbs,
+					30, 30, None, rate);
+			
+			if fastest_jack.speed > fastest_jack_so_far.speed {
+				fastest_jack_so_far = fastest_jack;
+			}
+		}
+		
+		// If the recorded fastest jack speed is 0 nps, then... there was nothing recorded at all and we
+		// shouldn't return anything either
+		score.fastest_jack = if fastest_jack_so_far.speed == 0.0 {
+			None
+		} else {
+			Some(fastest_jack_so_far)
+		};
 	}
 	
 	return Some(score);
