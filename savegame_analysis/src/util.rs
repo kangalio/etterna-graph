@@ -124,14 +124,13 @@ pub fn trim_bstr(bstr: &[u8]) -> &[u8] {
 pub fn mean<I: Iterator>(iterator: I) -> f32
 		where I::Item: std::ops::Deref<Target=f32> {
 	
-	let mut sum: f64 = 0.0; // higher precision to avoid lossiness
+	let mut sum = 0.0;
 	let mut count = 0;
 	for value_ref in iterator {
-		sum += *value_ref as f64;
+		sum += *value_ref;
 		count += 1;
 	}
-	println!("Sum is {}, count {}", sum, count);
-	return (sum / count as f64) as f32;
+	return sum / count as f32;
 }
 
 pub fn is_ascii_whitespace(c: u8) -> bool {
@@ -172,7 +171,7 @@ mod tests {
 		
 		let lines: Vec<&[u8]> = split_newlines(text as &[u8], 7).collect();
 		assert_eq!(lines, vec![b"10charssss" as &[u8], b"6chars\n10charssss" as &[u8],
-							   b"6chars\n" as &[u8]]); // we have the \n in here because it's
+							   b"6chars\n" as &[u8]]); // we expect the \n in here because it's
 													   // covered by the skip-ahead length of 7
 	}
 	
