@@ -1,4 +1,4 @@
-name: Compile and build
+name: Compile, bundle and test
 
 on:
   push:
@@ -21,7 +21,9 @@ jobs:
     runs-on: ${{ matrix.os }}
   
     steps:
+    
     # Setup
+    
     - uses: actions/checkout@v2
     
     - name: Setup Rust
@@ -43,21 +45,23 @@ jobs:
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
     
-    # Build savegame_analysis
+    - name: Unit-test savegame_analysis
+      run: cargo test
+      working-directory: ./savegame_analysis
+    
     - name: Build savegame_analysis
-      #~ run: cargo build --release
-      run: cargo build
+      run: cargo build --release --features extension-module
       working-directory: ./savegame_analysis
     
     - name: Rename Python module file extension and move
-      #~ run: mv savegame_analysis/target/release/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
-      run: mv savegame_analysis/target/debug/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
+      run: mv savegame_analysis/target/release/${{matrix.LIBRARY_FILENAME}} ${{matrix.PYMODULE_FILENAME}}
     
     - name: Strip library
       if: startsWith(matrix.os, 'ubuntu')
       run: strip ${{matrix.PYMODULE_FILENAME}}
     
     # Bundled exe
+    
     - name: Copy savegame_analysis module to src
       run: cp ${{matrix.PYMODULE_FILENAME}} src/${{matrix.PYMODULE_FILENAME}}
     
@@ -66,6 +70,7 @@ jobs:
       run: .\bundle.bat
     
     # Upload
+    
     - name: Upload bundled exe
       uses: actions/upload-artifact@v2
       if: startsWith(matrix.os, 'windows')

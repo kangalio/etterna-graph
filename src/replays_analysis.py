@@ -58,7 +58,9 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	for chart in xml.iter("Chart"):
 		pack = chart.get("Pack")
 		song = chart.get("Song")
+		
 		if "Generation Rock" in song and "German Dump Mini Pack" in pack: continue # this file is borked
+		
 		for scoresat in chart:
 			rate = float(scoresat.get("Rate"))
 			for score in scoresat:
