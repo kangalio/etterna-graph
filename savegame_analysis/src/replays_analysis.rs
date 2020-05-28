@@ -529,7 +529,7 @@ impl ReplaysAnalysis {
 	pub fn create(prefix: &str, scorekeys: Vec<&str>, wifescores: Vec<f32>,
 			packs: Vec<&str>, songs: Vec<&str>,
 			rates: Vec<f32>,
-			cache_db_path: &str
+			songs_root: &str
 		) -> Self {
 		
 		// Validate parameters
@@ -541,6 +541,7 @@ impl ReplaysAnalysis {
 		// Setup rayon
 		let rayon_config_result = rayon::ThreadPoolBuilder::new()
 				.num_threads(20) // many threads because of file io
+				.stack_size(262144) // hopefully enough
 				.build_global();
 		if let Err(e) = rayon_config_result {
 			println!("Warning: rayon ThreadPoolBuilder failed: {:?}", e);
@@ -550,7 +551,7 @@ impl ReplaysAnalysis {
 		analysis.offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		analysis.sub_93_offset_buckets = vec![0; NUM_OFFSET_BUCKETS as usize];
 		
-		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(cache_db_path));
+		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(songs_root));
 		
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
 		let score_analyses: Vec<_> = tuples

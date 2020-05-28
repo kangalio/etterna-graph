@@ -16,6 +16,8 @@ lexical-core = { version = "0.7", default-features = false }
 itertools = "0.9" # various qol stuff
 libm = "0.2" # for erfc
 anyhow = "1.0" # reasonable error handling
+walkdir = "2" # recursive directory walking is too hard to diy
+#tokio = { version = "0.2", features = ["fs"] } # async file loading
 #roxmltree = "0.11" # xml parsing
 twoway = "0.2" # substring finding for extract_str
 sqlite = "0.25" # read cache.db file for timing info
