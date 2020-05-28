@@ -1,6 +1,11 @@
-static WIFE3_MINE_HIT_WEIGHT: f32 = -7.0;
-static WIFE3_HOLD_DROP_WEIGHT: f32 = -4.5;
-static WIFE3_MISS_WEIGHT: f32 = -5.5;
+static INNER_WIFE3_MINE_HIT_WEIGHT: f32 = -7.0;
+static INNER_WIFE3_HOLD_DROP_WEIGHT: f32 = -4.5;
+static INNER_WIFE3_MISS_WEIGHT: f32 = -5.5;
+
+// wrap the actual constants to revert the max=2 scaling
+pub static WIFE3_MINE_HIT_WEIGHT: f32 = INNER_WIFE3_MINE_HIT_WEIGHT / 2.0;
+pub static WIFE3_HOLD_DROP_WEIGHT: f32 = INNER_WIFE3_HOLD_DROP_WEIGHT / 2.0;
+pub static WIFE3_MISS_WEIGHT: f32 = INNER_WIFE3_MISS_WEIGHT / 2.0;
 
 // erf approxmation function, as used in Etterna (same file as in the link below)
 fn ett_erf(x: f32) -> f32 {
@@ -55,9 +60,9 @@ fn wife3_inner(deviation: f32/*, ts: f32*/) -> f32 {
 	let score = if maxms <= zero {
 		MAX_POINTS * ett_erf((zero - maxms) / dev)
 	} else if maxms <= max_boo_weight {
-		(maxms - zero) * WIFE3_MISS_WEIGHT / (max_boo_weight - zero)
+		(maxms - zero) * INNER_WIFE3_MISS_WEIGHT / (max_boo_weight - zero)
 	} else {
-		WIFE3_MISS_WEIGHT
+		INNER_WIFE3_MISS_WEIGHT
 	};
 	
 	return score;

@@ -112,6 +112,14 @@ struct TimingInfoDependantAnalysis {
 	new_wifescore: f32,
 }
 
+struct ReplayFileData {
+	ticks: Vec<u64>,
+	deviations: Vec<f32>,
+	columns: Vec<u8>,
+	num_mine_hits: u64,
+	num_hold_drops: u64,
+}
+
 pub fn parse_sm_float(string: &[u8]) -> Option<f32> {
 	//~ let string = &string[..string.len()-1]; // cut off last digit to speed up float parsing # REMEMBER
 	return lexical_core::parse_lossy(string).ok();
@@ -310,15 +318,22 @@ fn put_deviations_into_buckets(deviations: &[f32]) -> Vec<u64> {
 	return offset_buckets;
 }
 
-fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f32>, Vec<u8>)> {
+fn parse_replay_file(path: &str) -> Option<ReplayFileData> {
 	let bytes = std::fs::read(path).ok()?;
 	let approx_max_num_lines = bytes.len() / 16; // 16 is a pretty good appproximation	
 	
 	let mut ticks = Vec::with_capacity(approx_max_num_lines);
 	let mut deviations = Vec::with_capacity(approx_max_num_lines);
 	let mut columns = Vec::with_capacity(approx_max_num_lines);
+	let mut num_mine_hits = 0;
+	let mut num_hold_drops = 0;
 	for line in util::split_newlines(&bytes, 5) {
-		if line.len() == 0 || line[0usize] == b'H' { continue }
+		if line.len() == 0 { continue }
+		
+		if line[0usize] == b'H' {
+			num_hold_drops += 1;
+			continue;
+		}
 		
 		let mut token_iter = line.splitn(3, |&c| c == b' ');
 		
@@ -334,14 +349,19 @@ fn parse_replay_file(path: &str) -> Option<(Vec<u64>, Vec<f32>, Vec<u8>)> {
 		let note_type: u8 = if remainder.len() >= 3 { remainder[2] - b'0' } else { 1 };
 		
 		// We only want tap notes and hold heads
-		if !(note_type == 1 || note_type == 2) { continue }
-		
-		ticks.push(tick);
-		deviations.push(deviation);
-		columns.push(column);
+		match note_type {
+			1 | 2 | 5 => { // taps and hold heads and lifts
+				ticks.push(tick);
+				deviations.push(deviation);
+				columns.push(column);
+			},
+			4 => num_mine_hits += 1, // mines only appear in replay file if they were hit
+			7 => {}, // fakes
+			other => eprintln!("Warning: unexpected note type in replay file: {}", other),
+		}
 	}
 	
-	return Some((ticks, deviations, columns));
+	return Some(ReplayFileData { ticks, deviations, columns, num_mine_hits, num_hold_drops });
 }
 
 // Analyze a single score's replay
@@ -350,7 +370,11 @@ fn analyze(path: &str,
 		rate: f32
 	) -> Option<ScoreAnalysis> {
 	
-	let (unsorted_ticks, unsorted_deviations, unsorted_columns) = parse_replay_file(path)?;
+	let replay_file_data = parse_replay_file(path)?;
+	let unsorted_ticks = replay_file_data.ticks;
+	let unsorted_deviations = replay_file_data.deviations;
+	let unsorted_columns = replay_file_data.columns;
+	
 	let num_notes = unsorted_ticks.len() as u64;
 	
 	// Construct empty score analysis object into which all the data will be put in
@@ -397,12 +421,21 @@ fn analyze(path: &str,
 	if let Some(timing_info) = timing_info_maybe {
 		// timing of the notes (ticks is already sorted => automatically sorted as well)
 		let note_seconds = timing_info.ticks_to_seconds(&ticks);
-		let unsorted_note_seconds = permutation.apply_inv_slice(&note_seconds[..]);
-		// timing of player hits
+		
+		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THIS VECTOR!!
+		let hit_seconds: Vec<f32> = izip!(&note_seconds, &deviations)
+				.filter_map(|(&s, &d)| {
+					if (d - 1.0) < 0.00001 { // if deviation=1.000, it's a miss
+						return None;
+					} else {
+						// return note second with deviation applied - i.e. the hit second
+						return Some(s + d);
+					}
+				}).collect();
+		
+		//~ let unsorted_note_seconds = permutation.apply_inv_slice(&note_seconds[..]);
 		//~ let unsorted_hit_seconds: Vec<f32> = izip!(&unsorted_note_seconds, &unsorted_deviations)
 				//~ .map(|(&s, &d)| s + d).collect();
-		let hit_seconds: Vec<f32> = izip!(&note_seconds, &deviations)
-				.map(|(&s, &d)| s + d).collect();
 		
 		// In the following two statements, we _don't_ use hit_seconds
 		let fastest_combo = find_fastest_combo_in_score(&note_seconds, &are_cbs,
@@ -428,12 +461,13 @@ fn analyze(path: &str,
 		}
 		let fastest_jack = fastest_jack_so_far;
 		
-		let new_wifescore = rescore::rescore(&note_seconds, &hit_seconds, &deviations);
+		let new_wifescore = rescore::rescore(&note_seconds, &hit_seconds,
+				replay_file_data.num_mine_hits, replay_file_data.num_hold_drops);
 		
 		score.timing_info_dependant_analysis = Some(TimingInfoDependantAnalysis {
 			fastest_combo, fastest_acc, fastest_jack, new_wifescore
 		});
-	}
+	} else { println!("couldn't find timing info") } // REMEMBER
 	
 	return Some(score);
 }
