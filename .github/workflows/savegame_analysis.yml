@@ -45,12 +45,8 @@ jobs:
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
     
-    - name: Unit-test savegame_analysis
-      run: cargo test
-      working-directory: ./savegame_analysis
-    
     - name: Build savegame_analysis
-      run: cargo build --release --features extension-module
+      run: cargo build --release --lib --features extension-module
       working-directory: ./savegame_analysis
     
     - name: Rename Python module file extension and move
