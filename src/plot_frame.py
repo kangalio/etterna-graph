@@ -106,6 +106,9 @@ def draw(data,
 	plot.setTitle(title)
 	if "log" in flags: plot.setLogMode(x=False, y=True) # does this do anything? idk
 	
+	if "diagonal_line" in flags:
+		plot.addItem(pg.InfiniteLine(pos=(0, 0), angle=45, pen="w"))
+
 	def click_handler(_, points):
 		if len(points) > 1:
 			app.app.set_infobar(f"{len(points)} points selected at once!")

@@ -292,6 +292,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		qapp.processEvents()
 		plot = plot_frame.draw(
 			type_="scatter",
+			flags="diagonal_line",
 			color=cmap[0],
 			# ~ data=((analysis.current_wifescores, analysis.new_wifescores), analysis.wifescore_scores),
 			data=(analysis.current_wifescores, analysis.new_wifescores),

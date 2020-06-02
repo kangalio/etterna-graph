@@ -350,13 +350,13 @@ fn parse_replay_file(path: &str) -> Option<ReplayFileData> {
 		
 		// We only want tap notes and hold heads
 		match note_type {
-			1 | 2 | 5 => { // taps and hold heads and lifts
+			1 | 2 => { // taps and hold heads
 				ticks.push(tick);
 				deviations.push(deviation);
 				columns.push(column);
 			},
 			4 => num_mine_hits += 1, // mines only appear in replay file if they were hit
-			7 => {}, // fakes
+			5 | 7 => {}, // lifts and fakes
 			other => eprintln!("Warning: unexpected note type in replay file: {}", other),
 		}
 	}
@@ -376,11 +376,10 @@ fn analyze(path: &str,
 	let unsorted_columns = replay_file_data.columns;
 	
 	let num_notes = unsorted_ticks.len() as u64;
-	
+
 	// Construct empty score analysis object into which all the data will be put in
 	let mut score = ScoreAnalysis::default();
 	
-	let mut mcombo: u64 = 0;
 	for (&_tick, &deviation, &column) in izip!(&unsorted_ticks, &unsorted_deviations, &unsorted_columns) {
 		if column < 4 {
 			score.notes_per_column[column as usize] += 1;
@@ -389,17 +388,7 @@ fn analyze(path: &str,
 				score.cbs_per_column[column as usize] += 1;
 			}
 		}
-		
-		if deviation.abs() <= 0.0225 {
-			mcombo += 1;
-		} else {
-			if mcombo > score.longest_mcombo {
-				score.longest_mcombo = mcombo;
-			}
-			mcombo = 0;
-		}
 	}
-	drop(mcombo);
 	
 	// count out of out-of-order note pairs (those were the first hit note comes _later_ in the song
 	// than the second-hit note)
@@ -415,6 +404,8 @@ fn analyze(path: &str,
 	let wife_pts: Vec<f32> = deviations.iter().map(|&d| wife3(d)).collect();
 	let are_cbs: Vec<bool> = deviations.iter().map(|&d| d.abs() > 0.09).collect();
 	
+	score.longest_mcombo = util::longest_true_sequence(deviations.iter()
+			.map(|d| d.abs() <= 0.0225));
 	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
 	
@@ -422,20 +413,24 @@ fn analyze(path: &str,
 		// timing of the notes (ticks is already sorted => automatically sorted as well)
 		let note_seconds = timing_info.ticks_to_seconds(&ticks);
 		
+		let mut note_seconds_columns = [vec![], vec![], vec![], vec![]];
 		// timing of player hits. EXCLUDING MISSES!!!! THEY ARE NOT PRESENT IN THIS VECTOR!!
-		let hit_seconds: Vec<f32> = izip!(&note_seconds, &deviations)
-				.filter_map(|(&s, &d)| {
-					if (d - 1.0) < 0.00001 { // if deviation=1.000, it's a miss
-						return None;
-					} else {
-						// return note second with deviation applied - i.e. the hit second
-						return Some(s + d);
-					}
-				}).collect();
-		
-		//~ let unsorted_note_seconds = permutation.apply_inv_slice(&note_seconds[..]);
-		//~ let unsorted_hit_seconds: Vec<f32> = izip!(&unsorted_note_seconds, &unsorted_deviations)
-				//~ .map(|(&s, &d)| s + d).collect();
+		let mut hit_seconds_columns = [vec![], vec![], vec![], vec![]];
+
+		for (&note_second, &deviation, &column) in izip!(&note_seconds, &deviations, &columns) {
+			if column >= 4 { continue } // spooky scary ~~skeletons~~ >4k gamemodes
+
+			let is_miss = (deviation - 1.0).abs() < 0.00001; // if deviation=1.000, it's a miss
+
+
+			note_seconds_columns[column as usize].push(note_second);
+			// only save hit if it wasn't a miss (cuz if it was a miss, the player didn't hit at
+			// all)
+			if !is_miss {
+				let hit_second = note_second + deviation;
+				hit_seconds_columns[column as usize].push(hit_second);
+			}
+		}
 		
 		// In the following two statements, we _don't_ use hit_seconds
 		let fastest_combo = find_fastest_combo_in_score(&note_seconds, &are_cbs,
@@ -461,13 +456,13 @@ fn analyze(path: &str,
 		}
 		let fastest_jack = fastest_jack_so_far;
 		
-		let new_wifescore = rescore::rescore(&note_seconds, &hit_seconds,
+		let new_wifescore = rescore::rescore(&note_seconds_columns, &hit_seconds_columns,
 				replay_file_data.num_mine_hits, replay_file_data.num_hold_drops);
 		
 		score.timing_info_dependant_analysis = Some(TimingInfoDependantAnalysis {
 			fastest_combo, fastest_acc, fastest_jack, new_wifescore
 		});
-	} else { println!("couldn't find timing info") } // REMEMBER
+	}
 	
 	return Some(score);
 }
@@ -541,7 +536,6 @@ impl ReplaysAnalysis {
 		// Setup rayon
 		let rayon_config_result = rayon::ThreadPoolBuilder::new()
 				.num_threads(20) // many threads because of file io
-				.stack_size(262144) // hopefully enough
 				.build_global();
 		if let Err(e) = rayon_config_result {
 			println!("Warning: rayon ThreadPoolBuilder failed: {:?}", e);

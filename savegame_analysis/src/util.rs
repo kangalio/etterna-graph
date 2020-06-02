@@ -51,6 +51,36 @@ impl<'a> Iterator for SplitNewlines<'a> {
 	}
 }
 
+pub struct CountInto<'a, I: Iterator> {
+	iterator: I,
+	count_variable: &'a mut usize,
+}
+
+impl<'a, I: Iterator> Iterator for CountInto<'a, I> {
+	type Item = I::Item;
+
+	fn next(&mut self) -> Option<I::Item> {
+		let item = self.iterator.next();
+		if item.is_some() {
+			*self.count_variable += 1;
+		}
+		return item;
+	}
+}
+
+pub trait MyItertools {
+	fn count_into(self, count_variable: &mut usize) -> CountInto<Self>
+			where Self: Iterator, Self: Sized;
+}
+
+impl<I: Iterator> MyItertools for I {
+	// This function counts the number of elements in the iterator without consuming the iterator
+	fn count_into(self, count_variable: &mut usize) -> CountInto<Self> {
+		*count_variable = 0;
+		return CountInto { iterator: self, count_variable };
+	}
+}
+
 // Like slice.split(b'\n'), but with optimizations based on a minimum line length assumption
 // When min_line_length is zero, the expected result for "xxx\n" would be ["xxx", ""]. However,
 // the result is gonna be just ["xxx"]. I know it's unintuitive, but I dunno how to fix
@@ -137,6 +167,29 @@ pub fn is_ascii_whitespace(c: u8) -> bool {
 	return c == b' ' || c == b'\t' || c == b'\n' || c == b'\r'
 			|| c == 0x0c // form feed; an ASCII control symbol for a page break
 			|| c == 0x0b; // vertical tab
+}
+
+pub fn longest_true_sequence<I>(iterator: I) -> u64
+		where I: Iterator<Item=bool> {
+	
+	let mut longest_so_far = 0;
+	let mut current_run = 0;
+	for is_true in iterator {
+		if is_true {
+			current_run += 1;
+		} else {
+			if current_run > longest_so_far {
+				longest_so_far = current_run;
+				current_run = 0;
+			}
+		}
+	}
+
+	if current_run > longest_so_far {
+		longest_so_far = current_run;
+	}
+
+	return longest_so_far;
 }
 
 #[cfg(test)]

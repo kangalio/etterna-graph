@@ -17,8 +17,7 @@ itertools = "0.9" # various qol stuff
 libm = "0.2" # for erfc
 anyhow = "1.0" # reasonable error handling
 walkdir = "2" # recursive directory walking is too hard to diy
-#tokio = { version = "0.2", features = ["fs"] } # async file loading
-#roxmltree = "0.11" # xml parsing
+roxmltree = "0.11" # xml parsing
 twoway = "0.2" # substring finding for extract_str
 sqlite = "0.25" # read cache.db file for timing info
 pyo3 = "0.10"
@@ -31,7 +30,7 @@ extension-module = ["pyo3/extension-module"]
 # this can just stay on debug=true, since it doesn't do harm on Windows anyway, and on Linux,
 # debug=false doesn't properly work so we have to strip anyway
 debug = true
-lto = true # no lto locally cuz it takes looong to compile
+#lto = true # no lto locally cuz it takes looong to compile
 
 [profile.dev.package."*"]
 opt-level = 3

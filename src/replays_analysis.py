@@ -67,7 +67,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 			rate = float(scoresat.get("Rate"))
 			for score in scoresat:
 				if score.findtext("wv") != "3": continue # REMEMBER
-				# ~ if score.get("Key") != "Sa9cd4fc7c81ca67cdb1854c79d54bb7862158a5a": continue # REMEMBER
+				# if score.get("Key") != "Sb96edd7d69b6422533f5bc4c888ed8d31f700f4a": continue # REMEMBER
 				
 				chartkeys.append(score.get("Key"))
 				wifescores.append(float(score.findtext("SSRNormPercent")))
@@ -80,7 +80,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	print("Starting replays analysis...")
 	rustr = savegame_analysis.ReplaysAnalysis(prefix,
 			chartkeys, wifescores, packs, songs, rates,
-			app.app.prefs.cache_db)
+			app.app.prefs.songs_root)
 	print("Done with replays analysis")
 	
 	def convert_combo_info(rust_combo_info):
@@ -103,9 +103,18 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		util.logger.warning("No valid replays found at all in the directory")
 		return None
 	
+	# this is NOT part of replays analysis. this is xml analysis. this is in here anyway because
+	# it's easier. this should really be moved into a separate xml analysis module (in case I'll
+	# ever get around implementing that...?)
+	r.total_notes = 0
+	for tap_note_scores in xml.iter("TapNoteScores"):
+		judgements = ["Miss", "W1", "W2", "W3", "W4", "W5"]
+		r.total_notes += sum(int(tap_note_scores.findtext(x)) for x in judgements)
+	
 	r.offset_mean = rustr.deviation_mean
 	r.notes_per_column = rustr.notes_per_column
 	r.cbs_per_column = rustr.cbs_per_column
+	r.num_near_hits = sum(r.notes_per_column) / sum(r.cbs_per_column)
 	r.standard_deviation = rustr.standard_deviation
 	
 	for i, num_hits in enumerate(rustr.sub_93_offset_buckets):

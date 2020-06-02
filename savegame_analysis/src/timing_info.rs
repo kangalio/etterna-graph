@@ -124,7 +124,7 @@ fn song_id_timing_info_from_sm(sm_path: &Path) -> Result<(SongId, TimingInfo)> {
 	let pack_name = pack_name_from_sm_path(sm_path)
 			.ok_or_else(|| anyhow!(format!("Couldn't get pack name from {:?}", sm_path)))?;
 	let song_name = extract_bstr(&contents, b"#TITLE:", b";")
-			.ok_or_else(|| anyhow!("No song name found"))?;
+			.ok_or_else(|| anyhow!("No title found"))?;
 	let song_id = SongId { pack: pack_name, song: String::from_utf8_lossy(song_name).into() };
 
 	// Get and parse bpm string
@@ -148,8 +148,8 @@ pub fn build_timing_info_index(songs_root: &Path) -> TimingInfoIndex {
 		let (song_id, timing_info) = match song_id_timing_info_from_sm(&path) {
 			Ok(a) => a,
 			Err(_e) => {
-				//~ println!("Couldn't get timing info from sm: {:?}", _e);
-				//~ println!();
+				// eprintln!("Couldn't get timing info from sm: {:?}", _e);
+				// eprintln!();
 				continue;
 			}
 		};

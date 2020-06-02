@@ -46,7 +46,6 @@ _keep_storage: List[Any] = []
 def keep(*args) -> None:
 	_keep_storage.extend(args)
 
-# setting here
 def try_select_xml() -> Optional[str]:
 	result = QFileDialog.getOpenFileName(
 			caption="Select your Etterna.xml",
@@ -58,11 +57,10 @@ def try_choose_replays() -> Optional[str]:
 	return QFileDialog.getExistingDirectory(
 			caption="Select the ReplaysV2 directory")
 
-def try_choose_cache_db() -> Optional[str]:
-	result = QFileDialog.getOpenFileName(
-			caption="Select cache.db (inside Cache)",
-			filter="Etterna cache database(cache.db)")
-	return result[0] if result else None
+def try_choose_songs_root() -> Optional[str]:
+	QMessageBox.information(None, "How to use", SONGS_ROOT_CHOOSER_INFO_MSG)
+	return QFileDialog.getExistingDirectory(
+			caption="Select the root songs folder")
 
 # When adding a new setting, keep care to update all placed marked with "# setting here"
 @dataclass
@@ -70,7 +68,7 @@ class Settings:
 	# setting here
 	xml_path: str
 	replays_dir: str
-	cache_db: str
+	songs_root: str
 	enable_all_plots: bool
 	hide_invalidated: bool
 	bg_color: str
@@ -86,14 +84,13 @@ class Settings:
 		
 		if os.path.exists(path):
 			with open(path) as f:
-				for key, value in json.load(f).items():
-					# setting here
+				for key, value in json.load(f).items(): # setting here
 					if key == "etterna-xml":
 						settings.xml_path = value
 					elif key == "replays-dir":
 						settings.replays_dir = value
-					elif key == "cache-db":
-						settings.cache_db = value
+					elif key == "songs-root":
+						settings.songs_root = value
 					elif key == "enable-all-plots":
 						settings.enable_all_plots = value
 					elif key == "hide-invalidated":
@@ -115,7 +112,7 @@ class Settings:
 			# setting here
 			"etterna-xml": self.xml_path,
 			"replays-dir": self.replays_dir,
-			"cache-db": self.cache_db,
+			"songs-root": self.songs_root,
 			"enable-all-plots": self.enable_all_plots,
 			"hide-invalidated": self.hide_invalidated,
 		}
@@ -138,7 +135,7 @@ class Settings:
 	def is_incomplete(self) -> bool:
 		# setting here
 		return any(setting is None for setting in [
-				self.xml_path, self.replays_dir, self.cache_db])
+				self.xml_path, self.replays_dir, self.songs_root])
 
 class ColorPickerButton(QPushButton):
 	def __init__(self, initial_color):
@@ -215,16 +212,16 @@ class SettingsDialog(QDialog):
 		layout.addWidget(btn, row, 2)
 		row += 1
 		
-		self.cache_db_input = QLineEdit(app.app.prefs.cache_db)
-		def cache_db_choose_handler():
-			result = try_choose_cache_db()
-			if result: self.cache_db_input.setText(result)
-		layout.addWidget(QLabel("Cache database path"), row, 0)
-		layout.addWidget(self.cache_db_input, row, 1)
+		self.songs_root_input = QLineEdit(app.app.prefs.songs_root)
+		def songs_root_choose_handler():
+			result = try_choose_songs_root()
+			if result: self.songs_root_input.setText(result)
+		layout.addWidget(QLabel("Root songs directory"), row, 0)
+		layout.addWidget(self.songs_root_input, row, 1)
 		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("document-open",
-				QApplication.style().standardIcon(QStyle.SP_FileIcon))) # fallback icon
-		btn.pressed.connect(cache_db_choose_handler)
+		btn.setIcon(QIcon.fromTheme("folder-open",
+				QApplication.style().standardIcon(QStyle.SP_DirIcon))) # fallback icon
+		btn.pressed.connect(songs_root_choose_handler)
 		layout.addWidget(btn, row, 2)
 		row += 1
 		
@@ -290,7 +287,7 @@ class SettingsDialog(QDialog):
 		# setting here
 		app.app.prefs.xml_path = self.xml_input.text()
 		app.app.prefs.replays_dir = self.replays_input.text()
-		app.app.prefs.cache_db = self.cache_db_input.text()
+		app.app.prefs.songs_root = self.songs_root_input.text()
 		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
 		app.app.prefs.hide_invalidated = self.hide_invalidated.isChecked()
 		app.app.prefs.bg_color = self.bg_color.get_qcolor().name()
@@ -420,13 +417,13 @@ class Application:
 		if os.path.exists(replays_dir):
 			self._prefs.replays_dir = replays_dir
 		
-		cache_db = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../../Cache/cache.db"))
-		if os.path.exists(cache_db):
-			self._prefs.cache_db = cache_db
+		songs_root = os.path.abspath(os.path.join(os.path.dirname(xml_path), "../../../Songs"))
+		if os.path.exists(songs_root):
+			self._prefs.songs_root = songs_root
 		
-		if self._prefs.is_incomplete():
+		if self._prefs.replays_dir is None or self._prefs.songs_root is None:
 			QMessageBox.information(None, "Couldn't locate game data",
-					"The ReplaysV2 directory and/or cache.db file could not be found. "
+					"The ReplaysV2 directory and/or root songs directory could not be found. "
 					+ "Please select it manually in the following dialog")
 			SettingsDialog().exec_()
 		
@@ -444,48 +441,43 @@ class Application:
 			"Y:\\.etterna*", # My Wine on Linux (for testing)
 			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
 		]
-		
-		# Assemble all possible save game locations.
-		path_tuples = []
+		# Assemble all possible save game locations. path_pairs is a
+		# list of tuples `(xml_path, replays_dir_path)`
+		path_pairs = []
 		for glob_str in globs:
 			for path in glob.iglob(glob_str):
 				replays_dir = path + "/Save/ReplaysV2"
-				cache_db = path + "/Cache/cache.db"
 				possible_xml_paths = glob.iglob(path + "/Save/LocalProfiles/*/Etterna.xml")
 				for xml_path in possible_xml_paths:
-					path_tuples.append((xml_path, replays_dir, cache_db))
+					path_pairs.append((xml_path, replays_dir))
 		
-		if len(path_tuples) == 0:
+		if len(path_pairs) == 0:
 			return # No installation could be found
-		elif len(path_tuples) == 1:
+		elif len(path_pairs) == 1:
 			# Only one was found, but maybe this is the wrong one and
 			# the correct xml was not detected at all. Better ask
-			mibs = os.path.getsize(path_tuples[0][0]) / 1024**2 # MiB's
-			text = (f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_tuples[0][0]}. Should the "\
-					f"program use that?")
+			mibs = os.path.getsize(path_pairs[0][0]) / 1024**2 # MiB's
+			text = f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_pairs[0][0]}. Should the program use that?"
 			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
 					QMessageBox.Yes, QMessageBox.No)
 			if reply == QMessageBox.No: return
-			path_tuple = path_tuples[0]
+			path_pair = path_pairs[0]
 		else: # With multiple possible installations, it's tricky
-			# Select the savegame tuple with the largest XML, ask user if that one is right
-			path_tuple = max(path_tuples, key=lambda path_tuple: os.path.getsize(path_tuple[0]))
-			mibs = os.path.getsize(path_tuple[0]) / 1024**2 # MiB's
-			text = (f"Found {len(path_tuples)} Etterna.xml's. The largest one \n({path_tuple[0]})\nis "
-					f"{mibs:.2f} MiB; should the program use that?")
+			# Select the savegame pair with the largest XML, ask user if that one is right
+			path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+			mibs = os.path.getsize(path_pair[0]) / 1024**2 # MiB's
+			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one \n({path_pair[0]})\nis {mibs:.2f} MiB; should the program use that?"
 			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
 					QMessageBox.Yes, QMessageBox.No)
 			if reply == QMessageBox.No: return
 		
 		# Apply the paths. Also, do a check if files exist. I mean, they
 		# _should_ exist at this point, but you can never be too sure
-		xml_path, replays_dir, cache_db = path_tuple
+		xml_path, replays_dir = path_pair
 		if os.path.exists(xml_path):
 			self._prefs.xml_path = xml_path
 		if os.path.exists(replays_dir):
 			self._prefs.replays_dir = replays_dir
-		if os.path.exists(cache_db):
-			self._prefs.cache_db = cache_db
 	
 	@property
 	def prefs(self):
