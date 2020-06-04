@@ -459,7 +459,7 @@ fn analyze(path: &str,
 		}
 		let fastest_jack = fastest_jack_so_far;
 		
-		let new_wifescore = rescore::rescore::<rescore::MatchingScorer>(
+		let new_wifescore = rescore::rescore::<rescore::NaiveScorer>( // REMEMBER
 				&note_seconds_columns, &hit_seconds_columns,
 				replay_file_data.num_mine_hits, replay_file_data.num_hold_drops);
 		
@@ -552,8 +552,14 @@ impl ReplaysAnalysis {
 		let timing_info_index = crate::build_timing_info_index(&PathBuf::from(songs_root));
 		
 		let tuples: Vec<_> = izip!(scorekeys, wifescores, packs, songs, rates).collect();
-		let score_analyses: Vec<_> = tuples
-				.par_iter()
+
+		// Only use rayon in release modes cuz rayon makes the call stack practically unviewable
+		#[cfg(debug_assertions)]
+		let tuples_iter = tuples.iter();
+		#[cfg(not(debug_assertions))]
+		let tuples_iter = tuples.par_iter();
+
+		let score_analyses: Vec<_> = tuples_iter
 				// must not filter_map here (need to keep indices accurate)!
 				.map(|(scorekey, wifescore_ref, pack, song, rate)| {
 					let replay_path = prefix.to_string() + scorekey;

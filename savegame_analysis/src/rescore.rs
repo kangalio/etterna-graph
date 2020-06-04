@@ -3,6 +3,9 @@ use itertools::izip;
 mod matching_scorer;
 pub use matching_scorer::MatchingScorer;
 
+mod naive_scorer;
+pub use naive_scorer::NaiveScorer;
+
 
 pub struct ScoringResult {
 	wifescore_sum: f32,
@@ -35,28 +38,6 @@ impl<S> OneShotScoringSystem for S where S: ScoringSystem {
 		}
 		return scorer.finish();
 	}
-}
-
-// This function is actually a perfect replica of Etterna's system (except for a single-digit number
-// of outliers, I didn't care enough to debug those)
-fn original_score(note_seconds: &[f32], hit_seconds: &[f32],
-		num_mine_hits: u64, num_hold_drops: u64,
-	) -> f32 {
-	
-	let mut wifescore_sum = 0.0;
-	for (&note_second, &hit_second) in izip!(note_seconds, hit_seconds) {
-		wifescore_sum += crate::wife3(note_second - hit_second);
-	}
-	
-	let num_misses = note_seconds.len() - hit_seconds.len();
-	
-	// penalize misses, mine hits, and hold drops
-	wifescore_sum += crate::WIFE3_MISS_WEIGHT * num_misses as f32;
-	wifescore_sum += crate::WIFE3_MINE_HIT_WEIGHT * num_mine_hits as f32;
-	wifescore_sum += crate::WIFE3_HOLD_DROP_WEIGHT * num_hold_drops as f32;
-	
-	let wifescore = wifescore_sum / note_seconds.len() as f32;
-	return wifescore;
 }
 
 pub fn rescore<S>(note_seconds_columns: &[Vec<f32>; 4], hit_seconds_columns: &[Vec<f32>; 4],
