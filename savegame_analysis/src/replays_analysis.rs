@@ -57,6 +57,9 @@ pub struct ReplaysAnalysis {
 	#[pyo3(get)]
 	pub fastest_acc_scorekey: String,
 	#[pyo3(get)]
+	// like score_indices, but just for the timing info dependant fields (below)
+	pub timing_info_dependant_score_indices: Vec<u64>,
+	#[pyo3(get)]
 	pub current_wifescores: Vec<f32>,
 	#[pyo3(get)]
 	pub new_wifescores: Vec<f32>,
@@ -456,7 +459,8 @@ fn analyze(path: &str,
 		}
 		let fastest_jack = fastest_jack_so_far;
 		
-		let new_wifescore = rescore::rescore(&note_seconds_columns, &hit_seconds_columns,
+		let new_wifescore = rescore::rescore::<rescore::MatchingScorer>(
+				&note_seconds_columns, &hit_seconds_columns,
 				replay_file_data.num_mine_hits, replay_file_data.num_hold_drops);
 		
 		score.timing_info_dependant_analysis = Some(TimingInfoDependantAnalysis {
@@ -591,6 +595,7 @@ impl ReplaysAnalysis {
 			}
 			
 			if let Some(score_analysis) = score.timing_info_dependant_analysis {
+				analysis.timing_info_dependant_score_indices.push(i as u64);
 				analysis.current_wifescores.push(wifescore);
 				analysis.new_wifescores.push(score_analysis.new_wifescore);
 				
@@ -614,6 +619,7 @@ impl ReplaysAnalysis {
 		let num_scores = analysis.manipulations.len();
 		
 		assert_eq!(analysis.current_wifescores.len(), analysis.new_wifescores.len());
+		assert_eq!(analysis.current_wifescores.len(), analysis.timing_info_dependant_score_indices.len());
 		
 		analysis.deviation_mean = deviation_mean_sum / num_scores as f32;
 		analysis.longest_mcombo = (longest_mcombo, longest_mcombo_scorekey.into());

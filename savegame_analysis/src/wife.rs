@@ -1,11 +1,13 @@
 static INNER_WIFE3_MINE_HIT_WEIGHT: f32 = -7.0;
 static INNER_WIFE3_HOLD_DROP_WEIGHT: f32 = -4.5;
 static INNER_WIFE3_MISS_WEIGHT: f32 = -5.5;
+static INNER_WIFEK_STRAY_WEIGHT: f32 = -5.5; // this is an extension from me (wifek = wife kangalioo)
 
 // wrap the actual constants to revert the max=2 scaling
 pub static WIFE3_MINE_HIT_WEIGHT: f32 = INNER_WIFE3_MINE_HIT_WEIGHT / 2.0;
 pub static WIFE3_HOLD_DROP_WEIGHT: f32 = INNER_WIFE3_HOLD_DROP_WEIGHT / 2.0;
 pub static WIFE3_MISS_WEIGHT: f32 = INNER_WIFE3_MISS_WEIGHT / 2.0;
+pub static WIFEK_STRAY_WEIGHT: f32 = INNER_WIFEK_STRAY_WEIGHT / 2.0;
 
 // erf approxmation function, as used in Etterna (same file as in the link below)
 fn ett_erf(x: f32) -> f32 {
