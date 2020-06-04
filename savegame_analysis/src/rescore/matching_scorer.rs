@@ -1,4 +1,4 @@
-use super::{ScoringSystem, ScoringResult};
+use super::{OneShotScoringSystem, ScoringResult};
 
 // Turn off debug mode for release builds
 #[cfg(debug_assertions)]
@@ -140,31 +140,18 @@ unsafe fn column_rescore(mut notes: Vec<Note>, mut hits: Vec<Hit>) -> (f32, u64)
 	return (wifescore_sum, num_judged_notes as u64);
 }
 
-pub struct MatchingScorer {
-	notes: Vec<Note>,
-	hits: Vec<Hit>,
-}
+pub struct MatchingScorer;
 
-impl ScoringSystem for MatchingScorer {
-	fn setup(note_seconds: &[f32]) -> Self {
+impl OneShotScoringSystem for MatchingScorer {
+	fn evaluate(note_seconds: &[f32], hit_seconds: &[f32]) -> ScoringResult {
 		let notes: Vec<Note> = note_seconds.into_iter()
 				.map(|&second| Note { second, assigned_hit: None })
 				.collect();
+		let hits: Vec<Hit> = hit_seconds.into_iter()
+				.map(|&second| Hit { second, assigned_note: None })
+				.collect();
 		
-		let estimated_num_hits = (note_seconds.len() as f32 * 1.1) as usize;
-		let hits = Vec::with_capacity(estimated_num_hits);
-
-		return Self { notes, hits };
-	}
-
-	fn handle_hit(&mut self, second: f32) -> ScoringResult {
-		self.hits.push(Hit { second, assigned_note: None });
-		
-		return ScoringResult { wifescore_sum: 0.0, num_judged_notes: 0 }; // TODO
-	}
-
-	fn finish(self) -> ScoringResult {
-		let (wifescore_sum, num_judged_notes) = unsafe { column_rescore(self.notes, self.hits) };
+		let (wifescore_sum, num_judged_notes) = unsafe { column_rescore(notes, hits) };
 		return ScoringResult { wifescore_sum, num_judged_notes };
 	}
 }

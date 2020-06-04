@@ -19,8 +19,15 @@ pub trait ScoringSystem: Sized {
 
 	/// No more hits are coming - finish up and return the final scoring result
 	fn finish(self) -> ScoringResult;
+}
 
-	/// This method is a shorthand of the above three in the case that all hits are known already
+/// Trait for a scorer that operates on a single column and evaluates all hits on that column - but
+/// it needs the entire list of hits available to it at the same time
+pub trait OneShotScoringSystem: Sized {
+	fn evaluate(note_seconds: &[f32], hit_seconds: &[f32]) -> ScoringResult;
+}
+
+impl<S> OneShotScoringSystem for S where S: ScoringSystem {
 	fn evaluate(note_seconds: &[f32], hit_seconds: &[f32]) -> ScoringResult {
 		let mut scorer = Self::setup(note_seconds);
 		for &hit_second in hit_seconds {
@@ -55,7 +62,7 @@ fn original_score(note_seconds: &[f32], hit_seconds: &[f32],
 pub fn rescore<S>(note_seconds_columns: &[Vec<f32>; 4], hit_seconds_columns: &[Vec<f32>; 4],
 		num_mine_hits: u64, num_hold_drops: u64,
 	) -> f32
-		where S: ScoringSystem {
+		where S: OneShotScoringSystem {
 	
 	let mut wifescore_sum = 0.0;
 	let mut num_judged_notes = 0;
