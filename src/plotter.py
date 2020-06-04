@@ -294,9 +294,9 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 			type_="scatter",
 			flags="diagonal_line",
 			color=cmap[0],
-			# ~ data=((analysis.current_wifescores, analysis.new_wifescores), analysis.wifescore_scores),
-			data=(analysis.current_wifescores, analysis.new_wifescores),
-			# ~ click_callback=score_info_callback,
+			data=((analysis.current_wifescores, analysis.new_wifescores), analysis.wifescore_scores),
+			# data=(analysis.current_wifescores, analysis.new_wifescores),
+			click_callback=score_info_callback,
 		)
 		plotbox(plot, "My rescoring impl (for developer purposes)")
 		

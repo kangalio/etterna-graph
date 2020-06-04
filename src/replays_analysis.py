@@ -31,6 +31,7 @@ class ReplaysAnalysis:
 		self.fastest_acc: FastestCombo = None
 		self.current_wifescores: List[float] = None
 		self.new_wifescores: List[float] = None
+		self.wifescore_scores: List[Any] = None
 
 # This function is responsible for replay analysis. Every chart that uses replay data has it from
 # here.
@@ -66,9 +67,12 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		for scoresat in chart:
 			rate = float(scoresat.get("Rate"))
 			for score in scoresat:
-				if score.findtext("wv") != "3": continue # REMEMBER
-				# if score.get("Key") != "Sb96edd7d69b6422533f5bc4c888ed8d31f700f4a": continue # REMEMBER
-				
+				# We exclude failed scores because those exhibit some.. weird behavior in the replay
+				# file. not sure what exactly it is, but somehow the wifescore in the xml doesn't
+				# match the wifescore we get when recalculating it manually using the replay file
+				# We don't want such outliers in our graphs, so - be gone, failed scores
+				if score.findtext("Grade") == "Failed": continue
+
 				chartkeys.append(score.get("Key"))
 				wifescores.append(float(score.findtext("SSRNormPercent")))
 				packs.append(pack)
@@ -123,9 +127,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 	r.current_wifescores = rustr.current_wifescores
 	r.new_wifescores = rustr.new_wifescores
 	
-	# REMEMBER
-	# ~ r.wifescore_scores = [score for (wife, score) in zip(wifescores, all_scores) if wife in r.current_wifescores]
-	
+	r.wifescore_scores = [all_scores[i] for i in rustr.timing_info_dependant_score_indices]
 	r.scores = [all_scores[score_index] for score_index in rustr.score_indices]
 	r.datetimes = [parsedate(score.findtext("DateTime")) for score in r.scores]
 	

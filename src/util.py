@@ -44,6 +44,9 @@ def wifescore_to_grade_string(wifescore: float) -> str:
 	logger.exception("this shouldn't happen")
 	return "aaaaaaaaaaaaaaaa"
 
+def num_notes(score: Any) -> int:
+	return sum([int(e.text) for e in score.find("TapNoteScores")])
+
 # Parses date in Etterna.xml format
 def parsedate(s):
 	try:

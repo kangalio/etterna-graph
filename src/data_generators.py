@@ -449,8 +449,8 @@ def calculate_total_wifescore(xml, months=6):
 	for score in iter_scores(xml):
 		if not util.score_within_n_months(score, months): continue
 		
-		num_notes = sum([int(e.text) for e in score.find("TapNoteScores")])
-		num_notes_sum += num_notes
+		num_notes = util.num_notes(score)
+		num_notes_sum += util.num_notes(score)
 		
 		wifescore = float(score.findtext("SSRNormPercent"))
 		weighted_sum += wifescore * num_notes
@@ -659,10 +659,42 @@ def gen_text_general_analysis_info(xml, a):
 		mean_string = f"{round(a.offset_mean * 1000, 1)}ms"
 		
 		sd_string = f"{a.standard_deviation:.2f} ms"
+
+		worst_cb_rush_weight_so_far = 0
+		worst_cb_rush_index = None
+		for i, (old_wifescore, new_wifescore, score) in enumerate(zip(
+					a.current_wifescores, a.new_wifescores, a.wifescore_scores)):
+			if abs(new_wifescore - 0.9808) < 0.001: continue # REMEMBER
+			# weight = (1 - old_wifescore) / (1 - new_wifescore) # REMEMBER
+			weight = new_wifescore - old_wifescore
+
+			# prevent tiny files dominating the cb rush intensity leaderboard
+			if util.num_notes(score) < 500: continue
+
+			# this is not technically needed, but it's not particularly pleasant if we have smth
+			# like "this score is only 55% but without cb rushes it would be 75%!! wooo!!!!" cuz
+			# even 75% is utterly laughable. We prefer scores that are _mostly clean_ except for
+			# the unfair cb rushes
+			if new_wifescore < 0.93: continue
+
+			if weight > worst_cb_rush_weight_so_far:
+				worst_cb_rush_weight_so_far = weight
+				worst_cb_rush_index = i
+		def make_worst_cb_rush_string():
+			score = a.wifescore_scores[worst_cb_rush_index]
+			chart = util.find_parent_chart(xml, score)
+			pack = chart.get("Pack")
+			song = chart.get("Song")
+			old = a.current_wifescores[worst_cb_rush_index]
+			new = a.new_wifescores[worst_cb_rush_index]
+			dt = score.findtext("DateTime")[:10]
+			return f"{old*100:.2f}%, {new*100:.2f}% without unfair cb rush - {song} ({pack}) {dt}"
+		worst_cb_rush_string = make_worst_cb_rush_string()
 	else:
 		cbs_string = "[please load replay data]"
 		mean_string = "[please load replay data]"
 		sd_string = "[please load replay data]"
+		worst_cb_rush_string = "[please load replay data]"
 	
 	session_secs = int(xml.find("GeneralData").findtext("TotalSessionSeconds"))
 	play_secs = int(xml.find("GeneralData").findtext("TotalGameplaySeconds"))
@@ -712,6 +744,7 @@ def gen_text_general_analysis_info(xml, a):
 		f"Fastest combo 100+ notes: {gen_fastest_combo_string(a and a.fastest_combo)}",
 		f"Fastest jack 30 notes: {gen_fastest_combo_string(a and a.fastest_jack)}",
 		f"Fastest accurate combo 100+ notes: {gen_fastest_combo_string(a and a.fastest_acc)}",
+		f"Worst unfair cb rush ever: {worst_cb_rush_string}",
 	])
 
 def gen_text_most_played_packs(xml, limit=10, months: Optional[int]=None):
