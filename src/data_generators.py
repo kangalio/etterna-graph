@@ -4,6 +4,7 @@ import math
 from datetime import datetime, timedelta
 from collections import Counter
 
+import app
 import util
 from util import parsedate, cache, iter_scores
 
@@ -534,6 +535,11 @@ def gen_text_most_played_charts(xml, limit=5):
 	charts = gen_most_played_charts(xml, num_charts=limit)
 	i = 1
 	for (chart, num_plays) in charts:
+		if num_plays < app.app.prefs.msgbox_num_scores_threshold:
+			num_remaining = len(charts) - i
+			text.append(f"[{num_remaining} charts with less than {app.app.prefs.msgbox_num_scores_threshold} scores not shown]")
+			break
+		
 		pack, song = chart.get("Pack"), chart.get("Song")
 		text.append(f"{i}) \"{pack}\" -> \"{song}\" with {num_plays} scores")
 		i += 1
@@ -551,20 +557,31 @@ def gen_text_longest_sessions(xml, limit=5):
 		new_sessions.append((session, total_gameplay_seconds))
 	sessions = new_sessions
 	sessions.sort(key=lambda pair: pair[1], reverse=True) # Sort by length
-	sessions = sessions[:limit]
 	
+	num_not_shown = 0
+	num_shown = 0
 	text = ["Longest sessions:"]
 	i = 1
 	for (session, gameplay_seconds) in sessions:
+		num_plays = len(session)
+		
+		if num_plays < app.app.prefs.msgbox_num_scores_threshold:
+			num_not_shown += 1
+			continue
+
 		total_seconds = (session[-1][1] - session[0][1]).total_seconds()
 		
-		num_plays = len(session)
 		datetime = str(session[0][1])[:-3] # Cut off seconds
 		text.append(f"{i}) {datetime}, {gameplay_seconds/60:.0f} min gameplay, "
 					f"{total_seconds/60:.0f} min total, {num_plays} scores")
 		i += 1
+
+		num_shown += 1
+		if limit and num_shown >= limit: break
 	
-	if limit is not None:
+	if limit is None: # this is a msgbox
+		text.append(f"[{num_not_shown} sessions with less than {app.app.prefs.msgbox_num_scores_threshold} scores not shown]")
+	else: # this is an inline text box
 		text.append(f'<a href="#read_more" style="color: {util.link_color()}">Show all</a>')
 	
 	return "<br>".join(text)

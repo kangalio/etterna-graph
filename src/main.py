@@ -75,12 +75,14 @@ class Settings:
 	text_color: str
 	border_color: str
 	link_color: str
+	msgbox_num_scores_threshold: int
 	
 	@staticmethod
 	def load_from_json(path: str) -> Settings:
 		# setting here
 		settings = Settings(None, None, None, False, True,  # default values
-				"#222222", "#DDDDDD", "#777777", "#5193d4") # also change the default values below!
+				"#222222", "#DDDDDD", "#777777", "#5193d4", # also change the default values below!
+				3)
 		
 		if os.path.exists(path):
 			with open(path) as f:
@@ -103,6 +105,8 @@ class Settings:
 						settings.border_color = value
 					elif key == "link-color":
 						settings.link_color = value
+					elif key == "msgbox-num-scores-threshold":
+						settings.msgbox_num_scores_threshold = value
 					else:
 						print(f"unknown settings key-value pair: {key}, {value}")
 		return settings
@@ -115,6 +119,7 @@ class Settings:
 			"songs-root": self.songs_root,
 			"enable-all-plots": self.enable_all_plots,
 			"hide-invalidated": self.hide_invalidated,
+			"msgbox-num-scores-threshold": self.msgbox_num_scores_threshold,
 		}
 		
 		# only write color config value if they differ from the default. otherwise all users will
@@ -267,6 +272,14 @@ class SettingsDialog(QDialog):
 		layout.addWidget(QLabel("Hide invalidated scores"), row, 0)
 		layout.addWidget(self.hide_invalidated, row, 1, 1, 2)
 		row += 1
+
+		self.msgbox_num_scores_threshold = QSpinBox()
+		self.msgbox_num_scores_threshold.setMinimum(1)
+		self.msgbox_num_scores_threshold.setMaximum(99)
+		self.msgbox_num_scores_threshold.setValue(app.app.prefs.msgbox_num_scores_threshold)
+		layout.addWidget(QLabel("Min number of scores for the message box"), row, 0)
+		layout.addWidget(self.msgbox_num_scores_threshold, row, 1, 1, 2)
+		row += 1
 		
 		self.setMinimumWidth(600)
 	
@@ -277,8 +290,8 @@ class SettingsDialog(QDialog):
 			missing_inputs.append("Etterna.xml path")
 		if not os.path.exists(self.replays_input.text()): # includes blank input
 			missing_inputs.append("ReplaysV2 directory")
-		if not os.path.exists(self.cache_db_input.text()): # includes blank input
-			missing_inputs.append("Cache database")
+		if not os.path.exists(self.songs_root_input.text()): # includes blank input
+			missing_inputs.append("Songs root dir")
 		if len(missing_inputs) >= 1:
 			QMessageBox.information(None, "Missing or invalid fields",
 					"Please fill in valid values for: " + ", ".join(missing_inputs))
@@ -294,6 +307,7 @@ class SettingsDialog(QDialog):
 		app.app.prefs.text_color = self.text_color.get_qcolor().name()
 		app.app.prefs.border_color = self.border_color.get_qcolor().name()
 		app.app.prefs.link_color = self.link_color.get_qcolor().name()
+		app.app.prefs.msgbox_num_scores_threshold = self.msgbox_num_scores_threshold.value()
 		print("Saving prefs to json...")
 		app.app.prefs.save_to_json(SETTINGS_PATH)
 		
