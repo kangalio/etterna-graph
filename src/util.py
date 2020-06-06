@@ -47,6 +47,24 @@ def wifescore_to_grade_string(wifescore: float) -> str:
 def num_notes(score: Any) -> int:
 	return sum([int(e.text) for e in score.find("TapNoteScores")])
 
+def extract_strs(string: str, before: str, after: str) -> Generator[str, None, None]:
+	start_index = 0
+	while True:
+		before_index = string.find(before, start_index)
+		if before_index == -1:
+			break
+		
+		after_index = string.find(after, before_index)
+		if after_index == -1:
+			start_index = after_index + 1 # the next occurence that's not this one
+			continue
+		
+		yield string[before_index+len(before)+1:after_index]
+		start_index = after_index + len(after)
+
+def extract_str(string: str, before: str, after: str) -> str:
+	return next(extract_strs(string, before, after), None)
+
 # Parses date in Etterna.xml format
 def parsedate(s):
 	try:
@@ -62,19 +80,26 @@ def score_within_n_months(score, months: Optional[int]) -> bool:
 	time_delta = datetime.now() - parsedate(score.findtext("DateTime"))
 	return time_delta <= timedelta(365 / 12 * months)
 
-def is_score_valid(score):
-	skillset_ssrs = score.find("SkillsetSSRs")
-	if skillset_ssrs is not None:
-		overall_ssr = float(skillset_ssrs.findtext("Overall"))
-		if overall_ssr > 40:
-			return False
-	
-	if score.findtext("EtternaValid") == "0" and app.app.prefs.hide_invalidated: return False
-	
-	return True
+def iter_scores(xml) -> Generator[Any, None, None]:
+	for chart in xml.iter("Chart"):	
+		if app.app.is_blacklisted(chart.get("Song"), chart.get("Steps")):
+			print("hit a blacklisted chart :D", chart.get("Song"))
+			continue
 
-def iter_scores(xml_element):
-	return filter(is_score_valid, xml_element.iter("Score"))
+		for score in chart.iter("Score"):
+			# is the score rating unreasonably high?
+			skillset_ssrs = score.find("SkillsetSSRs")
+			if skillset_ssrs is not None:
+				overall_ssr = float(skillset_ssrs.findtext("Overall"))
+				if overall_ssr > 40:
+					continue
+			
+			# is the score invalid (only if invalidated scores aren't shown)
+			if score.findtext("EtternaValid") == "0" and app.app.prefs.hide_invalidated:
+				continue
+			
+			# this score looks legit
+			yield score
 
 # Convert a float of hours to a string, e.g. "5h 35min"
 def timespan_str(hours):

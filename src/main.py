@@ -390,6 +390,7 @@ class Application:
 		self._prefs = Settings.load_from_json(SETTINGS_PATH)
 		self._ui = UI()
 		self._infobar_link_connection = None
+		self._blacklisted_charts: List[Tuple[str, str]] = None
 		
 		if self._prefs.is_incomplete():
 			self.try_detect_etterna()
@@ -400,11 +401,40 @@ class Application:
 		
 		self._prefs.save_to_json(SETTINGS_PATH)
 		
+		self._download_blacklisted_charts()
+
 		box_container, plot_container = self._ui.get_box_container_and_plot_container()
 		self._pg_plots = plotter.draw(self._ui.get_qapp(), box_container, plot_container, self._prefs)
 		
 		self._ui.run()
 	
+	def _download_blacklisted_charts(self):
+		import urllib.request, os
+
+		self._blacklisted_charts = []
+
+		cache_path = "etterna-graph-unranked-cache.html"
+		if os.path.exists(cache_path):
+			with open(cache_path, "r") as f:
+				content = f.read()
+		else:
+			try:
+				content = urllib.request.urlopen("https://etternaonline.com/unranked").read()
+				with open(cache_path, "w") as f:
+					f.write(content)
+			except Exception:
+				util.logger.exception("Couldn't download unranked chart list :(")
+				self._blacklisted_charts = []
+				return
+		
+		for row in util.extract_strs(content, "<tr>", "</tr>"):
+			name = util.extract_str(row, "\">", "<")
+			steps = util.extract_str(util.extract_str(row, "</td>", "</td>"), "<td>", "</td>")
+			self._blacklisted_charts.append((name, steps))
+	
+	def is_blacklisted(self, songname: str, stepstype: str) -> bool:
+		return (songname, stepstype) in self._blacklisted_charts
+
 	def get_pg_plots(self) -> Optional[List[QWidget]]:
 		return self._pg_plots
 	
