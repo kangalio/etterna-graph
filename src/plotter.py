@@ -146,7 +146,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		
 		def link_callback(link):
 			if link == "#read_more" and read_more_title:
-				show_scrollable_msgbox((fn)(*args, **kwargs, limit=None), read_more_title)
+				show_scrollable_msgbox((fn)(*args, **kwargs, limit=None), read_more_title, word_wrap=True)
 			else:
 				(link_handler)(link)
 		
