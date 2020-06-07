@@ -295,10 +295,19 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 			flags="diagonal_line",
 			color=cmap[0],
 			data=((analysis.current_wifescores, analysis.new_wifescores), analysis.wifescore_scores),
-			# data=(analysis.current_wifescores, analysis.new_wifescores),
 			click_callback=score_info_callback,
 		)
 		plotbox(plot, "My rescoring impl (for developer purposes)")
+
+		qapp.processEvents()
+		plot = plot_frame.draw(
+			type_="scatter",
+			flags="diagonal_line",
+			color=cmap[0],
+			data=((analysis.wife2_wifescores, [float(score.findtext("SSRNormPercent")) for score in analysis.scores]), analysis.scores),
+			click_callback=score_info_callback,
+		)
+		plotbox(plot, "Wife2 vs Wife3")
 		
 		qapp.processEvents()
 		plot = plot_frame.draw(

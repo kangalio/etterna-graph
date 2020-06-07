@@ -1,4 +1,5 @@
-use super::{OneShotScoringSystem, ScoringResult};
+use super::{ScoringSystem, ScoringResult};
+use crate::Wife;
 
 // Turn off debug mode for release builds
 #[cfg(debug_assertions)]
@@ -91,7 +92,8 @@ impl Hit {
 // This function is unsafe because I'm using raw pointers within for ease of use. I really did
 // _not_ want to bother with RefCell/Rc/lifetimes. The rescoring algorithm is hard enough to
 // implement as is.
-unsafe fn column_rescore(mut notes: Vec<Note>, mut hits: Vec<Hit>) -> (f32, u64) {
+unsafe fn column_rescore<W: crate::Wife>(mut notes: Vec<Note>, mut hits: Vec<Hit>) -> (f32, u64) {
+	
 	use crate::util::MyItertools;
 
 	for hit in &mut hits {
@@ -129,21 +131,21 @@ unsafe fn column_rescore(mut notes: Vec<Note>, mut hits: Vec<Hit>) -> (f32, u64)
 	let mut num_judged_notes = 0;
 	let mut wifescore_sum: f32 = notes.iter()
 			.filter_map(|note| note.assigned_hit.as_ref()) // only notes with assigned hits (i.e. notes that were hit)
-			.map(|assigned_hit| crate::wife3(assigned_hit.deviation))
+			.map(|assigned_hit| W::calc(assigned_hit.deviation))
 			.count_into(&mut num_judged_notes)
 			.sum();
 	
 	// penalize
-	wifescore_sum += crate::WIFE3_MISS_WEIGHT * num_misses as f32;
-	wifescore_sum += crate::WIFEK_STRAY_WEIGHT * num_stray_taps as f32;
+	wifescore_sum += crate::Wife3::MISS_WEIGHT * num_misses as f32;
+	wifescore_sum += crate::STRAY_WEIGHT * num_stray_taps as f32;
 	
 	return (wifescore_sum, num_judged_notes as u64);
 }
 
 pub struct MatchingScorer;
 
-impl OneShotScoringSystem for MatchingScorer {
-	fn evaluate(note_seconds: &[f32], hit_seconds: &[f32]) -> ScoringResult {
+impl ScoringSystem for MatchingScorer {
+	fn evaluate<W: crate::Wife>(note_seconds: &[f32], hit_seconds: &[f32]) -> ScoringResult {
 		let notes: Vec<Note> = note_seconds.into_iter()
 				.map(|&second| Note { second, assigned_hit: None })
 				.collect();
@@ -151,7 +153,7 @@ impl OneShotScoringSystem for MatchingScorer {
 				.map(|&second| Hit { second, assigned_note: None })
 				.collect();
 		
-		let (wifescore_sum, num_judged_notes) = unsafe { column_rescore(notes, hits) };
+		let (wifescore_sum, num_judged_notes) = unsafe { column_rescore::<W>(notes, hits) };
 		return ScoringResult { wifescore_sum, num_judged_notes };
 	}
 }

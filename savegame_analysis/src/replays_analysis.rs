@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use permutation::permutation;
 use crate::{ok_or_continue, some_or_continue};
 use crate::util;
+use crate::wife::Wife;
 use crate::wife::wife3;
 use crate::rescore;
 
@@ -57,7 +58,9 @@ pub struct ReplaysAnalysis {
 	#[pyo3(get)]
 	pub fastest_acc_scorekey: String,
 	#[pyo3(get)]
+	pub wife2_wifescores: Vec<f32>,
 	// like score_indices, but just for the timing info dependant fields (below)
+	#[pyo3(get)]
 	pub timing_info_dependant_score_indices: Vec<u64>,
 	#[pyo3(get)]
 	pub current_wifescores: Vec<f32>,
@@ -97,6 +100,8 @@ struct ScoreAnalysis {
 	// hits in the respective timing window
 	offset_buckets: Vec<u64>,
 	
+	wife2_wifescore: f32,
+
 	timing_info_dependant_analysis: Option<TimingInfoDependantAnalysis>,
 }
 
@@ -411,6 +416,8 @@ fn analyze(path: &str,
 			.map(|d| d.abs() <= 0.0225));
 	score.deviation_mean = util::mean(deviations.iter().filter(|d| d.abs() <= 0.09));
 	score.offset_buckets = put_deviations_into_buckets(&deviations);
+	score.wife2_wifescore = crate::Wife2::apply(&deviations, replay_file_data.num_mine_hits,
+				replay_file_data.num_hold_drops);
 	
 	if let Some(timing_info) = timing_info_maybe {
 		// timing of the notes (ticks is already sorted => automatically sorted as well)
@@ -459,7 +466,7 @@ fn analyze(path: &str,
 		}
 		let fastest_jack = fastest_jack_so_far;
 		
-		let new_wifescore = rescore::rescore::<rescore::NaiveScorer>( // REMEMBER
+		let new_wifescore = rescore::rescore::<rescore::MatchingScorer, crate::Wife3>(
 				&note_seconds_columns, &hit_seconds_columns,
 				replay_file_data.num_mine_hits, replay_file_data.num_hold_drops);
 		
@@ -578,6 +585,7 @@ impl ReplaysAnalysis {
 			
 			analysis.score_indices.push(i as u64);
 			analysis.manipulations.push(score.manipulation);
+			analysis.wife2_wifescores.push(score.wife2_wifescore);
 			deviation_mean_sum += score.deviation_mean;
 			
 			for i in 0..4 {

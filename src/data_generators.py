@@ -455,7 +455,11 @@ def calculate_total_wifescore(xml, months=6):
 		
 		wifescore = float(score.findtext("SSRNormPercent"))
 		weighted_sum += wifescore * num_notes
-	return weighted_sum / num_notes_sum
+	
+	try:
+		return weighted_sum / num_notes_sum
+	except ZeroDivisionError:
+		return 0
 
 def gen_skillset_development(xml):
 	datetimes, all_ratings = [], []

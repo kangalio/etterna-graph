@@ -19,7 +19,8 @@ class ReplaysAnalysis:
 	def __init__(self):
 		self.scores = []
 		self.datetimes = []
-		self.manipulations = []
+		self.manipulations: List[float] = []
+		self.wife2_wifescores: List[float] = None # this one doesn't need timingdata
 		self.offset_mean = 0
 		self.notes_per_column = [0, 0, 0, 0]
 		self.cbs_per_column = [0, 0, 0, 0]
@@ -29,6 +30,7 @@ class ReplaysAnalysis:
 		self.fastest_combo: FastestCombo = None
 		self.fastest_jack: FastestCombo = None
 		self.fastest_acc: FastestCombo = None
+		# these three do
 		self.current_wifescores: List[float] = None
 		self.new_wifescores: List[float] = None
 		self.wifescore_scores: List[Any] = None
@@ -115,6 +117,7 @@ def analyze(xml, replays) -> Optional[ReplaysAnalysis]:
 		judgements = ["Miss", "W1", "W2", "W3", "W4", "W5"]
 		r.total_notes += sum(int(tap_note_scores.findtext(x)) for x in judgements)
 	
+	r.wife2_wifescores = rustr.wife2_wifescores
 	r.offset_mean = rustr.deviation_mean
 	r.notes_per_column = rustr.notes_per_column
 	r.cbs_per_column = rustr.cbs_per_column
