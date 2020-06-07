@@ -13,6 +13,8 @@ import util
 import app
 
 
+SETTINGS_PATH = "etterna-graph-settings.json"
+
 REPLAYS_CHOOSER_INFO_MSG = """<p>
 In the following dialog you need to select the ReplaysV2 directory in
 your 'Save' directory and click OK. Important: don't try to select
@@ -170,7 +172,7 @@ for entry in SETTINGS_ENTRIES:
 # When adding a new setting, keep care to update all placed marked with "# setting here"
 class Settings:
 	@staticmethod
-	def load_from_json(path: str) -> Settings:
+	def load_from_json() -> Settings:
 		settings = Settings()
 
 		# Initialize defaults
@@ -178,8 +180,8 @@ class Settings:
 			setattr(settings, entry.python_name, entry.default_value)
 		
 		# Load the values from the json
-		if os.path.exists(path):
-			with open(path) as f:
+		if os.path.exists(SETTINGS_PATH):
+			with open(SETTINGS_PATH) as f:
 				for key, value in json.load(f).items(): # setting here
 					# find the settings entry corresponding to this json key-value pair
 					for entry in SETTINGS_ENTRIES:
@@ -193,7 +195,7 @@ class Settings:
 		
 		return settings
 	
-	def save_to_json(self, path: str) -> None:
+	def save_to_json(self) -> None:
 		json_data = {}
 
 		for entry in SETTINGS_ENTRIES:
@@ -209,7 +211,7 @@ class Settings:
 					# we don't differ from the default here, so we omit it from the json
 					pass
 
-		with open(path, "w") as f:
+		with open(SETTINGS_PATH, "w") as f:
 			json.dump(json_data, f, indent="\t")
 	
 	def is_incomplete(self) -> bool:
@@ -333,7 +335,7 @@ class SettingsDialog(QDialog):
 		
 		self.setMinimumWidth(600)
 	
-	def try_save(self, settings_path):
+	def try_save(self):
 		# setting here
 		missing_inputs = []
 		for entry in SETTINGS_ENTRIES:
@@ -371,6 +373,6 @@ class SettingsDialog(QDialog):
 			setattr(app.app.prefs, entry.python_name, selected_value)
 		
 		print("Saving prefs to json...")
-		app.app.prefs.save_to_json(settings_path)
+		app.app.prefs.save_to_json()
 		
 		self.accept()

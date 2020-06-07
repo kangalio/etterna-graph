@@ -35,8 +35,6 @@ whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit (kangalioo#9108 and u/kangalioo respectively)
 </p>""".strip()
 
-SETTINGS_PATH = "etterna-graph-settings.json"
-
 class UI:
 	def __init__(self):
 		# Construct app, root widget and layout
@@ -111,7 +109,7 @@ class UI:
 class Application:
 	def run(self):
 		self._pg_plots = None
-		self._prefs = Settings.load_from_json(SETTINGS_PATH)
+		self._prefs = Settings.load_from_json()
 		self._ui = UI()
 		self._infobar_link_connection = None
 		self._blacklisted_charts: List[Tuple[str, str]] = None
@@ -125,7 +123,7 @@ class Application:
 			if not self.make_user_choose_paths():
 				return
 		
-		self._prefs.save_to_json(SETTINGS_PATH)
+		self._prefs.save_to_json()
 		
 		self._download_blacklisted_charts()
 
