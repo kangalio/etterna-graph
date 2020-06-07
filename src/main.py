@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import *
 
 import json, os, glob
+from enum import Enum
 from dataclasses import dataclass
 
 import pyqtgraph as pg
@@ -12,6 +13,7 @@ from PyQt5.QtCore import *
 import plotter
 import util
 import app
+from settings import SettingsDialog, Settings, SETTINGS_PATH
 
 
 """
@@ -32,286 +34,6 @@ Also, if you have any more plot ideas - scatter plot, bar chart,
 whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit (kangalioo#9108 and u/kangalioo respectively)
 </p>""".strip()
-
-REPLAYS_CHOOSER_INFO_MSG = """<p>
-In the following dialog you need to select the ReplaysV2 directory in
-your 'Save' directory and click OK. Important: don't try to select
-individual files within and don't choose a different directory. This
-program requires you to select the ReplaysV2 folder as a whole.
-</p>"""
-
-SETTINGS_PATH = "etterna-graph-settings.json"
-
-_keep_storage: List[Any] = []
-def keep(*args) -> None:
-	_keep_storage.extend(args)
-
-def try_select_xml() -> Optional[str]:
-	result = QFileDialog.getOpenFileName(
-			caption="Select your Etterna.xml",
-			filter="Etterna XML files(Etterna.xml)")
-	return result[0] if result else None
-
-def try_choose_replays() -> Optional[str]:
-	QMessageBox.information(None, "How to use", REPLAYS_CHOOSER_INFO_MSG)
-	return QFileDialog.getExistingDirectory(
-			caption="Select the ReplaysV2 directory")
-
-def try_choose_songs_root() -> Optional[str]:
-	QMessageBox.information(None, "How to use", SONGS_ROOT_CHOOSER_INFO_MSG)
-	return QFileDialog.getExistingDirectory(
-			caption="Select the root songs folder")
-
-# When adding a new setting, keep care to update all placed marked with "# setting here"
-@dataclass
-class Settings:
-	# setting here
-	xml_path: str
-	replays_dir: str
-	songs_root: str
-	enable_all_plots: bool
-	hide_invalidated: bool
-	bg_color: str
-	text_color: str
-	border_color: str
-	link_color: str
-	msgbox_num_scores_threshold: int
-	
-	@staticmethod
-	def load_from_json(path: str) -> Settings:
-		# setting here
-		settings = Settings(None, None, None, False, True,  # default values
-				"#222222", "#DDDDDD", "#777777", "#5193d4", # also change the default values below!
-				3)
-		
-		if os.path.exists(path):
-			with open(path) as f:
-				for key, value in json.load(f).items(): # setting here
-					if key == "etterna-xml":
-						settings.xml_path = value
-					elif key == "replays-dir":
-						settings.replays_dir = value
-					elif key == "songs-root":
-						settings.songs_root = value
-					elif key == "enable-all-plots":
-						settings.enable_all_plots = value
-					elif key == "hide-invalidated":
-						settings.hide_invalidated = value
-					elif key == "bg-color":
-						settings.bg_color = value
-					elif key == "text-color":
-						settings.text_color = value
-					elif key == "border-color":
-						settings.border_color = value
-					elif key == "link-color":
-						settings.link_color = value
-					elif key == "msgbox-num-scores-threshold":
-						settings.msgbox_num_scores_threshold = value
-					else:
-						print(f"unknown settings key-value pair: {key}, {value}")
-		return settings
-	
-	def save_to_json(self, path: str) -> None:
-		json_data = {
-			# setting here
-			"etterna-xml": self.xml_path,
-			"replays-dir": self.replays_dir,
-			"songs-root": self.songs_root,
-			"enable-all-plots": self.enable_all_plots,
-			"hide-invalidated": self.hide_invalidated,
-			"msgbox-num-scores-threshold": self.msgbox_num_scores_threshold,
-		}
-		
-		# only write color config value if they differ from the default. otherwise all users will
-		# have the color config as of now hard-coded in their settings, and color config changes
-		# in a future update won't be applied
-		for json_name, value, default in [
-				("bg-color", self.bg_color, "#222222"),
-				("text-color", self.text_color, "#DDDDDD"),
-				("border-color", self.border_color, "#777777"),
-				("link-color", self.link_color, "#5193d4"),
-				]:
-			if value.casefold() != default.casefold(): # check equality case-insensitively
-				json_data[json_name] = value
-		
-		with open(path, "w") as f:
-			json.dump(json_data, f)
-	
-	def is_incomplete(self) -> bool:
-		# setting here
-		return any(setting is None for setting in [
-				self.xml_path, self.replays_dir, self.songs_root])
-
-class ColorPickerButton(QPushButton):
-	def __init__(self, initial_color):
-		super().__init__()
-		self._qcolordialog = QColorDialog()
-		
-		self._initial_color = initial_color
-		self.set_color(initial_color)
-		self._qcolordialog.currentColorChanged.connect(self._update_self_color)
-		self.pressed.connect(lambda: self._qcolordialog.open())
-	
-	def _update_self_color(self):
-		self.setStyleSheet(f"background-color: {self._qcolordialog.currentColor().name()}")
-	
-	def get_qcolor(self) -> QColor:
-		return self._qcolordialog.currentColor()
-	
-	def set_color(self, color) -> None:
-		self._qcolordialog.setCurrentColor(QColor(color))
-		self._update_self_color()
-	
-	def reset(self) -> None: # reset to initial color
-		self.set_color(self._initial_color)
-
-class SettingsDialog(QDialog):
-	def __init__(self):
-		super().__init__()
-		self.setWindowTitle("Settings")
-		
-		vbox = QVBoxLayout(self)
-		
-		layout_widget = QWidget(self)
-		vbox.addWidget(layout_widget)
-		layout = QGridLayout(layout_widget)
-		
-		buttons = QDialogButtonBox()
-		save_btn = buttons.addButton("Save", QDialogButtonBox.ButtonRole.AcceptRole)
-		save_btn.pressed.connect(self.try_save)
-		cancel_btn = buttons.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
-		cancel_btn.pressed.connect(self.reject)
-		vbox.addWidget(buttons)
-		
-		restart_info = QLabel("<i>Restart for changes to take place</i>")
-		restart_info.setAlignment(Qt.AlignCenter | Qt.AlignRight)
-		vbox.addWidget(restart_info)
-		
-		row = 0
-		
-		# setting here
-		
-		self.xml_input = QLineEdit(app.app.prefs.xml_path)
-		def xml_chooser_handler():
-			result = try_select_xml()
-			if result: self.xml_input.setText(result)
-		layout.addWidget(QLabel("Etterna XML path"), row, 0)
-		layout.addWidget(self.xml_input, row, 1)
-		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("document-open",
-				QApplication.style().standardIcon(QStyle.SP_FileIcon))) # fallback icon
-		btn.pressed.connect(xml_chooser_handler)
-		layout.addWidget(btn, row, 2)
-		row += 1
-		
-		self.replays_input = QLineEdit(app.app.prefs.replays_dir)
-		def replays_chooser_handler():
-			result = try_choose_replays()
-			if result: self.replays_input.setText(result)
-		layout.addWidget(QLabel("ReplaysV2 directory path"), row, 0)
-		layout.addWidget(self.replays_input, row, 1)
-		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("folder-open",
-				QApplication.style().standardIcon(QStyle.SP_DirIcon))) # fallback icon
-		btn.pressed.connect(replays_chooser_handler)
-		layout.addWidget(btn, row, 2)
-		row += 1
-		
-		self.songs_root_input = QLineEdit(app.app.prefs.songs_root)
-		def songs_root_choose_handler():
-			result = try_choose_songs_root()
-			if result: self.songs_root_input.setText(result)
-		layout.addWidget(QLabel("Root songs directory"), row, 0)
-		layout.addWidget(self.songs_root_input, row, 1)
-		btn = QPushButton()
-		btn.setIcon(QIcon.fromTheme("folder-open",
-				QApplication.style().standardIcon(QStyle.SP_DirIcon))) # fallback icon
-		btn.pressed.connect(songs_root_choose_handler)
-		layout.addWidget(btn, row, 2)
-		row += 1
-		
-		def make_color_picker_buttons(specs):
-			nonlocal row
-			
-			color_picker_buttons = []
-			for spec in specs:
-				initial_color, label = spec
-				color_picker_button = ColorPickerButton(initial_color)
-				color_picker_button.setToolTip("Press this button to select a color")
-				reset_button = QPushButton()
-				reset_button.setIcon(QIcon.fromTheme("view-refresh",
-						QApplication.style().standardIcon(QStyle.SP_BrowserReload))) # fallback icon
-				reset_button.pressed.connect(color_picker_button.reset)
-				reset_button.setToolTip("Reset color to default")
-				
-				layout.addWidget(QLabel(label), row, 0)
-				layout.addWidget(color_picker_button, row, 1)
-				layout.addWidget(reset_button, row, 2)
-				
-				color_picker_buttons.append(color_picker_button)
-				row += 1
-			
-			return color_picker_buttons
-		
-		[self.bg_color, self.text_color, self.border_color, self.link_color] = \
-				make_color_picker_buttons([
-					(app.app.prefs.bg_color, "Background color"),
-					(app.app.prefs.text_color, "Text color"),
-					(app.app.prefs.border_color, "Border color"),
-					(app.app.prefs.link_color, "Link color"),
-				])
-		
-		self.enable_all = QCheckBox()
-		self.enable_all.setChecked(app.app.prefs.enable_all_plots)
-		layout.addWidget(QLabel("Enable old boring plots"), row, 0)
-		layout.addWidget(self.enable_all, row, 1, 1, 2)
-		row += 1
-		
-		self.hide_invalidated = QCheckBox()
-		self.hide_invalidated.setChecked(app.app.prefs.hide_invalidated)
-		layout.addWidget(QLabel("Hide invalidated scores"), row, 0)
-		layout.addWidget(self.hide_invalidated, row, 1, 1, 2)
-		row += 1
-
-		self.msgbox_num_scores_threshold = QSpinBox()
-		self.msgbox_num_scores_threshold.setMinimum(1)
-		self.msgbox_num_scores_threshold.setMaximum(99)
-		self.msgbox_num_scores_threshold.setValue(app.app.prefs.msgbox_num_scores_threshold)
-		layout.addWidget(QLabel("Min number of scores for the message box"), row, 0)
-		layout.addWidget(self.msgbox_num_scores_threshold, row, 1, 1, 2)
-		row += 1
-		
-		self.setMinimumWidth(600)
-	
-	def try_save(self):
-		missing_inputs = []
-		# setting here
-		if not os.path.exists(self.xml_input.text()): # includes blank input
-			missing_inputs.append("Etterna.xml path")
-		if not os.path.exists(self.replays_input.text()): # includes blank input
-			missing_inputs.append("ReplaysV2 directory")
-		if not os.path.exists(self.songs_root_input.text()): # includes blank input
-			missing_inputs.append("Songs root dir")
-		if len(missing_inputs) >= 1:
-			QMessageBox.information(None, "Missing or invalid fields",
-					"Please fill in valid values for: " + ", ".join(missing_inputs))
-			return
-		
-		# setting here
-		app.app.prefs.xml_path = self.xml_input.text()
-		app.app.prefs.replays_dir = self.replays_input.text()
-		app.app.prefs.songs_root = self.songs_root_input.text()
-		app.app.prefs.enable_all_plots = self.enable_all.isChecked()
-		app.app.prefs.hide_invalidated = self.hide_invalidated.isChecked()
-		app.app.prefs.bg_color = self.bg_color.get_qcolor().name()
-		app.app.prefs.text_color = self.text_color.get_qcolor().name()
-		app.app.prefs.border_color = self.border_color.get_qcolor().name()
-		app.app.prefs.link_color = self.link_color.get_qcolor().name()
-		app.app.prefs.msgbox_num_scores_threshold = self.msgbox_num_scores_threshold.value()
-		print("Saving prefs to json...")
-		app.app.prefs.save_to_json(SETTINGS_PATH)
-		
-		self.accept()
 
 class UI:
 	def __init__(self):
@@ -357,7 +79,7 @@ class UI:
 		root.setMinimumHeight(h)
 		window.resize(w, h)
 		window.show()
-		keep(window)
+		util.keep(window)
 	
 	def run(self):
 		self.qapp.exec_()
@@ -392,6 +114,8 @@ class Application:
 		self._infobar_link_connection = None
 		self._blacklisted_charts: List[Tuple[str, str]] = None
 		
+		SettingsDialog().exec_() # REMEMBER
+
 		if self._prefs.is_incomplete():
 			self.try_detect_etterna()
 		
