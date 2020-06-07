@@ -141,7 +141,8 @@ def draw(data,
 		x = [*x, x[-1]] # Duplicate last element to satisfy pyqtgraph with stepMode
 		# Out-of-place to avoid modifying the passed-in list
 	
-	if legend is not None: plot.addLegend()
+	if legend is not None:
+		plot.addLegend(brush=util.bg_color(), pen=util.border_color())
 	
 	if type_ == "stacked bar":
 		num_cols = len(y)
