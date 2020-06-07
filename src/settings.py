@@ -26,8 +26,6 @@ select individual files within and don't choose a different directory. This
 program requires you to select the Songs folder as a whole.
 </p>"""
 
-SETTINGS_PATH = "etterna-graph-settings.json"
-
 def try_select_xml() -> Optional[str]:
 	result = QFileDialog.getOpenFileName(
 			caption="Select your Etterna.xml",
@@ -335,7 +333,7 @@ class SettingsDialog(QDialog):
 		
 		self.setMinimumWidth(600)
 	
-	def try_save(self):
+	def try_save(self, settings_path):
 		# setting here
 		missing_inputs = []
 		for entry in SETTINGS_ENTRIES:
@@ -373,6 +371,6 @@ class SettingsDialog(QDialog):
 			setattr(app.app.prefs, entry.python_name, selected_value)
 		
 		print("Saving prefs to json...")
-		app.app.prefs.save_to_json(SETTINGS_PATH)
+		app.app.prefs.save_to_json(settings_path)
 		
 		self.accept()

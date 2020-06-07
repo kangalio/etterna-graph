@@ -13,7 +13,7 @@ from PyQt5.QtCore import *
 import plotter
 import util
 import app
-from settings import SettingsDialog, Settings, SETTINGS_PATH
+from settings import SettingsDialog, Settings
 
 
 """
@@ -34,6 +34,8 @@ Also, if you have any more plot ideas - scatter plot, bar chart,
 whatever - I would be thrilled if you sent them to me, over
 Discord/Reddit (kangalioo#9108 and u/kangalioo respectively)
 </p>""".strip()
+
+SETTINGS_PATH = "etterna-graph-settings.json"
 
 class UI:
 	def __init__(self):
