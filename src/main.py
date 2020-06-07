@@ -114,8 +114,6 @@ class Application:
 		self._infobar_link_connection = None
 		self._blacklisted_charts: List[Tuple[str, str]] = None
 		
-		SettingsDialog().exec_() # REMEMBER
-
 		if self._prefs.is_incomplete():
 			self.try_detect_etterna()
 		

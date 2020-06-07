@@ -150,6 +150,15 @@ SETTINGS_ENTRIES = [
 		settings_type = SettingsType.Color,
 	),
 	SettingsEntry(
+		python_name = "legend_bg_color",
+		json_name = "legend-bg-color",
+		display_name = "Graph legend background color",
+		default_value = "#2A2A2A",
+		write_if_default = False,
+		is_necessary = False,
+		settings_type = SettingsType.Color,
+	),
+	SettingsEntry(
 		python_name = "msgbox_num_scores_threshold",
 		json_name = "msgbox-num-scores-threshold",
 		display_name = "Min number of scores for the message box",
