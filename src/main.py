@@ -14,6 +14,7 @@ import plotter
 import util
 import app
 from settings import SettingsDialog, Settings
+from settings import try_select_xml, try_choose_replays, try_choose_songs_root
 
 
 """
@@ -210,43 +211,46 @@ class Application:
 			"Y:\\.etterna*", # My Wine on Linux (for testing)
 			os.path.expanduser("~") + "/Library/Preferences/Etterna*", # Mac
 		]
-		# Assemble all possible save game locations. path_pairs is a
-		# list of tuples `(xml_path, replays_dir_path)`
-		path_pairs = []
+		# Assemble all possible save game locations. path_tuples is a
+		# list of tuples `(xml_path, replays_dir_path, songs_root)`
+		path_tuples = []
 		for glob_str in globs:
 			for path in glob.iglob(glob_str):
 				replays_dir = path + "/Save/ReplaysV2"
+				songs_root = path + "/Songs"
 				possible_xml_paths = glob.iglob(path + "/Save/LocalProfiles/*/Etterna.xml")
 				for xml_path in possible_xml_paths:
-					path_pairs.append((xml_path, replays_dir))
+					path_tuples.append((xml_path, replays_dir, songs_root))
 		
-		if len(path_pairs) == 0:
+		if len(path_tuples) == 0:
 			return # No installation could be found
-		elif len(path_pairs) == 1:
+		elif len(path_tuples) == 1:
 			# Only one was found, but maybe this is the wrong one and
 			# the correct xml was not detected at all. Better ask
-			mibs = os.path.getsize(path_pairs[0][0]) / 1024**2 # MiB's
-			text = f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_pairs[0][0]}. Should the program use that?"
+			mibs = os.path.getsize(path_tuples[0][0]) / 1024**2 # MiB's
+			text = f"Detected an Etterna.xml ({mibs:.2f} MiB) at {path_tuples[0][0]}. Should the program use that?"
 			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
 					QMessageBox.Yes, QMessageBox.No)
 			if reply == QMessageBox.No: return
-			path_pair = path_pairs[0]
+			path_pair = path_tuples[0]
 		else: # With multiple possible installations, it's tricky
 			# Select the savegame pair with the largest XML, ask user if that one is right
-			path_pair = max(path_pairs, key=lambda pair: os.path.getsize(pair[0]))
+			path_pair = max(path_tuples, key=lambda pair: os.path.getsize(pair[0]))
 			mibs = os.path.getsize(path_pair[0]) / 1024**2 # MiB's
-			text = f"Found {len(path_pairs)} Etterna.xml's. The largest one \n({path_pair[0]})\nis {mibs:.2f} MiB; should the program use that?"
+			text = f"Found {len(path_tuples)} Etterna.xml's. The largest one \n({path_pair[0]})\nis {mibs:.2f} MiB; should the program use that?"
 			reply = QMessageBox.question(None, "Which Etterna.xml?", text,
 					QMessageBox.Yes, QMessageBox.No)
 			if reply == QMessageBox.No: return
 		
 		# Apply the paths. Also, do a check if files exist. I mean, they
 		# _should_ exist at this point, but you can never be too sure
-		xml_path, replays_dir = path_pair
+		xml_path, replays_dir, songs_root = path_pair
 		if os.path.exists(xml_path):
 			self._prefs.xml_path = xml_path
 		if os.path.exists(replays_dir):
 			self._prefs.replays_dir = replays_dir
+		if os.path.exists(songs_root):
+			self._prefs.songs_root = songs_root
 	
 	@property
 	def prefs(self):

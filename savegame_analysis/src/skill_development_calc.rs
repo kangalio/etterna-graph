@@ -8,16 +8,29 @@ mod calc_rating {
 	fn is_rating_okay(rating: f32, ssrs: &[f32]) -> bool {
 		let max_power_sum = 2f32.powf(rating / 10.0);
 		
-		let mut power_sum = 0.0;
-		for ssr in ssrs {
-			let power_sum_addendum = 2.0 / erfc((ssr - rating) / 10.0) - 2.0;
-			if power_sum_addendum > 0.0 {
-				power_sum += power_sum_addendum;
-			}
-		}
+		let power_sum: f32 = ssrs.iter()
+				.map(|&ssr| 2.0 / erfc(0.1 * (ssr - rating)) - 2.0)
+				.filter(|&x| x > 0.0)
+				.sum();
+		
 		return power_sum < max_power_sum;
 	}
 	
+	/*
+	The idea is the following: we try out potential skillset rating values
+	until we've found the lowest rating that still fits (I've called that
+	property 'okay'-ness in the code).
+	How do we know whether a potential skillset rating fits? We give each
+	score a "power level", which is larger when the skillset rating of the
+	specific score is high. Therefore, the user's best scores get the
+	highest power levels.
+	Now, we sum the power levels of each score and check whether that sum
+	is below a certain limit. If it is still under the limit, the rating
+	fits (is 'okay'), and we can try a higher rating. If the sum is above
+	the limit, the rating doesn't fit, and we need to try out a lower
+	rating.
+	*/
+
 	pub fn calc_rating(ssrs: &[f32]) -> f32 {
 		let mut rating: f32 = 0.0;
 		let mut resolution: f32 = 10.24;
@@ -34,7 +47,7 @@ mod calc_rating {
 			resolution /= 2.0;
 		}
 		
-		return rating;
+		return rating * 1.04;
 	}
 }
 

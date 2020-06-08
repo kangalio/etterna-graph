@@ -362,16 +362,24 @@ def calc_ratings_for_sessions(xml):
 	session_ids = []
 	ssr_lists = [[], [], [], [], [], [], []]
 	for (session_i, session) in enumerate(divide_into_sessions(xml)):
-		sessions.append(session)
-		session_ids.append(session_i)
+		session_has_been_added = False
 		
 		for (score, _score_datetime) in session:
 			player_skillsets = score.find("SkillsetSSRs")
 			if player_skillsets is None: continue
+
+			if not session_has_been_added:
+				session_has_been_added = True
+				sessions.append(session)		
+
+			session_ids.append(session_i)
+
 			for i in range(7):
 				value = float(player_skillsets[i + 1].text)
 				ssr_lists[i].append(value)
 	
+	for l in ssr_lists: print(len(l))
+	print(len(session_ids))
 	timeline = SkillTimeline(ssr_lists, session_ids)
 	
 	def ratings_list(i):

@@ -1,10 +1,6 @@
 use super::{ScoringSystem, ScoringResult};
 use crate::Wife;
 
-// Turn off debug mode for release builds
-#[cfg(debug_assertions)]
-const DEBUG: bool = true;
-#[cfg(not(debug_assertions))]
 const DEBUG: bool = false;
 
 
