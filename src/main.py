@@ -130,6 +130,9 @@ class Application:
 		
 		self._ui.run()
 	
+	def process_events(self):
+		self._ui.qapp.processEvents()
+	
 	def _download_blacklisted_charts(self):
 		import urllib.request, os
 

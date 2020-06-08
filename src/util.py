@@ -129,3 +129,18 @@ def abbreviate(n, min_precision=2):
 	postfix_index = int((num_digits - min_precision) / 3)
 	postfix = ["", "k", "M", "B", "T", "Q"][postfix_index]
 	return str(round(n / 1000**postfix_index)) + postfix
+
+def groupby(iterator, keyfunc):
+	prev_key = None
+	group = []
+	for value in iterator:
+		key = (keyfunc)(value)
+
+		if key == prev_key:
+			group.append(value)
+		else:
+			yield prev_key, group
+			prev_key = key
+			group = []
+	
+	yield prev_key, group

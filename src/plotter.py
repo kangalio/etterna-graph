@@ -384,6 +384,8 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	qapp.processEvents()
 	plot = plot_frame.draw(
 		type_="stacked bar",
+		flags="time_xaxis",
+		width=(60*60*24*7)*0.8,
 		color=util.skillset_colors,
 		legend=util.skillsets,
 		data=g.gen_week_skillsets(xml),

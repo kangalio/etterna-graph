@@ -142,7 +142,9 @@ def draw(data,
 		# Out-of-place to avoid modifying the passed-in list
 	
 	if legend is not None:
-		plot.addLegend(brush=app.app.prefs.legend_bg_color, pen=util.border_color())
+		plot.addLegend()
+		plot.legend.setBrush(app.app.prefs.legend_bg_color)
+		plot.legend.setPen(util.border_color())
 	
 	if type_ == "stacked bar":
 		num_cols = len(y)
@@ -150,7 +152,7 @@ def draw(data,
 		bottom = [0] * num_cols
 		for (row_i, row) in enumerate(y):
 			#item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=1, pen=(0,0,0,255), brush=color[row_i])
-			item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=0.82, pen=color[row_i], brush=color[row_i])
+			item = pg.BarGraphItem(x=x, y0=bottom, height=row, width=width, pen=color[row_i], brush=color[row_i])
 			bottom = [a + b for (a, b) in zip(bottom, row)] # We need out-of-place here
 			if legend is not None:
 				plot.legend.addItem(item, legend[row_i])

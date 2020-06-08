@@ -117,41 +117,37 @@ def gen_wifescore_frequencies(xml):
 
 # Return format: [[a,a...],[b,b...],[c,c...],[d,d...],[e,e...],[f,f...],[g,g...]]
 def gen_week_skillsets(xml):
-	# Divide scores into weeks
-	sessions = []
-	current_session = []
-	previous_week = -1
-	for score in sorted(iter_scores(xml), key=lambda s: s.findtext("DateTime")):
+	# returns an integer week from 0-51
+	def week_from_score(score) -> int:
 		datetime = parsedate(score.findtext("DateTime"))
 		week = datetime.isocalendar()[1]
-		if previous_week != week:
-			sessions.append(current_session)
-			current_session = []
-			previous_week = week
-		current_session.append((score, datetime))
-	sessions = sessions[1:]
-	
-	diffsets = []
-	previous_week = -1
-	for session in sessions:
-		week = session[0][1].isocalendar()[1]
-		if week != previous_week:
-			#i += 1
-			previous_week = week
-		
+		return week
+
+	chronological_scores = sorted(iter_scores(xml), key=lambda s: s.findtext("DateTime"))
+
+	week_start_datetimes: List[datetime] = []
+	diffsets: List[List[float]] = []
+
+	for week, scores_in_week in util.groupby(chronological_scores, week_from_score):
 		diffset = [0, 0, 0, 0, 0, 0, 0]
-		for score in session:
-			skillset_ssrs = score[0].find("SkillsetSSRs")
+		for score in scores_in_week:
+			skillset_ssrs = score.find("SkillsetSSRs")
 			if skillset_ssrs is None: continue
 			diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
 			main_diff = diffs.index(max(diffs))
 			diffset[main_diff] += 1
+		
 		total = sum(diffset)
 		if total == 0: continue
 		diffset = [diff / total * 100 for diff in diffset]
+
+		year = scores_in_week[0].findtext("DateTime")[:4]
+		week_start_datetime = datetime.strptime(f"{year} {week} {0}", "%Y %W %w")
+
 		diffsets.append(diffset)
-	
-	return (range(len(diffsets)), diffsets)
+		week_start_datetimes.append(week_start_datetime)
+
+	return (week_start_datetimes, diffsets)
 
 def gen_plays_by_hour(xml):
 	num_plays = [0] * 24
