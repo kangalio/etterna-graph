@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 import data_generators as g
-import replays_analysis, util, plot_frame, app
+import replays_analysis, util, chart_wrapper, app
 
 
 def show_scrollable_msgbox(text, title=None, word_wrap=False):
@@ -203,7 +203,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	score_info_callback = lambda score: show_score_info(xml, score)
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		flags="time_xaxis",
 		color=cmap[0],
 		click_callback=score_info_callback,
@@ -212,7 +212,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Score rating over time")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		flags="time_xaxis manip_yaxis",
 		log_axis_max_shown_value=99,
 		color=cmap[3],
@@ -223,7 +223,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	
 	qapp.processEvents()
 	accuracy_data, brushes = g.gen_accuracy(xml, cmap[1])
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		flags="time_xaxis accuracy_yaxis",
 		log_axis_min_shown_value=-99,
 		color=brushes,
@@ -233,7 +233,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Accuracy over time (log scale)")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		flags="time_xaxis ma_yaxis",
 		log_axis_max_shown_value=99,
 		color=cmap[6],
@@ -243,7 +243,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "MA over time (marvelouses÷perfects) (log scale)")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="bar",
 		color=cmap[4],
 		data=g.gen_plays_by_hour(xml),
@@ -251,7 +251,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Number of plays per hour of day")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="bubble",
 		flags="time_xaxis",
 		color=cmap[2],
@@ -261,7 +261,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Rating improvement per session (x=date, y=session length, bubble size=rating improvement)")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="line",
 		flags="time_xaxis step thick_line",
 		color=cmap[1],
@@ -270,7 +270,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Effective CMod over time")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="bar",
 		flags="time_xaxis",
 		color=cmap[5],
@@ -280,7 +280,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Number of play-hours each week")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="bar",
 		color=cmap[6],
 		flags="align_to_whole",
@@ -290,7 +290,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	
 	if prefs.enable_all_plots:
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="scatter",
 			flags="diagonal_line",
 			color=cmap[0],
@@ -300,7 +300,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "My rescoring impl (for developer purposes)")
 
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="scatter",
 			flags="diagonal_line",
 			color=cmap[0],
@@ -310,7 +310,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Wife2 vs Wife3")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="bar",
 			color=cmap[3],
 			data=g.gen_hit_distribution_sub_93(xml, analysis),
@@ -318,7 +318,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Hit distribution (only sub 93% scores)")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="bar",
 			color=cmap[6],
 			data=g.gen_idle_time_buckets(xml),
@@ -329,7 +329,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		# provide much insight, so yeah, now they're here.
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="bar",
 			color=cmap[6],
 			data=g.gen_avg_score_per_hour(xml),
@@ -337,7 +337,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Average score rating per hour of day")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="scatter",
 			color=cmap[6],
 			click_callback=score_info_callback,
@@ -346,7 +346,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Score ratings per hour of day")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="bar",
 			color=cmap[6],
 			data=g.gen_session_plays(xml),
@@ -354,7 +354,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Number of sessions with specific score amount")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			flags="time_xaxis",
 			color=cmap[6],
 			data=g.gen_session_length(xml),
@@ -362,7 +362,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Session length over time")
 		
 		qapp.processEvents()
-		plot = plot_frame.draw(
+		plot = chart_wrapper.draw(
 			type_="bar",
 			flags="time_xaxis",
 			color=cmap[6],
@@ -372,7 +372,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 		plotbox(plot, "Number of scores each week")
 	
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="stacked line",
 		flags="time_xaxis step",
 		color=["ffffff", *util.skillset_colors], # Include overall
@@ -382,7 +382,7 @@ def draw(qapp, textbox_container: QWidget, plot_container: QWidget, prefs) -> Li
 	plotbox(plot, "Skillsets over time", colspan=2)
 
 	qapp.processEvents()
-	plot = plot_frame.draw(
+	plot = chart_wrapper.draw(
 		type_="stacked bar",
 		flags="time_xaxis",
 		width=(60*60*24*7)*0.8,

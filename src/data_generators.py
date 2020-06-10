@@ -378,8 +378,6 @@ def calc_ratings_for_sessions(xml):
 				value = float(player_skillsets[i + 1].text)
 				ssr_lists[i].append(value)
 	
-	for l in ssr_lists: print(len(l))
-	print(len(session_ids))
 	timeline = SkillTimeline(ssr_lists, session_ids)
 	
 	def ratings_list(i):
