@@ -138,6 +138,6 @@ def find_skillset_rating(values):
 # are the skillset ratings.
 def find_ratings(skillsets_values):
 	ratings = [find_skillset_rating(np.array(values)) for values in skillsets_values]
-	overall = (sum(ratings) - min(ratings)) / 6
+	overall = sum(ratings) / 7
 	ratings.insert(0, overall)
 	return ratings
