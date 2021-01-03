@@ -159,15 +159,18 @@ class Plotter:
 		
 		for i, plot in enumerate(self.plots):
 			print(f"Generating plot {i+1}")
-			if plot.analysis_requirement == "no":
-				data = (plot.data_generator)(xml)
-			else:
-				if analysis or plot.analysis_requirement == "optional":
-					data = (plot.data_generator)(xml, analysis)
+			try:
+				if plot.analysis_requirement == "no":
+					data = (plot.data_generator)(xml)
 				else:
-					data = "[please load replay data]"
+					if analysis or plot.analysis_requirement == "optional":
+						data = (plot.data_generator)(xml, analysis)
+					else:
+						data = "[please load replay data]"
+				plot.plot.draw_with_given_args(data)
+			except:
+				util.logger.exception(f"Failed to generate or draw plot {i+1}, skipping")
 				
-			plot.plot.draw_with_given_args(data)
 			qapp.processEvents()
 		
 		print("Done")
