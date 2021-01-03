@@ -18,6 +18,12 @@ def gen_manip(xml, analysis):
 	ids = analysis.scores
 	return ((x, y), ids)
 
+def get_score_duration(score):
+	try:
+		return float(score.findtext("SurviveSeconds") or score.findtext("PlayedSeconds"))
+	except TypeError:
+		return 0
+
 # This is only an approximation of the actual game mechanics
 def score_to_msd(score):
 	overall = float(score.findtext(".//Overall"))
@@ -160,7 +166,7 @@ def gen_hours_per_skillset(xml):
 		diffs = [float(diff.text) for diff in skillset_ssrs[1:]]
 		main_diff = diffs.index(max(diffs))
 		
-		length_hours = float(score.findtext("SurviveSeconds")) / 3600
+		length_hours = get_score_duration(score) / 3600
 		hours[main_diff] += length_hours
 	
 	return hours
@@ -177,7 +183,7 @@ def gen_hours_per_week(xml):
 	while i < len(pairs):
 		score, datetime = pairs[i][0], pairs[i][1]
 		if datetime < week_end:
-			score_seconds = float(score.findtext("SurviveSeconds")) or 0
+			score_seconds = get_score_duration(score)
 			weeks[week_start] += score_seconds / 3600
 			i += 1
 		else:
@@ -192,7 +198,7 @@ def calc_average_hours_per_day(xml, timespan=timedelta(days=365/2)):
 	
 	total_hours = 0
 	for score in scores:
-		total_hours += float(score.findtext("SurviveSeconds")) / 3600
+		total_hours += get_score_duration(score) / 3600
 	
 	return total_hours / timespan.days
 
@@ -220,7 +226,7 @@ def gen_idle_time_buckets(xml):
 	for score, rate in scores:
 		a+=1
 		datetime = util.parsedate(score.findtext("DateTime"))
-		survive_seconds = float(score.findtext("SurviveSeconds"))
+		survive_seconds = get_score_duration(score)
 		#print(survive_seconds, rate)
 		length = timedelta(seconds=survive_seconds*rate)
 		
@@ -441,7 +447,7 @@ def gen_text_general_info(xml, r):
 	
 	scores = list(iter_scores(xml))
 	num_charts = len(list(xml.iter("Chart")))
-	hours = sum(float(s.findtext("SurviveSeconds")) / 3600 for s in scores)
+	hours = sum(get_score_duration(s) / 3600 for s in scores)
 	first_play_date = min([parsedate(s.findtext("DateTime")) for s in scores])
 	duration = relativedelta(datetime.now(), first_play_date)
 	
@@ -527,7 +533,7 @@ def calc_median_score_increase(xml):
 			datetime_1 = parsedate(scores[i].findtext("DateTime"))
 			datetime_2 = parsedate(scores[i+1].findtext("DateTime"))
 			time_delta =  datetime_2 - datetime_1
-			play_time = float(scores[i].findtext("SurviveSeconds"))
+			play_time = get_score_duration(scores[i])
 			idle_time = time_delta.total_seconds() - play_time
 			
 			# If the same chart is played twice within 60 seconds
