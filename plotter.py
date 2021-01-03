@@ -168,7 +168,7 @@ class Plotter:
 					else:
 						data = "[please load replay data]"
 				plot.plot.draw_with_given_args(data)
-			except:
+			except Exception:
 				util.logger.exception(f"Failed to generate or draw plot {i+1}, skipping")
 				
 			qapp.processEvents()
