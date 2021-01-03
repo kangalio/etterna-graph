@@ -78,7 +78,7 @@ class UI:
 		w, h = 1600, 2500
 		if state.enable_all_plots: h = 3800 # More plots -> more room
 		root.setMinimumSize(1000, h)
-		window.resize(w, h)
+		window.resize(w, app.desktop().screenGeometry().height())
 		self.window.show()
 	
 	def exec_(self):
