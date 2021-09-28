@@ -28,6 +28,7 @@ If anything in this complicated procedure didn't work, please write an issue, or
 1. Move the resulting library file from `savegame_analysis/target/release/` into `src/`
      1. Windows: move and rename from `savegame_analysis/target/release/savegame_analysis.dll` to **`src/savegame_analysis.pyd`**
      1. Linux: move and rename from `savegame_analysis/target/release/libsavegame_analysis.so` to **`src/savegame_analysis.so`**
+     1. Mac: move and rename from `savegame_analysis/target/release/libsavegame_analysis.dylib` to **`src/savegame_analysis.so`**
 
 # Screenshot
 ![](https://i.imgur.com/VpWEVAE.png)
